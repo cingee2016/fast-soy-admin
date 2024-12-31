@@ -3,7 +3,7 @@ import { NButton, NPopconfirm, NTag } from 'naive-ui';
 import { fetchBatchDeleteApi, fetchDeleteApi, fetchGetApiList, fetchRefreshAPI } from '@/service/api';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
-import { apiMethodRecord, enableStatusRecord } from '@/constants/business';
+import { apiMethodRecord, statusTypeRecord } from '@/constants/business';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { useAuth } from '@/hooks/business/auth';
 import ApiOperateDrawer from './modules/api-operate-drawer.vue';
@@ -19,9 +19,9 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
     size: 10,
     // if you want to use the searchParams in Form, you need to define the following properties, and the value is null
     // the value can not be undefined, otherwise the property in Form will not be reactive
-    status: null,
-    path: null,
-    method: null,
+    statusType: null,
+    apiPath: null,
+    apiMethod: null,
     summary: null,
     tags: null
   },
@@ -38,18 +38,18 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
       width: 64
     },
     {
-      key: 'path',
+      key: 'apiPath',
       title: $t('page.manage.api.path'),
       align: 'center',
       minWidth: 50
     },
     {
-      key: 'method',
+      key: 'apiMethod',
       title: $t('page.manage.api.method'),
       align: 'center',
       width: 100,
       render: row => {
-        if (row.method === null) {
+        if (row.apiMethod === null) {
           return null;
         }
 
@@ -61,9 +61,9 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
           delete: 'error'
         };
 
-        const label = $t(apiMethodRecord[row.method]);
+        const label = $t(apiMethodRecord[row.apiMethod]);
 
-        return <NTag type={tagMap[row.method]}>{label}</NTag>;
+        return <NTag type={tagMap[row.apiMethod]}>{label}</NTag>;
       }
     },
     {
@@ -81,29 +81,29 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
         if (row.tags === null) {
           return null;
         }
-        return row.tags.split('|').map((tag, index) => (
+        return row.tags.map((tag, index) => (
           <span>
             <NTag type="error">{tag}</NTag>
-            {index < row.tags.split('|').length - 1 && <span style="margin-right: 4px;"> -&gt;</span>}
+            {index < row.tags.length - 1 && <span style="margin-right: 4px;"> -&gt;</span>}
           </span>
         ));
       }
     },
     {
-      key: 'status',
-      title: $t('page.manage.api.status'),
+      key: 'statusType',
+      title: $t('page.manage.api.statusType'),
       align: 'center',
       width: 100,
       render: row => {
-        if (row.status === null) {
+        if (row.statusType === null) {
           return null;
         }
         const tagMap: Record<Api.Common.EnableStatus, NaiveUI.ThemeColor> = {
           1: 'success',
           2: 'warning'
         };
-        const label = $t(enableStatusRecord[row.status]);
-        return <NTag type={tagMap[row.status]}>{label}</NTag>;
+        const label = $t(statusTypeRecord[row.statusType]);
+        return <NTag type={tagMap[row.statusType]}>{label}</NTag>;
       }
     },
     {
@@ -181,6 +181,7 @@ function edit(id: number) {
           v-model:columns="columnChecks"
           :disabled-delete="checkedRowKeys.length === 0"
           :loading="loading"
+          table-id="api"
           @add="handleAdd"
           @delete="handleBatchDelete"
           @refresh="getData"

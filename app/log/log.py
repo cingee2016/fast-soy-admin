@@ -1,71 +1,72 @@
 import sys
-from typing import Any
+import time
+import logging
+from types import FrameType
+from typing import cast
+from loguru import logger
 
-from loguru import logger as loguru_logger
-
+from app.core.ctx import CTX_X_REQUEST_ID
 from app.settings import APP_SETTINGS
 
-LOGGING_CONFIG: dict[str, Any] = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "()": "uvicorn.logging.DefaultFormatter",
-            "fmt": "%(asctime)s - %(name)s - %(levelprefix)s %(message)s",
-            "use_colors": None,
-        },
-        "access": {
-            "()": "uvicorn.logging.AccessFormatter",
-            "fmt": '%(asctime)s - %(name)s - %(levelprefix)s  %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
-        },
-        "access_file": {
-            "()": "uvicorn.logging.AccessFormatter",
-            "fmt": '%(asctime)s - %(name)s - %(levelprefix)s  %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
-            "use_colors": False,
-        },
-    },
-    "handlers": {
-        "file_handler": {
-            "formatter": "access_file",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": "./app.log",
-            "mode": "a+",
-            "maxBytes": 10 * 1024 * 1024,
-            "backupCount": 0,
-        },
-        "default": {
-            "formatter": "default",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stderr",
-        },
-        "access": {
-            "formatter": "access",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "loggers": {
-        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
-        "uvicorn.error": {"level": "INFO"},
-        "uvicorn.access": {"handlers": ["access", "file_handler"], "level": "INFO", "propagate": False},
-    },
-}
+
+def x_request_id_filter(record):
+    record["x_request_id"] = CTX_X_REQUEST_ID.get()
+    return record["x_request_id"]
 
 
-class Loggin:
-    def __init__(self) -> None:
-        debug = APP_SETTINGS.DEBUG
-        if debug:
-            self.level = "DEBUG"
-        else:
-            self.level = "INFO"
+class Logger:
+    """输出日志到文件和控制台"""
 
-    def setup_logger(self):
-        loguru_logger.remove()
-        loguru_logger.add(sink=sys.stdout, level=self.level)
-        loguru_logger.add("my_project.log", level=self.level, rotation="100 MB")  # Output log messages to a file
-        return loguru_logger
+    def __init__(self):
+        log_name = f"Fast_{time.strftime('%Y-%m-%d', time.localtime()).replace('-', '_')}.log"
+        log_path = APP_SETTINGS.LOGS_ROOT / log_name
+        self.logger = logger
+        self.logger.remove()
+        APP_SETTINGS.LOGS_ROOT.mkdir(parents=True, exist_ok=True)
+        self.logger.add(sys.stdout)
+        self.logger.add(log_path,
+                        format="{time:YYYY-MM-DD HH:mm:ss} - "
+                               "{process.name} | "
+                               "{thread.name} | "
+                               "<red> {x_request_id} </red> | "
+                               "{module}.{function}:{line} - {level} -{message}",
+                        encoding="utf-8",
+                        retention="3 days",
+                        backtrace=True,
+                        diagnose=True,
+                        enqueue=True,
+                        rotation="00:00",
+                        filter=x_request_id_filter
+                        )
+
+    @staticmethod
+    def init_config():
+        LOGGER_NAMES = ("uvicorn.asgi", "uvicorn.access", "uvicorn")
+
+        logging.getLogger().handlers = [InterceptHandler()]
+        for logger_name in LOGGER_NAMES:
+            logging_logger = logging.getLogger(logger_name)
+            logging_logger.handlers = [InterceptHandler()]
+
+    def get_logger(self):
+        return self.logger
 
 
-loggin = Loggin()
-logger = loggin.setup_logger()
+class InterceptHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = str(record.levelno)
+
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = cast(FrameType, frame.f_back)
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+
+
+Loggers = Logger()
+Loggers.init_config()
+log = Loggers.get_logger()

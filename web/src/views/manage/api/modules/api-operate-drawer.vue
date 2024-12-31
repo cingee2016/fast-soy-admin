@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { fetchAddApi, fetchUpdateApi } from '@/service/api';
 import { $t } from '@/locales';
-import { apiMethodOptions, enableStatusOptions } from '@/constants/business';
+import { apiMethodOptions, statusTypeOptions } from '@/constants/business';
 
 defineOptions({
   name: 'ApiOperateDrawer'
@@ -43,22 +43,25 @@ const model: Api.SystemManage.ApiUpdateParams = reactive(createDefaultModel());
 
 function createDefaultModel(): Api.SystemManage.ApiUpdateParams {
   return {
-    path: '',
-    method: 'get',
+    apiPath: '',
+    apiMethod: 'get',
     summary: '',
-    tags: '',
-    status: null
+    tags: [],
+    statusType: null
   };
 }
 
-type RuleKey = Extract<keyof Api.SystemManage.ApiUpdateParams, 'path' | 'method' | 'summary' | 'tags' | 'status'>;
+type RuleKey = Extract<
+  keyof Api.SystemManage.ApiUpdateParams,
+  'apiPath' | 'apiMethod' | 'summary' | 'tags' | 'statusType'
+>;
 
 const rules = ref<Record<RuleKey, App.Global.FormRule>>({
-  path: defaultRequiredRule,
-  method: defaultRequiredRule,
+  apiPath: defaultRequiredRule,
+  apiMethod: defaultRequiredRule,
   summary: defaultRequiredRule,
   tags: defaultRequiredRule,
-  status: defaultRequiredRule
+  statusType: defaultRequiredRule
 });
 
 function handleInitModel() {
@@ -105,23 +108,17 @@ watch(visible, () => {
   <NDrawer v-model:show="visible" display-directive="show" :width="360">
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
-        <NFormItem :label="$t('page.manage.api.path')" path="path">
-          <NInput v-model:value="model.path" :placeholder="$t('page.manage.api.form.path')" />
+        <NFormItem :label="$t('page.manage.api.path')" path="apiPath" disabled>
+          <NInput v-model:value="model.apiPath" :placeholder="$t('page.manage.api.form.path')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.api.method')" path="method">
-          <NRadioGroup v-model:value="model.method">
+        <NFormItem :label="$t('page.manage.api.method')" path="apiMethod">
+          <NRadioGroup v-model:value="model.apiMethod" disabled>
             <NRadio v-for="item in apiMethodOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
           </NRadioGroup>
         </NFormItem>
-        <NFormItem :label="$t('page.manage.api.summary')" path="summary">
-          <NInput v-model:value="model.summary" :placeholder="$t('page.manage.api.form.summary')" />
-        </NFormItem>
-        <NFormItem :label="$t('page.manage.api.tags')" path="tags">
-          <NInput v-model:value="model.tags" :placeholder="$t('page.manage.api.form.tags')" />
-        </NFormItem>
-        <NFormItem :label="$t('page.manage.api.status')" path="status">
-          <NRadioGroup v-model:value="model.status">
-            <NRadio v-for="item in enableStatusOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
+        <NFormItem :label="$t('page.manage.api.statusType')" path="status">
+          <NRadioGroup v-model:value="model.statusType">
+            <NRadio v-for="item in statusTypeOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
           </NRadioGroup>
         </NFormItem>
       </NForm>

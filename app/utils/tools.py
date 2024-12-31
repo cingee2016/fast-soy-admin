@@ -1,6 +1,5 @@
 import datetime
 import re
-import time
 
 # from bson import ObjectId
 import orjson
@@ -159,12 +158,17 @@ def orjson_dumps(data):
 
 
 def timestamp_to_time(timestamp):
-    time_struct = time.localtime(timestamp)
-    time_string = time.strftime("%Y-%m-%d %H:%M:%S", time_struct)
+    if len(timestamp) == 10:
+        timestamp = int(timestamp)
+    elif len(timestamp) == 13:
+        timestamp = int(timestamp) / 1000
+    time_struct = datetime.datetime.fromtimestamp(timestamp)
+    time_string = time_struct.strftime("%Y-%m-%d %H:%M:%S")
     return time_string
 
 
-def time_to_timestamp(dt="2023-06-01 00:00:00"):
-    timeArray = time.strptime(dt, "%Y-%m-%d %H:%M:%S")
-    timestamp = time.mktime(timeArray)
+def time_to_timestamp(dt=None):
+    if not dt:
+        dt = datetime.datetime.now()
+    timestamp = dt.timestamp()
     return str(int(timestamp))

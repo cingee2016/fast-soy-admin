@@ -8,11 +8,11 @@ from app.models.system import LogType
 
 class BaseLog(BaseModel):
     log_type: Annotated[LogType | None, Field(alias="logType", description="日志类型")] = None
-    by_user: Annotated[str | None, Field(alias="logUser", description="操作人")] = None
-    log_detail: Annotated[str | None, Field(alias="logDetail", description="日志详细")] = None
-    create_time: Annotated[datetime | None, Field(alias="creationTime", description="创建时间")] = None
+    log_detail_type: Annotated[str | None, Field(alias="logDetailType", description="日志详细")] = None
+    by_user: Annotated[str | None, Field(alias="logUser", description="关联用户")] = None
 
     class Config:
+        allow_extra = True
         populate_by_name = True
 
 
@@ -32,17 +32,16 @@ class BaseAPILog(BaseModel):
         populate_by_name = True
 
 
-class LogSearch(BaseModel):
-    current: Annotated[int | None, Field(description="页码")] = 1
-    size: Annotated[int | None, Field(description="每页数量")] = 10
-    log_type: Annotated[LogType | None, Field(alias="logType", description="日志类型")] = LogType.ApiLog
-    log_user: Annotated[str | None, Field(alias="logUser", description="操作人员, 用户名")] = None
-    log_detail: Annotated[str | None, Field(alias="logDetail", description="日志详细")] = None
-    request_url: Annotated[str | None, Field(alias="requestUrl", description="请求URL")] = None
-    # request_data: Annotated[str | None, Field(alias="requestData", description="请求数据")] = None
-    # response_data: Annotated[str | None, Field(alias="responseData", description="响应数据")] = None
-    time_range: Annotated[str | None, Field(alias="timeRange", description="时间范围, 逗号隔开")] = None
-    response_code: Annotated[str | None, Field(alias="responseCode", description="响应业务码")] = None
+class LogSearch(BaseLog):
+    current: Annotated[int | None, Field(description="页码")] = None
+    size: Annotated[int | None, Field(description="每页数量")] = None
+    log_type: Annotated[LogType | None, Field(alias="logType", description="日志类型")] = None
+    log_detail_type: Annotated[str | None, Field(alias="logDetailType", description="日志详细")] = None
+    by_user: Annotated[str | None, Field(alias="byUser", description="关联用户")] = None
+    request_path: Annotated[str | None, Field(alias="requestPath", description="请求路径")] = None
+    time_range: Annotated[list[datetime, datetime] | None, Field(alias="timeRange", description="时间范围")] = None
+    response_code: Annotated[str | None, Field(alias="responseCode", description="业务状态码")] = None
+    x_request_id: Annotated[str | None, Field(alias="xRequestId", description="x-request-id")] = None
 
 
 class LogCreate(BaseLog):

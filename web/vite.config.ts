@@ -1,14 +1,15 @@
 import process from 'node:process';
 import { URL, fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
-import dayjs from 'dayjs';
 import { setupVitePlugins } from './build/plugins';
-import { createViteProxy } from './build/config';
+import { createViteProxy, getBuildTime } from './build/config';
 
 export default defineConfig(configEnv => {
   const viteEnv = loadEnv(configEnv.mode, process.cwd()) as unknown as Env.ImportMeta;
 
-  const buildTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
+  const buildTime = getBuildTime();
+
+  const enableProxy = configEnv.command === 'serve' && !configEnv.isPreview;
 
   return {
     base: viteEnv.VITE_BASE_URL,
@@ -21,11 +22,12 @@ export default defineConfig(configEnv => {
     css: {
       preprocessorOptions: {
         scss: {
-          additionalData: `@use "./src/styles/scss/global.scss" as *;`
+          api: 'modern-compiler',
+          additionalData: `@use "@/styles/scss/global.scss" as *;`
         }
       }
     },
-    plugins: setupVitePlugins(viteEnv),
+    plugins: setupVitePlugins(viteEnv, buildTime),
     define: {
       BUILD_TIME: JSON.stringify(buildTime)
     },
@@ -33,10 +35,7 @@ export default defineConfig(configEnv => {
       host: '0.0.0.0',
       port: 9527,
       open: false,
-      proxy: createViteProxy(viteEnv, configEnv.command === 'serve'),
-      fs: {
-        cachedChecks: false
-      }
+      proxy: createViteProxy(viteEnv, enableProxy)
     },
     preview: {
       port: 9725

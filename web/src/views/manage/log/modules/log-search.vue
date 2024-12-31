@@ -2,12 +2,11 @@
 import { ref } from 'vue';
 import { $t } from '@/locales';
 
-// import { computed } from 'vue';
-// import { useFormRules, useNaiveForm } from '@/hooks/common/form';
-import { logTypeOptions } from '@/constants/business';
+import { logDetailTypeOptions, logTypeOptions } from '@/constants/business';
 import { translateOptions } from '@/utils/common';
 import { useNaiveForm } from '@/hooks/common/form';
 import { useAuth } from '@/hooks/business/auth';
+import { fetchGetUserList } from '@/service/api';
 defineOptions({
   name: 'LogSearch'
 });
@@ -23,17 +22,19 @@ const { formRef, validate, restoreValidation } = useNaiveForm();
 
 const model = defineModel<Api.SystemManage.LogSearchParams>('model', { required: true });
 
-const timeRange = ref<[number, number]>([new Date().setHours(0, 0, 0, 0), Date.now()]);
+const memberOptions = ref<CommonType.Option<string>[]>([]);
 
-// type RuleKey = Extract<keyof Api.SystemManage.LogSearchParams, 'logEmail' | 'logPhone'>;
+async function getMemberOptions() {
+  const { error, data } = await fetchGetUserList({ current: 1, size: 1000 });
 
-// const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
-//   const { patternRules } = useFormRules(); // inside computed to make locale reactive
-
-//   return {
-//     path: patternRules.path
-//   };
-// });
+  if (!error) {
+    const options = data.records.map(item => ({
+      label: item.nickName,
+      value: item.id.toString()
+    }));
+    memberOptions.value = options;
+  }
+}
 
 async function reset() {
   await restoreValidation();
@@ -42,17 +43,15 @@ async function reset() {
 
 async function search() {
   await validate();
-  if (timeRange.value) {
-    model.value.timeRange = timeRange.value.join(',');
-  }
 
   emit('search');
 }
+
+getMemberOptions();
 </script>
 
 <template>
   <NCard :title="$t('common.search')" :bordered="false" size="small" class="card-wrapper">
-    <!-- <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="80"> -->
     <NForm ref="formRef" :model="model" label-placement="left" :label-width="100">
       <NGrid responsive="screen" item-responsive>
         <NFormItemGi
@@ -66,31 +65,56 @@ async function search() {
             v-model:value="model.logType"
             :placeholder="$t('page.manage.log.form.logType')"
             :options="translateOptions(logTypeOptions)"
+            filterable
             clearable
           />
         </NFormItemGi>
 
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.logUser')" path="logUser" class="pr-24px">
-          <NInput v-model:value="model.logUser" :placeholder="$t('page.manage.log.form.logUser')" />
+        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.byUser')" path="byUser" class="pr-24px">
+          <NSelect
+            v-model:value="model.byUser"
+            filterable
+            clearable
+            :options="memberOptions"
+            :placeholder="$t('page.manage.log.form.byUser')"
+          />
         </NFormItemGi>
+
         <NFormItemGi
           span="24 s:12 m:6"
           :label="$t('page.manage.log.logDetailType')"
           path="logDetailType"
           class="pr-24px"
         >
-          <NInput v-model:value="model.logDetailType" :placeholder="$t('page.manage.log.form.logDetailType')" />
+          <NSelect
+            v-model:value="model.logDetailType"
+            :placeholder="$t('page.manage.log.form.logType')"
+            :options="translateOptions(logDetailTypeOptions)"
+            filterable
+            clearable
+          />
         </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.requestUrl')" path="requestUrl" class="pr-24px">
-          <NInput v-model:value="model.requestUrl" :placeholder="$t('page.manage.log.form.requestUrl')" />
+
+        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.requestPath')" path="requestPath" class="pr-24px">
+          <NInput v-model:value="model.requestPath" :placeholder="$t('page.manage.log.form.requestPath')" />
         </NFormItemGi>
 
         <NFormItemGi span="24 s:12 m:9" :label="$t('page.manage.log.createTime')" path="createTime" class="pr-24px">
-          <NDatePicker v-model:value="timeRange" type="datetimerange" clearable />
+          <NDatePicker
+            v-model:value="model.timeRange"
+            type="datetimerange"
+            clearable
+            class="createTime"
+            placement="top-end"
+          />
         </NFormItemGi>
 
         <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.responseCode')" path="responseCode" class="pr-24px">
           <NInput v-model:value="model.responseCode" :placeholder="$t('page.manage.log.form.responseCode')" />
+        </NFormItemGi>
+
+        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.log.xRequestId')" path="xRequestId" class="pr-24px">
+          <NInput v-model:value="model.xRequestId" />
         </NFormItemGi>
 
         <NFormItemGi span="24 m:9" class="pr-24px">

@@ -25,12 +25,15 @@ async def init():
     conn = Tortoise.get_connection("conn_system")
 
     # 获取所有表名
-    total, tables = await conn.execute_query('SELECT tablename FROM pg_tables WHERE schemaname = \'public\';')
+    table_count, tables = await conn.execute_query('SELECT name FROM sqlite_master WHERE type = "table" AND name NOT LIKE "sqlite_%";')
     # 删除所有表
     for table in tables:
-        table_name = table[0]
+        table_name = table["name"]
+        print("table_name", table_name)
         if table_name != "aerich":
-            await conn.execute_query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE;')
+            # await conn.execute_query(f'DROP TABLE "{table_name}";')
+            await conn.execute_query(f'delete from "{table_name}";')  # 清空数据
+            await conn.execute_query(f'update sqlite_sequence SET seq = 0 where name = "{table_name}";')  # 自增长ID为0
 
     await init_menus()
     await refresh_api_list()

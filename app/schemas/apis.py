@@ -1,19 +1,18 @@
 from typing import Annotated
+
 from pydantic import BaseModel, Field
+
 from app.models.system import StatusType
 
 
 class BaseApi(BaseModel):
-    # path: Annotated[str | None, Field(title="请求路径", description="/api/v1/auth/login")]
-    # method: Annotated[str | None, Field(title="请求方法", description="GET")]
-    path: str | None = Field(default=None, title="请求路径", description="/api/v1/auth/login")
-    method: str | None = Field(title="请求方法", description="GET")
+    api_path: Annotated[str | None, Field(alias="apiPath", title="请求路径", description="/api/v1/auth/login")] = None
+    api_method: Annotated[str | None, Field(alias="apiMethod", title="请求方法", description="GET")] = None
     summary: Annotated[str | None, Field(title="API简介")] = None
-    tags: Annotated[str | list[str] | None, Field(title="API标签")] = None
-    status: Annotated[StatusType | None, Field()] = None
+    tags: Annotated[list[str] | None, Field(title="API标签")] = None
+    status_type: Annotated[StatusType | None, Field(alias="statusType", title="API状态")] = None
 
     class Config:
-        allow_extra = True
         populate_by_name = True
 
 
@@ -23,8 +22,8 @@ class ApiSearch(BaseApi):
 
 
 class ApiCreate(BaseApi):
-    path: str = Field(default_factory=str, title="请求路径", description="/api/v1/auth/login")
-    method: str = Field(default_factory=str, title="请求方法", description="GET")
+    api_path: Annotated[str, Field(alias="apiPath", title="请求路径", description="/api/v1/auth/login")]
+    api_method: Annotated[str, Field(alias="apiMethod", title="请求方法", description="GET")]
 
 
 class ApiUpdate(BaseApi):

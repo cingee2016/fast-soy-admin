@@ -4,22 +4,14 @@ declare namespace App {
   namespace Theme {
     type ColorPaletteNumber = import('@sa/color').ColorPaletteNumber;
 
-    /** Theme token */
-    type ThemeToken = {
-      colors: ThemeTokenColor;
-      boxShadow: {
-        header: string;
-        sider: string;
-        tab: string;
-      };
-    };
-
     /** Theme setting */
     interface ThemeSetting {
       /** Theme scheme */
       themeScheme: UnionKey.ThemeScheme;
       /** grayscale mode */
       grayscale: boolean;
+      /** colour weakness mode */
+      colourWeakness: boolean;
       /** Whether to recommend color */
       recommendColor: boolean;
       /** Theme color */
@@ -28,12 +20,20 @@ declare namespace App {
       otherColor: OtherColor;
       /** Whether info color is followed by the primary color */
       isInfoFollowPrimary: boolean;
+      /** Reset cache strategy */
+      resetCacheStrategy: UnionKey.ResetCacheStrategy;
       /** Layout */
       layout: {
         /** Layout mode */
         mode: UnionKey.ThemeLayoutMode;
         /** Scroll mode */
         scrollMode: UnionKey.ThemeScrollMode;
+        /**
+         * Whether to reverse the horizontal mix
+         *
+         * if true, the vertical child level menus in left and horizontal first level menus in top
+         */
+        reverseHorizontalMix: boolean;
       };
       /** Page */
       page: {
@@ -97,6 +97,20 @@ declare namespace App {
         /** Whether float the footer to the right when the layout is 'horizontal-mix' */
         right: boolean;
       };
+      /** Watermark */
+      watermark: {
+        /** Whether to show the watermark */
+        visible: boolean;
+        /** Watermark text */
+        text: string;
+      };
+      /** define some theme settings tokens, will transform to css variables */
+      tokens: {
+        light: ThemeSettingToken;
+        dark?: {
+          [K in keyof ThemeSettingToken]?: Partial<ThemeSettingToken[K]>;
+        };
+      };
     }
 
     interface OtherColor {
@@ -118,14 +132,33 @@ declare namespace App {
 
     type BaseToken = Record<string, Record<string, string>>;
 
-    interface ThemeTokenColor extends ThemePaletteColor {
-      nprogress: string;
+    interface ThemeSettingTokenColor {
+      /** the progress bar color, if not set, will use the primary color */
+      nprogress?: string;
       container: string;
       layout: string;
       inverted: string;
-      base_text: string;
-      [key: string]: string;
+      'base-text': string;
     }
+
+    interface ThemeSettingTokenBoxShadow {
+      header: string;
+      sider: string;
+      tab: string;
+    }
+
+    interface ThemeSettingToken {
+      colors: ThemeSettingTokenColor;
+      boxShadow: ThemeSettingTokenBoxShadow;
+    }
+
+    type ThemeTokenColor = ThemePaletteColor & ThemeSettingTokenColor;
+
+    /** Theme token CSS variables */
+    type ThemeTokenCSSVars = {
+      colors: ThemeTokenColor & { [key: string]: string };
+      boxShadow: ThemeSettingTokenBoxShadow & { [key: string]: string };
+    };
   }
 
   /** Global namespace */
@@ -148,7 +181,7 @@ declare namespace App {
     }
 
     /** The global menu */
-    interface Menu {
+    type Menu = {
       /**
        * The menu key
        *
@@ -167,7 +200,7 @@ declare namespace App {
       icon?: () => VNode;
       /** The menu children */
       children?: Menu[];
-    }
+    };
 
     type Breadcrumb = Omit<Menu, 'children'> & {
       options?: Breadcrumb[];
@@ -251,6 +284,10 @@ declare namespace App {
     type Schema = {
       system: {
         title: string;
+        updateTitle: string;
+        updateContent: string;
+        updateConfirm: string;
+        updateCancel: string;
       };
       common: {
         action: string;
@@ -258,6 +295,8 @@ declare namespace App {
         addSuccess: string;
         backToHome: string;
         batchDelete: string;
+        batchApprove: string;
+        batchReject: string;
         cancel: string;
         close: string;
         check: string;
@@ -268,8 +307,16 @@ declare namespace App {
         delete: string;
         deleteSuccess: string;
         confirmDelete: string;
+        approve: string;
+        approveSuccess: string;
+        confirmApprove: string;
+        reject: string;
+        rejectSuccess: string;
+        confirmReject: string;
         edit: string;
         view: string;
+        warning: string;
+        error: string;
         index: string;
         keywordSearch: string;
         logout: string;
@@ -306,7 +353,8 @@ declare namespace App {
       theme: {
         themeSchema: { title: string } & Record<UnionKey.ThemeScheme, string>;
         grayscale: string;
-        layoutMode: { title: string } & Record<UnionKey.ThemeLayoutMode, string>;
+        colourWeakness: string;
+        layoutMode: { title: string; reverseHorizontalMix: string } & Record<UnionKey.ThemeLayoutMode, string>;
         recommendColor: string;
         recommendColorDesc: string;
         themeColor: {
@@ -346,8 +394,13 @@ declare namespace App {
           height: string;
           right: string;
         };
+        watermark: {
+          visible: string;
+          text: string;
+        };
         themeDrawerTitle: string;
         pageFunTitle: string;
+        resetCacheStrategy: { title: string } & Record<UnionKey.ResetCacheStrategy, string>;
         configOperation: {
           copyConfig: string;
           copySuccessMsg: string;
@@ -417,6 +470,7 @@ declare namespace App {
           devDep: string;
         };
         home: {
+          branchDesc: string;
           greeting: string;
           weatherDesc: string;
           projectCount: string;
@@ -482,9 +536,23 @@ declare namespace App {
             repeatedErrorMsg2: string;
           };
         };
+        alova: {
+          scenes: {
+            captchaSend: string;
+            autoRequest: string;
+            visibilityRequestTips: string;
+            pollingRequestTips: string;
+            networkRequestTips: string;
+            refreshTime: string;
+            startRequest: string;
+            stopRequest: string;
+            requestCrossComponent: string;
+            triggerAllRequest: string;
+          };
+        };
         manage: {
           common: {
-            status: {
+            statusType: {
               enable: string;
               disable: string;
             };
@@ -493,12 +561,12 @@ declare namespace App {
             title: string;
             roleName: string;
             roleCode: string;
-            roleStatus: string;
+            rolestatusType: string;
             roleDesc: string;
             form: {
               roleName: string;
               roleCode: string;
-              roleStatus: string;
+              rolestatusType: string;
               roleDesc: string;
             };
             addRole: string;
@@ -510,16 +578,23 @@ declare namespace App {
           log: {
             title: string;
             logType: string;
-            logUser: string;
+            byUser: string;
             logDetailType: string;
-            requestUrl: string;
             createTime: string;
+            requestDomain: string;
+            requestPath: string;
             responseCode: string;
+            xRequestId: string;
+            requestParams: string;
+            responseData: string;
+            userAgent: string;
+            processTime: string;
+            ipAddress: string;
             form: {
               logType: string;
-              logUser: string;
+              byUser: string;
               logDetailType: string;
-              requestUrl: string;
+              requestPath: string;
               createTime: string;
               responseCode: string;
             };
@@ -582,13 +657,13 @@ declare namespace App {
             method: string;
             summary: string;
             tags: string;
-            status: string;
+            statusType: string;
             form: {
               path: string;
               method: string;
               summary: string;
               tags: string;
-              status: string;
+              statusType: string;
             };
             addApi: string;
             editApi: string;
@@ -608,7 +683,7 @@ declare namespace App {
             nickName: string;
             userPhone: string;
             userEmail: string;
-            userStatus: string;
+            userStatusType: string;
             userRole: string;
             form: {
               userName: string;
@@ -617,7 +692,7 @@ declare namespace App {
               nickName: string;
               userPhone: string;
               userEmail: string;
-              userStatus: string;
+              userStatusType: string;
               userRole: string;
             };
             addUser: string;
@@ -628,6 +703,7 @@ declare namespace App {
               unknow: string;
             };
           };
+
           menu: {
             home: string;
             title: string;
@@ -656,7 +732,7 @@ declare namespace App {
             button: string;
             buttonCode: string;
             buttonDesc: string;
-            menuStatus: string;
+            menuStatusType: string;
             form: {
               home: string;
               menuType: string;
@@ -682,7 +758,7 @@ declare namespace App {
               button: string;
               buttonCode: string;
               buttonDesc: string;
-              menuStatus: string;
+              menuStatusType: string;
             };
             addMenu: string;
             editMenu: string;

@@ -1,6 +1,10 @@
 const local: App.I18n.Schema = {
   system: {
-    title: 'Soybean 管理系统'
+    title: 'Soybean 管理系统',
+    updateTitle: '系统版本更新通知',
+    updateContent: '检测到系统有新版本发布，是否立即刷新页面？',
+    updateConfirm: '立即刷新',
+    updateCancel: '稍后再说'
   },
   common: {
     action: '操作',
@@ -8,6 +12,8 @@ const local: App.I18n.Schema = {
     addSuccess: '添加成功',
     backToHome: '返回首页',
     batchDelete: '批量删除',
+    batchApprove: '批量通过',
+    batchReject: '批量拒绝',
     cancel: '取消',
     close: '关闭',
     check: '勾选',
@@ -18,8 +24,16 @@ const local: App.I18n.Schema = {
     delete: '删除',
     deleteSuccess: '删除成功',
     confirmDelete: '确认删除吗？',
+    approve: '通过',
+    approveSuccess: '通过成功',
+    confirmApprove: '确认通过吗？',
+    reject: '拒绝',
+    rejectSuccess: '拒绝成功',
+    confirmReject: '确认拒绝吗？',
     edit: '编辑',
     view: '查看',
+    warning: '警告',
+    error: '错误',
     index: '序号',
     keywordSearch: '请输入关键词搜索',
     logout: '退出登录',
@@ -60,13 +74,15 @@ const local: App.I18n.Schema = {
       dark: '暗黑模式',
       auto: '跟随系统'
     },
-    grayscale: '灰度模式',
+    grayscale: '灰色模式',
+    colourWeakness: '色弱模式',
     layoutMode: {
       title: '布局模式',
       vertical: '左侧菜单模式',
       'vertical-mix': '左侧菜单混合模式',
       horizontal: '顶部菜单模式',
-      'horizontal-mix': '顶部菜单混合模式'
+      'horizontal-mix': '顶部菜单混合模式',
+      reverseHorizontalMix: '一级菜单与子级菜单位置反转'
     },
     recommendColor: '应用推荐算法的颜色',
     recommendColorDesc: '推荐颜色的算法参照',
@@ -107,7 +123,7 @@ const local: App.I18n.Schema = {
     },
     tab: {
       visible: '显示标签栏',
-      cache: '缓存标签页',
+      cache: '标签栏信息缓存',
       height: '标签栏高度',
       mode: {
         title: '标签栏风格',
@@ -129,8 +145,17 @@ const local: App.I18n.Schema = {
       height: '底部高度',
       right: '底部局右'
     },
+    watermark: {
+      visible: '显示全屏水印',
+      text: '水印文本'
+    },
     themeDrawerTitle: '主题配置',
     pageFunTitle: '页面功能',
+    resetCacheStrategy: {
+      title: '重置缓存策略',
+      close: '关闭页面',
+      refresh: '刷新页面'
+    },
     configOperation: {
       copyConfig: '复制配置',
       copySuccessMsg: '复制成功，请替换 src/theme/settings.ts 中的变量 themeSettings',
@@ -153,9 +178,14 @@ const local: App.I18n.Schema = {
     document_unocss: 'UnoCSS文档',
     document_naive: 'Naive UI文档',
     document_antd: 'Ant Design Vue文档',
+    document_alova: 'Alova文档',
     'user-center': '个人中心',
     about: '关于',
     function: '系统功能',
+    alova: 'alova示例',
+    alova_request: 'alova请求',
+    alova_user: '用户列表',
+    alova_scenes: '场景化请求',
     function_tab: '标签页',
     'function_multi-tab': '多标签页',
     'function_hide-child': '隐藏子菜单',
@@ -181,7 +211,31 @@ const local: App.I18n.Schema = {
     exception: '异常页',
     exception_403: '403',
     exception_404: '404',
-    exception_500: '500'
+    exception_500: '500',
+    plugin: '插件示例',
+    plugin_copy: '剪贴板',
+    plugin_charts: '图表',
+    plugin_charts_echarts: 'ECharts',
+    plugin_charts_antv: 'AntV',
+    plugin_charts_vchart: 'VChart',
+    plugin_editor: '编辑器',
+    plugin_editor_quill: '富文本编辑器',
+    plugin_editor_markdown: 'MD 编辑器',
+    plugin_icon: '图标',
+    plugin_map: '地图',
+    plugin_print: '打印',
+    plugin_swiper: 'Swiper',
+    plugin_video: '视频',
+    plugin_barcode: '条形码',
+    plugin_pinyin: '拼音',
+    plugin_excel: 'Excel',
+    plugin_pdf: 'PDF 预览',
+    plugin_gantt: '甘特图',
+    plugin_gantt_dhtmlx: 'dhtmlxGantt',
+    plugin_gantt_vtable: 'VTableGantt',
+    plugin_typeit: '打字机',
+    plugin_tables: '表格',
+    plugin_tables_vtable: 'VTable'
   },
   page: {
     login: {
@@ -197,7 +251,7 @@ const local: App.I18n.Schema = {
         back: '返回',
         validateSuccess: '验证成功',
         loginSuccess: '登录成功',
-        welcomeBack: '欢迎回来，{userName} ！'
+        welcomeBack: '欢迎回来，{nickName} ！'
       },
       pwdLogin: {
         title: '密码登录',
@@ -244,6 +298,8 @@ const local: App.I18n.Schema = {
       devDep: '开发依赖'
     },
     home: {
+      branchDesc:
+        '为了方便大家开发和更新合并，我们对main分支的代码进行了精简，只保留了首页菜单，其余内容已移至example分支进行维护。预览地址显示的内容即为example分支的内容。',
       greeting: '早安，{userName}, 今天又是充满活力的一天!',
       weatherDesc: '今日多云转晴，20℃ - 25℃!',
       projectCount: '项目数',
@@ -309,9 +365,23 @@ const local: App.I18n.Schema = {
         repeatedErrorMsg2: '自定义请求错误 2'
       }
     },
+    alova: {
+      scenes: {
+        captchaSend: '发送验证码',
+        autoRequest: '自动请求',
+        visibilityRequestTips: '浏览器窗口切换自动请求数据',
+        pollingRequestTips: '每3秒自动请求一次',
+        networkRequestTips: '网络重连后自动请求',
+        refreshTime: '更新时间',
+        startRequest: '开始请求',
+        stopRequest: '停止请求',
+        requestCrossComponent: '跨组件触发请求',
+        triggerAllRequest: '手动触发所有自动请求'
+      }
+    },
     manage: {
       common: {
-        status: {
+        statusType: {
           enable: '启用',
           disable: '禁用'
         }
@@ -320,7 +390,7 @@ const local: App.I18n.Schema = {
         title: '角色列表',
         roleName: '角色名称',
         roleCode: '角色编码',
-        roleStatus: '角色状态',
+        rolestatusType: '角色状态',
         roleDesc: '角色描述',
         menuAuth: '菜单权限',
         buttonAuth: '按钮权限',
@@ -328,8 +398,8 @@ const local: App.I18n.Schema = {
         form: {
           roleName: '请输入角色名称',
           roleCode: '请输入角色编码',
-          roleStatus: '请选择角色状态',
-          roleDesc: '请选择用户角色'
+          rolestatusType: '请选择角色状态',
+          roleDesc: '请输入角色描述'
         },
         addRole: '新增角色',
         editRole: '编辑角色'
@@ -337,18 +407,25 @@ const local: App.I18n.Schema = {
       log: {
         title: '日志列表',
         logType: '日志类型',
-        logUser: '操作人员',
+        byUser: '用户',
         logDetailType: '日志详细',
-        requestUrl: '请求URL',
         createTime: '创建时间',
-        responseCode: '响应业务码',
+        requestDomain: '请求域名',
+        requestPath: '请求路径',
+        responseCode: '业务状态码',
+        xRequestId: 'x-request-id',
+        requestParams: '请求参数',
+        responseData: '请求体数据',
+        userAgent: 'userAgent',
+        processTime: '请求处理时间(s)',
+        ipAddress: '来源IP地址',
         form: {
           logType: '请选择日志类型',
-          logUser: '请输入操作人员',
+          byUser: '请输入用户',
           logDetailType: '请选择日志详细',
-          requestUrl: '请输入请求URL',
+          requestPath: '请输入请求路径',
           createTime: '请选择创建时间',
-          responseCode: '请输入响应业务码'
+          responseCode: '请输入业务状态码'
         },
         viewLog: '查看日志',
         logDetailTypes: {
@@ -409,13 +486,13 @@ const local: App.I18n.Schema = {
         method: '请求方式',
         summary: 'API简介',
         tags: 'Tags',
-        status: 'API状态',
+        statusType: 'API状态',
         form: {
           path: '请输入API路径',
           method: '请选择请求方式',
           summary: '请输入API简介',
           tags: '请输入Tags',
-          status: '请选择API状态'
+          statusType: '请选择API状态'
         },
         addApi: '新增API',
         editApi: '编辑API',
@@ -435,7 +512,7 @@ const local: App.I18n.Schema = {
         nickName: '昵称',
         userPhone: '手机号',
         userEmail: '邮箱',
-        userStatus: '用户状态',
+        userStatusType: '用户状态',
         userRole: '用户角色',
         form: {
           userName: '请输入用户名',
@@ -444,7 +521,7 @@ const local: App.I18n.Schema = {
           nickName: '请输入昵称',
           userPhone: '请输入手机号',
           userEmail: '请输入邮箱',
-          userStatus: '请选择用户状态',
+          userStatusType: '请选择用户状态',
           userRole: '请选择用户角色'
         },
         addUser: '新增用户',
@@ -483,7 +560,7 @@ const local: App.I18n.Schema = {
         button: '按钮',
         buttonCode: '按钮编码',
         buttonDesc: '按钮描述',
-        menuStatus: '菜单状态',
+        menuStatusType: '菜单状态',
         form: {
           home: '请选择首页',
           menuType: '请选择菜单类型',
@@ -509,7 +586,7 @@ const local: App.I18n.Schema = {
           button: '请选择是否按钮',
           buttonCode: '请输入按钮编码',
           buttonDesc: '请输入按钮描述',
-          menuStatus: '请选择菜单状态'
+          menuStatusType: '请选择菜单状态'
         },
         addMenu: '新增菜单',
         editMenu: '编辑菜单',

@@ -1,11 +1,11 @@
 import { transformRecordToOption } from '@/utils/common';
 
-export const enableStatusRecord: Record<Api.Common.EnableStatus, App.I18n.I18nKey> = {
-  '1': 'page.manage.common.status.enable',
-  '2': 'page.manage.common.status.disable'
+export const statusTypeRecord: Record<Api.Common.EnableStatus, App.I18n.I18nKey> = {
+  '1': 'page.manage.common.statusType.enable',
+  '2': 'page.manage.common.statusType.disable'
 };
 
-export const enableStatusOptions = transformRecordToOption(enableStatusRecord);
+export const statusTypeOptions = transformRecordToOption(statusTypeRecord);
 
 export const logDetailTypeRecord: Record<Api.SystemManage.logDetailTypes, App.I18n.I18nKey> = {
   '1101': 'page.manage.log.logDetailTypes.SystemStart',

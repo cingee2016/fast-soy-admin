@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from 'vue';
+import { computed, nextTick, ref, shallowRef } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useBoolean } from '@sa/hooks';
@@ -9,7 +9,6 @@ import { createStaticRoutes, getAuthVueRoutes } from '@/router/routes';
 import { ROOT_ROUTE } from '@/router/routes/builtin';
 import { getRouteName, getRoutePath } from '@/router/elegant/transform';
 import { fetchGetConstantRoutes, fetchGetUserRoutes, fetchIsRouteExist } from '@/service/api';
-import { useAppStore } from '../app';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
 import {
@@ -25,7 +24,6 @@ import {
 } from './shared';
 
 export const useRouteStore = defineStore(SetupStoreId.Route, () => {
-  const appStore = useAppStore();
   const authStore = useAuthStore();
   const tabStore = useTabStore();
   const { bool: isInitConstantRoute, setBool: setIsInitConstantRoute } = useBoolean();
@@ -98,6 +96,13 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   const cacheRoutes = ref<RouteKey[]>([]);
 
   /**
+   * Exclude cache routes
+   *
+   * for reset route cache
+   */
+  const excludeCacheRoutes = ref<RouteKey[]>([]);
+
+  /**
    * Get cache routes
    *
    * @param routes Vue routes
@@ -107,51 +112,19 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   }
 
   /**
-   * Add cache routes
+   * Reset route cache
    *
+   * @default router.currentRoute.value.name current route name
    * @param routeKey
    */
-  function addCacheRoutes(routeKey: RouteKey) {
-    if (cacheRoutes.value.includes(routeKey)) return;
+  async function resetRouteCache(routeKey?: RouteKey) {
+    const routeName = routeKey || (router.currentRoute.value.name as RouteKey);
 
-    cacheRoutes.value.push(routeKey);
-  }
+    excludeCacheRoutes.value.push(routeName);
 
-  /**
-   * Remove cache routes
-   *
-   * @param routeKey
-   */
-  function removeCacheRoutes(routeKey: RouteKey) {
-    const index = cacheRoutes.value.findIndex(item => item === routeKey);
+    await nextTick();
 
-    if (index === -1) return;
-
-    cacheRoutes.value.splice(index, 1);
-  }
-
-  /**
-   * Re cache routes by route key
-   *
-   * @param routeKey
-   */
-  async function reCacheRoutesByKey(routeKey: RouteKey) {
-    removeCacheRoutes(routeKey);
-
-    await appStore.reloadPage();
-
-    addCacheRoutes(routeKey);
-  }
-
-  /**
-   * Re cache routes by route keys
-   *
-   * @param routeKeys
-   */
-  async function reCacheRoutesByKeys(routeKeys: RouteKey[]) {
-    for await (const key of routeKeys) {
-      await reCacheRoutesByKey(key);
-    }
+    excludeCacheRoutes.value = [];
   }
 
   /** Global breadcrumbs */
@@ -179,27 +152,37 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   async function initConstantRoute() {
     if (isInitConstantRoute.value) return;
 
-    if (authRouteMode.value === 'static') {
-      const staticRoute = createStaticRoutes();
+    const staticRoute = createStaticRoutes();
 
+    if (authRouteMode.value === 'static') {
       addConstantRoutes(staticRoute.constantRoutes);
     } else {
       const { data, error } = await fetchGetConstantRoutes();
 
       if (!error) {
         addConstantRoutes(data);
+      } else {
+        // if fetch constant routes failed, use static constant routes
+        addConstantRoutes(staticRoute.constantRoutes);
       }
     }
 
     handleConstantAndAuthRoutes();
 
     setIsInitConstantRoute(true);
+
+    tabStore.initHomeTab();
   }
 
   /** Init auth route */
   async function initAuthRoute() {
+    // check if user info is initialized
+    if (!authStore.userInfo.userId) {
+      await authStore.initUserInfo();
+    }
+
     if (authRouteMode.value === 'static') {
-      await initStaticAuthRoute();
+      initStaticAuthRoute();
     } else {
       await initDynamicAuthRoute();
     }
@@ -208,7 +191,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   }
 
   /** Init static auth route */
-  async function initStaticAuthRoute() {
+  function initStaticAuthRoute() {
     const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
     if (authStore.isStaticSuper) {
@@ -240,6 +223,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
       handleUpdateRootRouteRedirect(home);
 
       setIsInitAuthRoute(true);
+    } else {
+      // if fetch user routes failed, reset store
+      authStore.resetStore();
     }
   }
 
@@ -331,32 +317,12 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     return getSelectedMenuKeyPathByKey(selectedKey, menus.value);
   }
 
-  /**
-   * Get route meta by key
-   *
-   * @param key Route key
-   */
-  function getRouteMetaByKey(key: string) {
-    const allRoutes = router.getRoutes();
-
-    return allRoutes.find(route => route.name === key)?.meta || null;
+  async function onRouteSwitchWhenLoggedIn() {
+    await authStore.initUserInfo();
   }
 
-  /**
-   * Get route query of meta by key
-   *
-   * @param key
-   */
-  function getRouteQueryOfMetaByKey(key: string) {
-    const meta = getRouteMetaByKey(key);
-
-    const query: Record<string, string> = {};
-
-    meta?.query?.forEach(item => {
-      query[item.key] = item.value;
-    });
-
-    return query;
+  async function onRouteSwitchWhenNotLoggedIn() {
+    // some global init logic if it does not need to be logged in
   }
 
   return {
@@ -366,8 +332,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     searchMenus,
     updateGlobalMenusByLocale,
     cacheRoutes,
-    reCacheRoutesByKey,
-    reCacheRoutesByKeys,
+    excludeCacheRoutes,
+    resetRouteCache,
     breadcrumbs,
     initConstantRoute,
     isInitConstantRoute,
@@ -376,6 +342,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     setIsInitAuthRoute,
     getIsAuthRouteExist,
     getSelectedMenuKeyPath,
-    getRouteQueryOfMetaByKey
+    onRouteSwitchWhenLoggedIn,
+    onRouteSwitchWhenNotLoggedIn
   };
 });

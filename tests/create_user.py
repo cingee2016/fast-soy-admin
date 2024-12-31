@@ -32,14 +32,14 @@ async def add_user():
         role_super: Role | None = await role_controller.get_by_code("R_SUPER")
         user_create = await user_controller.create(
             UserCreate(
-                userName=random_str,
-                userEmail=f"{random_str}@user.com",
+                user_name=random_str,
+                user_email=f"{random_str}@user.com",
                 password="123456",
                 user_phone=random_phone,
-                status=StatusType.enable
+                status_type=StatusType.enable
             )
         )
-        await user_create.roles.add(role_super)
+        await user_create.by_user_roles.add(role_super)
 
 
 run_async(init())

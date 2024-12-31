@@ -6,18 +6,20 @@ from app.models.system import StatusType
 
 
 class RoleBase(BaseModel):
-    role_name: str = Field(alias="roleName", description="角色名称")
-    role_code: str = Field(alias="roleCode", description="角色编码")
-    role_desc: Annotated[str | None, Field(alias="roleDesc", description="角色描述")] = None
-    role_home: Annotated[str | None, Field(alias="roleHome", description="角色首页")] = None
-    status: Annotated[StatusType | None, Field()] = None
+    role_name: Annotated[str | None, Field(alias="roleName", title="角色名称")] = None
+    role_code: Annotated[str | None, Field(alias="roleCode", title="角色编码")] = None
+    role_desc: Annotated[str | None, Field(alias="roleDesc", title="角色描述")] = None
+    by_role_home: Annotated[str | None, Field(alias="byRoleHome", title="角色首页")] = None
+    status_type: Annotated[StatusType | None, Field(alias="statusType", title="角色状态")] = None
 
     class Config:
+        allow_extra = True
         populate_by_name = True
 
 
 class RoleCreate(RoleBase):
-    ...
+    role_name: Annotated[str, Field(alias="roleName", title="角色名称")]
+    role_code: Annotated[str, Field(alias="roleCode", title="角色编码")]
 
 
 class RoleUpdate(RoleBase):
@@ -25,7 +27,7 @@ class RoleUpdate(RoleBase):
 
 
 class RoleUpdateAuthrization(BaseModel):
-    role_home: Annotated[str | None, Field(alias="roleHome", description="角色首页")] = None
-    menu_ids: Annotated[list[int] | None, Field(alias="menuIds", description="菜单id列表")] = None
-    api_ids: Annotated[list[int] | None, Field(alias="apiIds", description="API id列表")] = None
-    button_ids: Annotated[list[int] | None, Field(alias="buttonIds", description="按钮id列表")] = None
+    by_role_home_id: Annotated[int | None, Field(alias="byRoleHomeId", title="角色首页菜单id")] = None
+    by_role_menu_ids: Annotated[list[int] | None, Field(alias="byRoleMenuIds", title="角色菜单列表")] = None
+    by_role_api_ids: Annotated[list[int] | None, Field(alias="byRoleApiIds", title="角色API列表")] = None
+    by_role_button_ids: Annotated[list[int] | None, Field(alias="byRoleButtonIds", title="角色按钮列表")] = None

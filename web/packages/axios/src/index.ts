@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { AxiosResponse, CancelTokenSource, CreateAxiosDefaults, InternalAxiosRequestConfig } from 'axios';
+import type { AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from 'axios';
 import axiosRetry from 'axios-retry';
 import { nanoid } from '@sa/utils';
 import { createAxiosConfig, createDefaultOptions, createRetryOptions } from './options';
@@ -22,7 +22,7 @@ function createCommonRequest<ResponseData = any>(
   const axiosConf = createAxiosConfig(axiosConfig);
   const instance = axios.create(axiosConf);
 
-  const cancelTokenSourceMap = new Map<string, CancelTokenSource>();
+  const abortControllerMap = new Map<string, AbortController>();
 
   // config axios retry
   const retryOptions = createRetryOptions(axiosConf);
@@ -35,10 +35,12 @@ function createCommonRequest<ResponseData = any>(
     const requestId = nanoid();
     config.headers.set(REQUEST_ID_KEY, requestId);
 
-    // config cancel token
-    const cancelTokenSource = axios.CancelToken.source();
-    config.cancelToken = cancelTokenSource.token;
-    cancelTokenSourceMap.set(requestId, cancelTokenSource);
+    // config abort controller
+    if (!config.signal) {
+      const abortController = new AbortController();
+      config.signal = abortController.signal;
+      abortControllerMap.set(requestId, abortController);
+    }
 
     // handle config by hook
     const handledConfig = opts.onRequest?.(config) || config;
@@ -79,18 +81,18 @@ function createCommonRequest<ResponseData = any>(
   );
 
   function cancelRequest(requestId: string) {
-    const cancelTokenSource = cancelTokenSourceMap.get(requestId);
-    if (cancelTokenSource) {
-      cancelTokenSource.cancel();
-      cancelTokenSourceMap.delete(requestId);
+    const abortController = abortControllerMap.get(requestId);
+    if (abortController) {
+      abortController.abort();
+      abortControllerMap.delete(requestId);
     }
   }
 
   function cancelAllRequest() {
-    cancelTokenSourceMap.forEach(cancelTokenSource => {
-      cancelTokenSource.cancel();
+    abortControllerMap.forEach(abortController => {
+      abortController.abort();
     });
-    cancelTokenSourceMap.clear();
+    abortControllerMap.clear();
   }
 
   return {
@@ -160,12 +162,12 @@ export function createFlatRequest<ResponseData = any, State = Record<string, unk
       if (responseType === 'json') {
         const data = opts.transformBackendResponse(response);
 
-        return { data, error: null };
+        return { data, error: null, response };
       }
 
       return { data: response.data as MappedType<R, T>, error: null };
     } catch (error) {
-      return { data: null, error };
+      return { data: null, error, response: (error as AxiosError<ResponseData>).response };
     }
   } as FlatRequestInstance<State, ResponseData>;
 

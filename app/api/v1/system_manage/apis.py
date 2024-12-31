@@ -1,64 +1,60 @@
 from fastapi import APIRouter, Query
+from fastapi.params import Depends
 from tortoise.expressions import Q
 
-from app.api.v1.utils import refresh_api_list, insert_log
+from app.api.v1.utils import refresh_api_list, insert_log, generate_tags_recursive_list
 from app.controllers import user_controller
 from app.controllers.api import api_controller
 from app.core.ctx import CTX_USER_ID
 from app.models.system import Api, Role
 from app.models.system import LogType, LogDetailType
+from app.schemas.apis import ApiCreate, ApiUpdate, ApiSearch
 from app.schemas.base import Success, SuccessExtra
-from app.schemas.apis import ApiCreate, ApiUpdate
 
 router = APIRouter()
 
 
-@router.get("/apis", summary="查看API列表")
-async def _(
-        current: int = Query(1, description="页码"),
-        size: int = Query(10, description="每页数量"),
-        path: str = Query(None, description="API路径"),
-        summary: str = Query(None, description="API简介"),
-        tags: str = Query(None, description="API模块"),
-        status: str = Query(None, description="API状态"),
-):
+@router.post("/apis/all/", summary="查看API列表")
+async def _(obj_in: ApiSearch):
     q = Q()
-    if path:
-        q &= Q(path__contains=path)
-    if summary:
-        q &= Q(summary__contains=summary)
-    if tags:
-        q &= Q(tags__contains=tags.split("|"))
-    if status:
-        q &= Q(status__contains=status)
+    if obj_in.api_path:
+        q &= Q(api_path__contains=obj_in.api_path)
+    if obj_in.summary:
+        q &= Q(summary=obj_in.summary)
+    if obj_in.tags:
+        for tag in obj_in.tags:
+            q &= Q(tags__contains=[tag])
+    if obj_in.status_type:
+        q &= Q(status_type=obj_in.status_type)
 
     user_id = CTX_USER_ID.get()
     user_obj = await user_controller.get(id=user_id)
-    user_role_objs: list[Role] = await user_obj.roles
+    await user_obj.fetch_related("by_user_roles")
+    user_role_objs: list[Role] = await user_obj.by_user_roles
     user_role_codes = [role_obj.role_code for role_obj in user_role_objs]
     if "R_SUPER" in user_role_codes:
-        total, api_objs = await api_controller.list(page=current, page_size=size, search=q, order=["tags", "id"])
+        total, api_objs = await api_controller.list(page=obj_in.current, page_size=obj_in.size, search=q, order=["tags", "id"])
     else:
         api_objs: list[Api] = []
         for role_obj in user_role_objs:
-            api_objs.extend([api_obj for api_obj in await role_obj.apis])
+            await role_obj.fetch_related("by_role_apis")
+            api_objs.extend([api_obj for api_obj in await role_obj.by_role_apis.filter(q)])
 
         unique_apis = list(set(api_objs))
         sorted_menus = sorted(unique_apis, key=lambda x: x.id)
         # 实现分页
-        start = (current - 1) * size
-        end = start + size
+        start = (obj_in.current - 1) * obj_in.size
+        end = start + obj_in.size
         api_objs = sorted_menus[start:end]
         total = len(sorted_menus)
 
     records = []
     for obj in api_objs:
         data = await obj.to_dict(exclude_fields=["create_time", "update_time"])
-        data["tags"] = "|".join(data["tags"])
         records.append(data)
     data = {"records": records}
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetList, by_user_id=user_obj.id)
-    return SuccessExtra(data=data, total=total, current=current, size=size)
+    return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
 
 @router.get("/apis/{api_id}", summary="查看API")
@@ -101,9 +97,7 @@ async def _():
 
 
 @router.post("/apis", summary="创建API")
-async def _(
-        api_in: ApiCreate,
-):
+async def _(api_in: ApiCreate):
     if isinstance(api_in.tags, str):
         api_in.tags = api_in.tags.split("|")
     new_api = await api_controller.create(obj_in=api_in)
@@ -112,10 +106,7 @@ async def _(
 
 
 @router.patch("/apis/{api_id}", summary="更新API")
-async def _(
-        api_id: int,
-        api_in: ApiUpdate,
-):
+async def _(api_id: int, api_in: ApiUpdate):
     if isinstance(api_in.tags, str):
         api_in.tags = api_in.tags.split("|")
     await api_controller.update(id=api_id, obj_in=api_in)
@@ -124,9 +115,7 @@ async def _(
 
 
 @router.delete("/apis/{api_id}", summary="删除API")
-async def _(
-        api_id: int,
-):
+async def _(api_id: int):
     await api_controller.remove(id=api_id)
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_id": api_id})
@@ -149,3 +138,10 @@ async def _():
     await refresh_api_list()
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiRefresh, by_user_id=0)
     return Success()
+
+
+@router.post("/apis/tags/all/", summary="查看API tags")
+async def _():
+    data = await generate_tags_recursive_list()
+    # await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiRefresh, by_user_id=0)
+    return Success(data=data)

@@ -3,12 +3,12 @@ import { ref } from 'vue';
 import type { Ref } from 'vue';
 import { NButton, NPopconfirm, NTag } from 'naive-ui';
 import { useBoolean } from '@sa/hooks';
-import { fetchBatchDeleteMenu, fetchDeleteMenu, fetchGetAllPages, fetchGetMenuList } from '@/service/api';
+import { fetchGetAllPages, fetchGetMenuList } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { yesOrNoRecord } from '@/constants/common';
-import { enableStatusRecord, menuTypeRecord } from '@/constants/business';
+import { menuTypeRecord, statusTypeRecord } from '@/constants/business';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import MenuOperateModal, { type OperateType } from './modules/menu-operate-modal.vue';
 
@@ -18,7 +18,7 @@ const { bool: visible, setTrue: openModal } = useBoolean();
 
 const wrapperRef = ref<HTMLElement | null>(null);
 
-const { columns, columnChecks, data, loading, pagination, getData } = useTable({
+const { columns, columnChecks, data, loading, pagination, getData, getDataByPage } = useTable({
   apiFn: fetchGetMenuList,
   columns: () => [
     {
@@ -37,7 +37,7 @@ const { columns, columnChecks, data, loading, pagination, getData } = useTable({
       align: 'center',
       width: 80,
       render: row => {
-        const tagMap: Record<Api.Common.EnableStatus, NaiveUI.ThemeColor> = {
+        const tagMap: Record<Api.SystemManage.MenuType, NaiveUI.ThemeColor> = {
           1: 'default',
           2: 'primary'
         };
@@ -90,12 +90,12 @@ const { columns, columnChecks, data, loading, pagination, getData } = useTable({
       minWidth: 120
     },
     {
-      key: 'status',
-      title: $t('page.manage.menu.menuStatus'),
+      key: 'statusType',
+      title: $t('page.manage.menu.menuStatusType'),
       align: 'center',
       width: 80,
       render: row => {
-        if (row.status === null) {
+        if (row.statusType === null) {
           return null;
         }
 
@@ -104,9 +104,9 @@ const { columns, columnChecks, data, loading, pagination, getData } = useTable({
           2: 'warning'
         };
 
-        const label = $t(enableStatusRecord[row.status]);
+        const label = $t(statusTypeRecord[row.statusType]);
 
-        return <NTag type={tagMap[row.status]}>{label}</NTag>;
+        return <NTag type={tagMap[row.statusType]}>{label}</NTag>;
       }
     },
     {
@@ -181,18 +181,16 @@ function handleAdd() {
 
 async function handleBatchDelete() {
   // request
-  const { error } = await fetchBatchDeleteMenu({ ids: checkedRowKeys.value });
-  if (!error) {
-    onBatchDeleted();
-  }
+  console.log(checkedRowKeys.value);
+
+  onBatchDeleted();
 }
 
-async function handleDelete(id: number) {
+function handleDelete(id: number) {
   // request
-  const { error } = await fetchDeleteMenu({ id });
-  if (!error) {
-    onDeleted();
-  }
+  console.log(id);
+
+  onDeleted();
 }
 
 /** the edit menu data or the parent menu data when adding a child menu */
@@ -217,7 +215,7 @@ const allPages = ref<string[]>([]);
 
 async function getAllPages() {
   const { data: pages } = await fetchGetAllPages();
-  allPages.value = pages || [];
+  allPages.value = pages?.map(item => item.value) || [];
 }
 
 function init() {
@@ -236,6 +234,7 @@ init();
           v-model:columns="columnChecks"
           :disabled-delete="checkedRowKeys.length === 0"
           :loading="loading"
+          table-id="menu"
           @add="handleAdd"
           @delete="handleBatchDelete"
           @refresh="getData"
@@ -259,7 +258,7 @@ init();
         :operate-type="operateType"
         :row-data="editingData"
         :all-pages="allPages"
-        @submitted="getData"
+        @submitted="getDataByPage"
       />
     </NCard>
   </div>

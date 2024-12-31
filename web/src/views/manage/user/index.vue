@@ -3,14 +3,24 @@ import { NButton, NPopconfirm, NTag } from 'naive-ui';
 import { fetchBatchDeleteUser, fetchDeleteUser, fetchGetUserList } from '@/service/api';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
-import { enableStatusRecord, userGenderRecord } from '@/constants/business';
+import { statusTypeRecord, userGenderRecord } from '@/constants/business';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import UserOperateDrawer from './modules/user-operate-drawer.vue';
 import UserSearch from './modules/user-search.vue';
 
 const appStore = useAppStore();
 
-const { columns, columnChecks, data, getData, loading, mobilePagination, searchParams, resetSearchParams } = useTable({
+const {
+  columns,
+  columnChecks,
+  data,
+  getData,
+  getDataByPage,
+  loading,
+  mobilePagination,
+  searchParams,
+  resetSearchParams
+} = useTable({
   apiFn: fetchGetUserList,
   showTotal: true,
   apiParams: {
@@ -18,13 +28,14 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
     size: 10,
     // if you want to use the searchParams in Form, you need to define the following properties, and the value is null
     // the value can not be undefined, otherwise the property in Form will not be reactive
-    status: null,
     userName: null,
     password: null,
     userGender: null,
     nickName: null,
     userPhone: null,
-    userEmail: null
+    userEmail: null,
+    byUserRoleCodeList: null,
+    statusType: null
   },
   columns: () => [
     {
@@ -84,12 +95,12 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
       minWidth: 200
     },
     {
-      key: 'status',
-      title: $t('page.manage.user.userStatus'),
+      key: 'statusType',
+      title: $t('page.manage.user.userStatusType'),
       align: 'center',
       width: 100,
       render: row => {
-        if (row.status === null) {
+        if (row.statusType === null) {
           return null;
         }
 
@@ -98,9 +109,9 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
           2: 'warning'
         };
 
-        const label = $t(enableStatusRecord[row.status]);
+        const label = $t(statusTypeRecord[row.statusType]);
 
-        return <NTag type={tagMap[row.status]}>{label}</NTag>;
+        return <NTag type={tagMap[row.statusType]}>{label}</NTag>;
       }
     },
     {
@@ -164,13 +175,14 @@ function edit(id: number) {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <UserSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getData" />
+    <UserSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :title="$t('page.manage.user.title')" :bordered="false" size="small" class="sm:flex-1-hidden card-wrapper">
       <template #header-extra>
         <TableHeaderOperation
           v-model:columns="columnChecks"
           :disabled-delete="checkedRowKeys.length === 0"
           :loading="loading"
+          table-id="user"
           @add="handleAdd"
           @delete="handleBatchDelete"
           @refresh="getData"
@@ -193,7 +205,7 @@ function edit(id: number) {
         v-model:visible="drawerVisible"
         :operate-type="operateType"
         :row-data="editingData"
-        @submitted="getData"
+        @submitted="getDataByPage"
       />
     </NCard>
   </div>

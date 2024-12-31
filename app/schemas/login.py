@@ -5,18 +5,20 @@ from pydantic import BaseModel, Field
 
 
 class CredentialsSchema(BaseModel):
-    user_name: str = Field(alias="userName", description="用户名")
-    password: str = Field(description="密码")
+    user_name: Annotated[str | None, Field(alias="userName", title="用户名")]
+    password: Annotated[str | None, Field(title="密码")]
 
     class Config:
+        allow_extra = True
         populate_by_name = True
 
 
 class JWTOut(BaseModel):
-    access_token: Annotated[str | None, Field(alias="token", description="请求token")] = None
-    refresh_token: Annotated[str | None, Field(alias="refreshToken", description="刷新token")] = None
+    access_token: Annotated[str | None, Field(alias="token", title="请求token")] = None
+    refresh_token: Annotated[str | None, Field(alias="refreshToken", title="刷新token")] = None
 
     class Config:
+        allow_extra = True
         populate_by_name = True
 
 
@@ -30,6 +32,7 @@ class JWTPayload(BaseModel):
     # sub: str
 
     class Config:
+        allow_extra = True
         populate_by_name = True
 
 

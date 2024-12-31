@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { $t } from '@/locales';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
-import { enableStatusOptions, userGenderOptions } from '@/constants/business';
+import { statusTypeOptions, userGenderOptions } from '@/constants/business';
 import { translateOptions } from '@/utils/common';
+import { fetchGetRoleList } from '@/service/api';
 
 defineOptions({
   name: 'UserSearch'
@@ -31,6 +32,19 @@ const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
   };
 });
 
+const roleOptions = ref<CommonType.Option<string>[]>([]);
+
+async function getRoleOptions() {
+  const { error, data } = await fetchGetRoleList({ size: 1000, statusType: '1' });
+
+  if (!error) {
+    const options = data.records.map(item => ({
+      label: item.roleName,
+      value: item.roleCode
+    }));
+    roleOptions.value = options;
+  }
+}
 async function reset() {
   await restoreValidation();
   emit('reset');
@@ -40,58 +54,87 @@ async function search() {
   await validate();
   emit('search');
 }
+
+getRoleOptions();
 </script>
 
 <template>
-  <NCard :title="$t('common.search')" :bordered="false" size="small" class="card-wrapper">
-    <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="80">
-      <NGrid responsive="screen" item-responsive>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userName')" path="userName" class="pr-24px">
-          <NInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" />
-        </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userGender')" path="userGender" class="pr-24px">
-          <NSelect
-            v-model:value="model.userGender"
-            :placeholder="$t('page.manage.user.form.userGender')"
-            :options="translateOptions(userGenderOptions)"
-            clearable
-          />
-        </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.nickName')" path="nickName" class="pr-24px">
-          <NInput v-model:value="model.nickName" :placeholder="$t('page.manage.user.form.nickName')" />
-        </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userPhone')" path="userPhone" class="pr-24px">
-          <NInput v-model:value="model.userPhone" :placeholder="$t('page.manage.user.form.userPhone')" />
-        </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userEmail')" path="userEmail" class="pr-24px">
-          <NInput v-model:value="model.userEmail" :placeholder="$t('page.manage.user.form.userEmail')" />
-        </NFormItemGi>
-        <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userStatus')" path="userStatus" class="pr-24px">
-          <NSelect
-            v-model:value="model.status"
-            :placeholder="$t('page.manage.user.form.userStatus')"
-            :options="translateOptions(enableStatusOptions)"
-            clearable
-          />
-        </NFormItemGi>
-        <NFormItemGi span="24 m:12" class="pr-24px">
-          <NSpace class="w-full" justify="end">
-            <NButton @click="reset">
-              <template #icon>
-                <icon-ic-round-refresh class="text-icon" />
-              </template>
-              {{ $t('common.reset') }}
-            </NButton>
-            <NButton type="primary" ghost @click="search">
-              <template #icon>
-                <icon-ic-round-search class="text-icon" />
-              </template>
-              {{ $t('common.search') }}
-            </NButton>
-          </NSpace>
-        </NFormItemGi>
-      </NGrid>
-    </NForm>
+  <NCard :bordered="false" size="small" class="card-wrapper">
+    <NCollapse>
+      <NCollapseItem :title="$t('common.search')" name="user-search">
+        <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="80">
+          <NGrid responsive="screen" item-responsive>
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userName')" path="userName" class="pr-24px">
+              <NInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" />
+            </NFormItemGi>
+            <NFormItemGi
+              span="24 s:12 m:6"
+              :label="$t('page.manage.user.userGender')"
+              path="userGender"
+              class="pr-24px"
+            >
+              <NSelect
+                v-model:value="model.userGender"
+                :placeholder="$t('page.manage.user.form.userGender')"
+                :options="translateOptions(userGenderOptions)"
+                filterable
+                clearable
+              />
+            </NFormItemGi>
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.nickName')" path="nickName" class="pr-24px">
+              <NInput v-model:value="model.nickName" :placeholder="$t('page.manage.user.form.nickName')" />
+            </NFormItemGi>
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userPhone')" path="userPhone" class="pr-24px">
+              <NInput v-model:value="model.userPhone" :placeholder="$t('page.manage.user.form.userPhone')" />
+            </NFormItemGi>
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userEmail')" path="userEmail" class="pr-24px">
+              <NInput v-model:value="model.userEmail" :placeholder="$t('page.manage.user.form.userEmail')" />
+            </NFormItemGi>
+            <NFormItemGi
+              span="24 s:12 m:6"
+              :label="$t('page.manage.user.userStatusType')"
+              path="userStatusType"
+              class="pr-24px"
+            >
+              <NSelect
+                v-model:value="model.statusType"
+                :placeholder="$t('page.manage.user.form.userStatusType')"
+                :options="translateOptions(statusTypeOptions)"
+                filterable
+                clearable
+              />
+            </NFormItemGi>
+
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userRole')" path="roles" class="pr-24px">
+              <NSelect
+                v-model:value="model.byUserRoleCodeList"
+                :options="roleOptions"
+                :placeholder="$t('page.manage.user.form.userRole')"
+                filterable
+                clearable
+              />
+            </NFormItemGi>
+
+            <NFormItemGi span="24 m:6" class="pr-24px">
+              <NSpace class="w-full" justify="end">
+                <NButton @click="reset">
+                  <template #icon>
+                    <icon-ic-round-refresh class="text-icon" />
+                  </template>
+                  {{ $t('common.reset') }}
+                </NButton>
+                <NButton type="primary" ghost @click="search">
+                  <template #icon>
+                    <icon-ic-round-search class="text-icon" />
+                  </template>
+                  {{ $t('common.search') }}
+                </NButton>
+              </NSpace>
+            </NFormItemGi>
+          </NGrid>
+        </NForm>
+      </NCollapseItem>
+    </NCollapse>
   </NCard>
 </template>
 

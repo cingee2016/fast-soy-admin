@@ -29,10 +29,15 @@ declare module "@elegant-router/types" {
     "document_unocss": "/document/unocss";
     "document_naive": "/document/naive";
     "document_antd": "/document/antd";
+    "document_alova": "/document/alova";
     "403": "/403";
     "404": "/404";
     "500": "/500";
     "about": "/about";
+    "alova": "/alova";
+    "alova_request": "/alova/request";
+    "alova_scenes": "/alova/scenes";
+    "alova_user": "/alova/user";
     "function": "/function";
     "function_hide-child": "/function/hide-child";
     "function_hide-child_one": "/function/hide-child/one";
@@ -59,6 +64,30 @@ declare module "@elegant-router/types" {
     "multi-menu_second": "/multi-menu/second";
     "multi-menu_second_child": "/multi-menu/second/child";
     "multi-menu_second_child_home": "/multi-menu/second/child/home";
+    "plugin": "/plugin";
+    "plugin_barcode": "/plugin/barcode";
+    "plugin_charts": "/plugin/charts";
+    "plugin_charts_antv": "/plugin/charts/antv";
+    "plugin_charts_echarts": "/plugin/charts/echarts";
+    "plugin_charts_vchart": "/plugin/charts/vchart";
+    "plugin_copy": "/plugin/copy";
+    "plugin_editor": "/plugin/editor";
+    "plugin_editor_markdown": "/plugin/editor/markdown";
+    "plugin_editor_quill": "/plugin/editor/quill";
+    "plugin_excel": "/plugin/excel";
+    "plugin_gantt": "/plugin/gantt";
+    "plugin_gantt_dhtmlx": "/plugin/gantt/dhtmlx";
+    "plugin_gantt_vtable": "/plugin/gantt/vtable";
+    "plugin_icon": "/plugin/icon";
+    "plugin_map": "/plugin/map";
+    "plugin_pdf": "/plugin/pdf";
+    "plugin_pinyin": "/plugin/pinyin";
+    "plugin_print": "/plugin/print";
+    "plugin_swiper": "/plugin/swiper";
+    "plugin_tables": "/plugin/tables";
+    "plugin_tables_vtable": "/plugin/tables/vtable";
+    "plugin_typeit": "/plugin/typeit";
+    "plugin_video": "/plugin/video";
     "user-center": "/user-center";
   };
 
@@ -74,7 +103,7 @@ declare module "@elegant-router/types" {
 
   /**
    * custom route key
-   */ 
+   */
   export type CustomRouteKey = Extract<
     RouteKey,
     | "root"
@@ -91,11 +120,12 @@ declare module "@elegant-router/types" {
     | "document_unocss"
     | "document_naive"
     | "document_antd"
+    | "document_alova"
   >;
 
   /**
    * the generated route key
-   */ 
+   */
   export type GeneratedRouteKey = Exclude<RouteKey, CustomRouteKey>;
 
   /**
@@ -107,12 +137,14 @@ declare module "@elegant-router/types" {
     | "404"
     | "500"
     | "about"
+    | "alova"
     | "function"
     | "home"
     | "iframe-page"
     | "login"
     | "manage"
     | "multi-menu"
+    | "plugin"
     | "user-center"
   >;
 
@@ -138,6 +170,9 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "about"
+    | "alova_request"
+    | "alova_scenes"
+    | "alova_user"
     | "function_hide-child_one"
     | "function_hide-child_three"
     | "function_hide-child_two"
@@ -155,6 +190,25 @@ declare module "@elegant-router/types" {
     | "manage_user"
     | "multi-menu_first_child"
     | "multi-menu_second_child_home"
+    | "plugin_barcode"
+    | "plugin_charts_antv"
+    | "plugin_charts_echarts"
+    | "plugin_charts_vchart"
+    | "plugin_copy"
+    | "plugin_editor_markdown"
+    | "plugin_editor_quill"
+    | "plugin_excel"
+    | "plugin_gantt_dhtmlx"
+    | "plugin_gantt_vtable"
+    | "plugin_icon"
+    | "plugin_map"
+    | "plugin_pdf"
+    | "plugin_pinyin"
+    | "plugin_print"
+    | "plugin_swiper"
+    | "plugin_tables_vtable"
+    | "plugin_typeit"
+    | "plugin_video"
     | "user-center"
   >;
 
@@ -175,6 +229,7 @@ declare module "@elegant-router/types" {
     | "document_unocss"
     | "document_naive"
     | "document_antd"
+    | "document_alova"
   >;
 
   /**

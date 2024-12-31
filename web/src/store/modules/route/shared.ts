@@ -19,7 +19,7 @@ export function filterAuthRoutesByRoles(routes: ElegantConstRoute[], roles: stri
  * @param route Auth route
  * @param roles Roles
  */
-function filterAuthRouteByRoles(route: ElegantConstRoute, roles: string[]) {
+function filterAuthRouteByRoles(route: ElegantConstRoute, roles: string[]): ElegantConstRoute[] {
   const routeRoles = (route.meta && route.meta.roles) || [];
 
   // if the route's "roles" is empty, then it is allowed to access
@@ -32,6 +32,11 @@ function filterAuthRouteByRoles(route: ElegantConstRoute, roles: string[]) {
 
   if (filterRoute.children?.length) {
     filterRoute.children = filterRoute.children.flatMap(item => filterAuthRouteByRoles(item, roles));
+  }
+
+  // Exclude the route if it has no children after filtering
+  if (filterRoute.children?.length === 0) {
+    return [];
   }
 
   return hasPermission || isEmptyRoles ? [filterRoute] : [];
@@ -123,7 +128,7 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
   const { SvgIconVNode } = useSvgIcon();
 
   const { name, path } = route;
-  const { title, i18nKey, icon = import.meta.env.VITE_MENU_ICON, localIcon } = route.meta ?? {};
+  const { title, i18nKey, icon = import.meta.env.VITE_MENU_ICON, localIcon, iconFontSize } = route.meta ?? {};
 
   const label = i18nKey ? $t(i18nKey) : title!;
 
@@ -133,7 +138,7 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
     i18nKey,
     routeKey: name as RouteKey,
     routePath: path as RouteMap[RouteKey],
-    icon: SvgIconVNode({ icon, localIcon, fontSize: 20 })
+    icon: SvgIconVNode({ icon, localIcon, fontSize: iconFontSize || 20 })
   };
 
   return menu;
@@ -281,13 +286,22 @@ export function getBreadcrumbsByRoute(
   const key = route.name as string;
   const activeKey = route.meta?.activeMenu;
 
-  const menuKey = activeKey || key;
-
   for (const menu of menus) {
-    if (menu.key === menuKey) {
-      const breadcrumbMenu = menuKey !== activeKey ? menu : getGlobalMenuByBaseRoute(route);
+    if (menu.key === key) {
+      return [transformMenuToBreadcrumb(menu)];
+    }
 
-      return [transformMenuToBreadcrumb(breadcrumbMenu)];
+    if (menu.key === activeKey) {
+      const ROUTE_DEGREE_SPLITTER = '_';
+
+      const parentKey = key.split(ROUTE_DEGREE_SPLITTER).slice(0, -1).join(ROUTE_DEGREE_SPLITTER);
+
+      const breadcrumbMenu = getGlobalMenuByBaseRoute(route);
+      if (parentKey !== activeKey) {
+        return [transformMenuToBreadcrumb(breadcrumbMenu)];
+      }
+
+      return [transformMenuToBreadcrumb(menu), transformMenuToBreadcrumb(breadcrumbMenu)];
     }
 
     if (menu.children?.length) {

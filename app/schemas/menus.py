@@ -6,19 +6,23 @@ from app.models.system import IconType, MenuType
 
 
 class ButtonBase(BaseModel):
-    button_code: str = Field(alias="buttonCode", description="按钮编码")
-    button_desc: str = Field(alias="buttonDesc", description="按钮描述")
+    button_code: Annotated[str | None, Field(alias="buttonCode", title="按钮编码")] = None
+    button_desc: Annotated[str | None, Field(alias="buttonDesc", title="按钮描述")] = None
+
+    class Config:
+        allow_extra = True
+        populate_by_name = True
 
 
 class MenuBase(BaseModel):
-    menu_name: str = Field(alias="menuName", description="菜单名称")
-    menu_type: MenuType = Field(alias="menuType", description="菜单类型")
-    route_name: str = Field(alias="routeName", description="路由名称")
-    route_path: str = Field(alias="routePath", description="路由路径")
+    menu_name: Annotated[str | None, Field(alias="menuName", max_length=200, title="菜单名称")] = None
+    menu_type: Annotated[MenuType | None, Field(alias="menuType", max_length=200, title="菜单类型")] = None
+    route_name: Annotated[str | None, Field(max_length=200, alias="routeName", title="路由名称")] = None
+    route_path: Annotated[str | None, Field(max_length=200, alias="routePath", title="路由路径")] = None
 
     path_param: Annotated[str | None, Field(max_length=200, alias="pathParam", description="路径参数")] = None
     route_param: Annotated[list[dict[str, Any]] | None, Field(alias="query", description="路由参数列表")] = []
-    buttons: Annotated[list[ButtonBase] | None, Field(description="按钮列表")] = []
+    by_menu_buttons: Annotated[list[ButtonBase] | None, Field(alias="byMenuButtons", description="按钮列表")] = []
     order: Annotated[int | None, Field(description="菜单顺序")] = None
     component: Annotated[str | None, Field(description="路由组件")] = None
 
@@ -46,7 +50,10 @@ class MenuBase(BaseModel):
 
 
 class MenuCreate(MenuBase):
-    ...
+    menu_name: Annotated[str, Field(alias="menuName", max_length=200, title="菜单名称")]
+    menu_type: Annotated[MenuType, Field(alias="menuType", max_length=200, title="菜单类型")]
+    route_name: Annotated[str, Field(max_length=200, alias="routeName", title="路由名称")]
+    route_path: Annotated[str, Field(max_length=200, alias="routePath", title="路由路径")]
 
 
 class MenuUpdate(MenuBase):

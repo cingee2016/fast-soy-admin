@@ -4,7 +4,6 @@ from tortoise.expressions import Q
 from app.api.v1.utils import insert_log
 from app.controllers import role_controller
 from app.controllers.menu import menu_controller
-from app.core.exceptions import HTTPException
 from app.models.system import Api, Button, Role
 from app.models.system import LogType, LogDetailType
 from app.schemas.base import Success, SuccessExtra
@@ -30,7 +29,7 @@ async def _(
         q &= Q(status__contains=status)
 
     total, role_objs = await role_controller.list(page=current, page_size=size, search=q, order=["id"])
-    records = [await role_obj.to_dict(exclude_fields=["role_desc"]) for role_obj in role_objs]
+    records = [await role_obj.to_dict() for role_obj in role_objs]  # exclude_fields=["role_desc"]
     data = {"records": records}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetList, by_user_id=0)
     return SuccessExtra(data=data, total=total, current=current, size=size)
@@ -48,10 +47,7 @@ async def get_role(role_id: int):
 async def _(role_in: RoleCreate):
     role = await role_controller.model.exists(role_code=role_in.role_code)
     if role:
-        raise HTTPException(
-            code="4090",
-            msg="The role with this code already exists in the system."
-        )
+        return Success(code="4090", msg="The role with this code already exists in the system.")
 
     new_user = await role_controller.create(obj_in=role_in)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleCreateOne, by_user_id=0)
@@ -86,32 +82,36 @@ async def _(ids: str = Query(..., description="角色ID列表, 用逗号隔开")
 
 @router.get("/roles/{role_id}/menus", summary="查看角色菜单")
 async def _(role_id: int):
-    role_obj = await role_controller.get(id=role_id)
+    role_obj = await Role.get(id=role_id).prefetch_related("by_role_home")
     if role_obj.role_code == "R_SUPER":
         menu_objs = await menu_controller.model.filter(constant=False)
     else:
-        menu_objs = await role_obj.menus
-    data = {"roleHome": role_obj.role_home, "menuIds": [menu_obj.id for menu_obj in menu_objs]}
+        menu_objs = await role_obj.by_role_menus
+    data = {"byRoleHomeId": role_obj.by_role_home.id, "byRoleMenuIds": [menu_obj.id for menu_obj in menu_objs]}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetMenus, by_user_id=0)
     return Success(data=data)
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
 async def _(role_id: int, role_in: RoleUpdateAuthrization):
-    if role_in.role_home is not None:
-        role_obj = await role_controller.update(id=role_id, obj_in=dict(role_home=role_in.role_home))
-        if role_in.menu_ids:
-            await role_obj.menus.clear()
-            for menu_id in role_in.menu_ids:
-                menu_objs = [await menu_controller.get(id=menu_id)]
-                while len(menu_objs) > 0:
-                    menu_obj = menu_objs.pop()
-                    await role_obj.menus.add(menu_obj)
-                    if menu_obj.parent_id != 0:  # 子节点
-                        menu_objs.append(await menu_controller.get(id=menu_obj.parent_id))  # 父节点
+    if role_in.by_role_home_id:
+        role_obj = await role_controller.update(id=role_id, obj_in=dict(by_role_home_id=role_in.by_role_home_id))
+        if role_in.by_role_menu_ids:
+            menu_objs = await menu_controller.get_by_id_list(id_list=role_in.by_role_menu_ids)
+            if not menu_objs:
+                return Success(msg="获取角色菜单对象失败", code=2000)
+
+            await role_obj.by_role_menus.clear()
+            while len(menu_objs) > 0:  # 递归添加子父菜单
+                menu_obj = menu_objs.pop()
+                await role_obj.by_role_menus.add(menu_obj)
+                if menu_obj.parent_id != 0:  # 是否为子菜单
+                    menu_objs.append(await menu_controller.get(id=menu_obj.parent_id))  # 添加子菜单的父菜单
+        else:
+            await role_obj.by_role_menus.clear()  # 去除所有角色菜单
 
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateMenus, by_user_id=0)
-    return Success(msg="Updated Successfully", data={"updated_menu_ids": role_in.menu_ids, "updated_role_home": role_in.role_home})
+    return Success(msg="Updated Successfully", data={"by_role_menu_ids": role_in.by_role_menu_ids, "by_role_home_id": role_in.by_role_home_id})
 
 
 @router.get("/roles/{role_id}/buttons", summary="查看角色按钮")
@@ -120,9 +120,9 @@ async def _(role_id: int):
     if role_obj.role_code == "R_SUPER":
         button_objs = await Button.all()
     else:
-        button_objs = await role_obj.buttons
+        button_objs = await role_obj.by_role_buttons
 
-    data = {"buttonIds": [button_obj.id for button_obj in button_objs]}
+    data = {"byRoleButtonIds": [button_obj.id for button_obj in button_objs]}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetButtons, by_user_id=0)
     return Success(data=data)
 
@@ -130,14 +130,14 @@ async def _(role_id: int):
 @router.patch("/roles/{role_id}/buttons", summary="更新角色按钮")
 async def _(role_id: int, role_in: RoleUpdateAuthrization):
     role_obj = await role_controller.get(id=role_id)
-    if role_in.button_ids is not None:
-        await role_obj.buttons.clear()
-        for button_id in role_in.button_ids:
+    if role_in.by_role_button_ids is not None:
+        await role_obj.by_role_buttons.clear()
+        for button_id in role_in.by_role_button_ids:
             button_obj = await Button.get(id=button_id)
-            await role_obj.buttons.add(button_obj)
+            await role_obj.by_role_buttons.add(button_obj)
 
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateButtons, by_user_id=0)
-    return Success(msg="Updated Successfully", data={"button_ids": role_in.button_ids})
+    return Success(msg="Updated Successfully", data={"by_role_button_ids": role_in.by_role_button_ids})
 
 
 @router.get("/roles/{role_id}/apis", summary="查看角色API")
@@ -146,9 +146,9 @@ async def _(role_id: int):
     if role_obj.role_code == "R_SUPER":
         api_objs = await Api.all()
     else:
-        api_objs = await role_obj.apis
+        api_objs = await role_obj.by_role_apis
 
-    data = {"apiIds": [api_obj.id for api_obj in api_objs]}
+    data = {"byRoleApiIds": [api_obj.id for api_obj in api_objs]}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetApis, by_user_id=0)
     return Success(data=data)
 
@@ -156,11 +156,11 @@ async def _(role_id: int):
 @router.patch("/roles/{role_id}/apis", summary="更新角色API")
 async def _(role_id: int, role_in: RoleUpdateAuthrization):
     role_obj = await role_controller.get(id=role_id)
-    if role_in.api_ids is not None:
-        await role_obj.apis.clear()
-        for api_id in role_in.api_ids:
+    if role_in.by_role_api_ids is not None:
+        await role_obj.by_role_apis.clear()
+        for api_id in role_in.by_role_api_ids:
             api_obj = await Api.get(id=api_id)
-            await role_obj.apis.add(api_obj)
+            await role_obj.by_role_apis.add(api_obj)
 
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateApis, by_user_id=0)
-    return Success(msg="Updated Successfully", data={"api_ids": role_in.api_ids})
+    return Success(msg="Updated Successfully", data={"by_role_api_ids": role_in.by_role_api_ids})

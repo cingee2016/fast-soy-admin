@@ -103,5 +103,11 @@ declare namespace Env {
     readonly VITE_ICONIFY_URL?: string;
     /** Used to differentiate storage across different domains */
     readonly VITE_STORAGE_PREFIX?: string;
+    /** Whether to automatically detect updates after configuring application packaging */
+    readonly VITE_AUTOMATICALLY_DETECT_UPDATE?: CommonType.YesOrNo;
   }
+}
+
+interface ImportMeta {
+  readonly env: Env.ImportMeta;
 }

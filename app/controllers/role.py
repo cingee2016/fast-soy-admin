@@ -24,10 +24,10 @@ class RoleController(CRUDBase[Role, RoleCreate, RoleUpdate]):
         if not buttons_codes:
             return False
 
-        await role.buttons.clear()
+        await role.by_role_buttons.clear()
         for button_code in buttons_codes:
             button_obj = await Button.get(button_code=button_code)
-            await role.buttons.add(button_obj)
+            await role.by_role_buttons.add(button_obj)
         return True
 
     @staticmethod

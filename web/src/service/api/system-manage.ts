@@ -10,11 +10,11 @@ export function fetchGetRoleList(params?: Api.SystemManage.RoleSearchParams) {
 }
 
 /** get user list */
-export function fetchGetUserList(params?: Api.SystemManage.UserSearchParams) {
+export function fetchGetUserList(data?: Api.SystemManage.UserSearchParams) {
   return request<Api.SystemManage.UserList>({
-    url: '/system-manage/users',
-    method: 'get',
-    params
+    url: '/system-manage/users/all/',
+    method: 'post',
+    data
   });
 }
 
@@ -28,7 +28,7 @@ export function fetchGetMenuList() {
 
 /** get all pages */
 export function fetchGetAllPages() {
-  return request<string[]>({
+  return request<{ [key: string]: string }[]>({
     url: '/system-manage/menus/pages/',
     method: 'get'
   });
@@ -51,11 +51,11 @@ export function fetchGetMenuButtonTree() {
 }
 
 /** get log list */
-export function fetchGetLogList(params?: Api.SystemManage.LogSearchParams) {
+export function fetchGetLogList(data?: Api.SystemManage.LogSearchParams) {
   return request<Api.SystemManage.LogList>({
-    url: '/system-manage/logs',
-    method: 'get',
-    params
+    url: '/system-manage/logs/all/',
+    method: 'post',
+    data
   });
 }
 
@@ -93,18 +93,26 @@ export function fetchGetApiTree() {
 
 /** refresh api from fastapi */
 export function fetchRefreshAPI() {
-  return request<Api.SystemManage.ApiList>({
+  return request({
     url: '/system-manage/apis/refresh/',
     method: 'post'
   });
 }
 
+/** get api tags */
+export function fetchGetApiTagsList() {
+  return request({
+    url: '/system-manage/apis/tags/all/',
+    method: 'post'
+  });
+}
+
 /** get api list */
-export function fetchGetApiList(params?: Api.SystemManage.ApiSearchParams) {
+export function fetchGetApiList(data?: Api.SystemManage.ApiSearchParams) {
   return request<Api.SystemManage.ApiList>({
-    url: '/system-manage/apis',
-    method: 'get',
-    params
+    url: '/system-manage/apis/all/',
+    method: 'post',
+    data
   });
 }
 
@@ -142,10 +150,19 @@ export function fetchUpdateApi(data?: Api.SystemManage.ApiUpdateParams) {
 }
 
 /** add user */
-export function fetchAddUser(data?: Api.SystemManage.UserAddParams) {
+export function fetchAddUser(data?: Api.SystemManage.UserUpdateParams) {
   return request<Api.SystemManage.UserList, 'json'>({
     url: '/system-manage/users',
     method: 'post',
+    data
+  });
+}
+
+/** update user */
+export function fetchUpdateUser(data?: Api.SystemManage.UserUpdateParams) {
+  return request<Api.SystemManage.UserList, 'json'>({
+    url: `/system-manage/users/${data?.id}`,
+    method: 'patch',
     data
   });
 }
@@ -163,14 +180,6 @@ export function fetchBatchDeleteUser(data?: Api.SystemManage.CommonBatchDeletePa
     url: '/system-manage/users',
     method: 'delete',
     params: { ids: data?.ids.join(',') }
-  });
-}
-/** update user */
-export function fetchUpdateUser(data?: Api.SystemManage.UserUpdateParams) {
-  return request<Api.SystemManage.UserList, 'json'>({
-    url: `/system-manage/users/${data?.id}`,
-    method: 'patch',
-    data
   });
 }
 

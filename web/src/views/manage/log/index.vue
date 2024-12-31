@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { NButton, NTag } from 'naive-ui';
+import { watch } from 'vue';
 import { fetchBatchDeleteLog, fetchGetLogList } from '@/service/api';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
@@ -19,11 +20,11 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
     size: 10,
     // if you want to use the searchParams in Form, you need to define the following properties, and the value is null
     // the value can not be undefined, otherwise the property in Form will not be reactive
-    logType: '1',
-    logUser: null,
+    logType: '2',
+    byUser: null,
     logDetailType: null,
-    requestUrl: null,
-    createTime: null,
+    requestPath: null,
+    timeRange: [new Date().setHours(0, 0, 0, 0), new Date().setHours(23, 59, 59, 0)],
     responseCode: null
   },
   columns: () => [
@@ -39,14 +40,20 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
       width: 64
     },
     {
-      key: 'requestUrl',
-      title: $t('page.manage.log.requestUrl'),
+      key: 'requestDomain',
+      title: $t('page.manage.log.requestDomain'),
       align: 'center',
       width: 300
     },
     {
-      key: 'logUser',
-      title: $t('page.manage.log.logUser'),
+      key: 'requestPath',
+      title: $t('page.manage.log.requestPath'),
+      align: 'center',
+      width: 300
+    },
+    {
+      key: 'byUserInfo.nickName' as 'byUser',
+      title: $t('page.manage.log.byUser'),
       align: 'center',
       width: 100
     },
@@ -82,7 +89,7 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
       }
     },
     {
-      key: 'createTime',
+      key: 'fmtCreateTime',
       title: $t('page.manage.log.createTime'),
       align: 'center',
       width: 200
@@ -106,35 +113,13 @@ const { columns, columnChecks, data, getData, loading, mobilePagination, searchP
         </div>
       )
     }
-  ],
-  transformer: res => {
-    const { records = [], current = 1, size = 10, total = 0 } = res.data || {};
-
-    const recordsWithIndex = records.map((item, index) => {
-      return {
-        ...item,
-        index: total - (current - 1) * size + index // 倒序展示index
-      };
-    });
-
-    return {
-      data: recordsWithIndex,
-      pageNum: current,
-      pageSize: size,
-      total
-    };
-  }
+  ]
 });
 
-const {
-  drawerVisible,
-  operateType,
-  checkedRowKeys,
-  onBatchDeleted,
-  editingData,
-  handleEdit
-  // closeDrawer
-} = useTableOperate(data, getData);
+const { drawerVisible, operateType, checkedRowKeys, onBatchDeleted, editingData, handleEdit } = useTableOperate(
+  data,
+  getData
+);
 const { hasAuth } = useAuth();
 
 async function handleadd() {
@@ -153,6 +138,43 @@ async function handleBatchDelete() {
 function edit(id: number) {
   handleEdit(id);
 }
+
+watch(
+  () => searchParams.logType,
+  newValue => {
+    const apiKeysToCheck = ['requestDomain', 'requestPath'];
+    let checkedAction: boolean;
+    if (newValue !== '1') {
+      // 隐藏列
+      checkedAction = false;
+    } else {
+      // 显示列
+      checkedAction = true;
+    }
+
+    columnChecks.value.forEach(item => {
+      if (apiKeysToCheck.includes(item.key)) {
+        item.checked = checkedAction;
+      }
+    });
+
+    const nonApiKeysToCheck = ['byUserInfo.nickName', 'logDetailType'];
+    if (newValue === '1') {
+      // 隐藏列
+      checkedAction = false;
+    } else {
+      // 显示列
+      checkedAction = true;
+    }
+
+    columnChecks.value.forEach(item => {
+      if (nonApiKeysToCheck.includes(item.key)) {
+        item.checked = checkedAction;
+      }
+    });
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -164,6 +186,7 @@ function edit(id: number) {
           v-model:columns="columnChecks"
           :disabled-delete="checkedRowKeys.length === 0"
           :loading="loading"
+          table-id="log"
           @add="handleadd"
           @delete="handleBatchDelete"
           @refresh="getData"

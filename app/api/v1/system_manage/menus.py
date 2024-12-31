@@ -3,10 +3,8 @@ from tortoise.functions import Count
 
 from app.api.v1.utils import insert_log
 from app.controllers.menu import menu_controller
-
+from app.models.system import LogType, LogDetailType, IconType
 from app.models.system import Menu
-from app.models.system import LogType, LogDetailType
-
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.menus import MenuCreate, MenuUpdate
 
@@ -29,7 +27,10 @@ async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = 
                 menu_dict = {"id": menu.id, "label": menu.menu_name, "pId": menu.parent_id}
             else:
                 menu_dict = await menu.to_dict()
-                menu_dict["buttons"] = [await button.to_dict() for button in await menu.buttons]
+                if menu.icon_type == IconType.local:
+                    menu_dict["localIcon"] = menu.icon
+                    menu_dict.pop("icon")
+                menu_dict["buttons"] = [await button.to_dict() for button in await menu.by_menu_buttons]
             if children:
                 menu_dict["children"] = children
             tree.append(menu_dict)
@@ -67,16 +68,16 @@ async def get_menu(menu_id: int):
 
 @router.post("/menus", summary="创建菜单")
 async def _(menu_in: MenuCreate):
-    # is_exist = await menu_controller.model.exists(route_path=menu_in.route_path)
-    # if is_exist:
-    #     raise HTTPException(
-    #         code="4090",
-    #         msg="The menu with this route_path already exists in the system.",
-    #     )
+    is_exist = await menu_controller.model.exists(route_path=menu_in.route_path)
+    if is_exist:
+        return Success(code="4090", msg=f"The menu with this route_path {menu_in.route_path} already exists in the system.")
+
+    if menu_in.active_menu:
+        menu_in.active_menu = await menu_controller.get(menu_name=menu_in.active_menu)
 
     new_menu = await menu_controller.create(obj_in=menu_in, exclude={"buttons"})
-    if new_menu and menu_in.buttons:
-        await menu_controller.update_buttons_by_code(new_menu, menu_in.buttons)
+    if new_menu and menu_in.by_menu_buttons:
+        await menu_controller.update_buttons_by_code(new_menu, menu_in.by_menu_buttons)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuCreateOne, by_user_id=0)
     return Success(msg="Created Successfully", data={"created_id": new_menu.id})
 
@@ -84,8 +85,8 @@ async def _(menu_in: MenuCreate):
 @router.patch("/menus/{menu_id}", summary="更新菜单")
 async def _(menu_id: int, menu_in: MenuUpdate):
     menu_obj = await menu_controller.update(id=menu_id, obj_in=menu_in, exclude={"buttons"})
-    if menu_obj and menu_in.buttons:
-        await menu_controller.update_buttons_by_code(menu_obj, menu_in.buttons)
+    if menu_obj and menu_in.by_menu_buttons:
+        await menu_controller.update_buttons_by_code(menu_obj, menu_in.by_menu_buttons)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuUpdateOne, by_user_id=0)
     return Success(msg="Updated Successfully", data={"updated_id": menu_id})
 
@@ -109,28 +110,8 @@ async def _(ids: str = Query(description="菜单ID列表, 用逗号隔开")):
 
 @router.get("/menus/pages/", summary="查看一级菜单")
 async def _():
-    # user_id = CTX_USER_ID.get()
-    # user_obj = await User.filter(id=user_id).first()
-    # menus: list[Menu] = []
-    # await user_obj.fetch_related("roles")  # type: ignore
-    # user_roles = [r.role_code for r in user_obj.roles]  # type: ignore
-    # if "R_SUPER" in user_roles:  # 超级管理员
-    #     menus = await Menu.filter(parent_id=0, constant=False)
-    # else:
-    #     role_objs: list[Role] = await user_obj.roles  # type: ignore
-    #     for role_obj in role_objs:
-    #         menu = await role_obj.menus
-    #         menus.extend(menu)
-    #     menus = list(set(menus))
-    #     menus = [menu for menu in menus if not menu.constant and menu.parent_id == 0]
-
-    # data: list[str] = []
-    # for menu in menus:
-    #     if menu.parent_id == 0:  # 取顶级菜单名
-    #         data.append(menu.route_name)
-
     menus = await Menu.filter(parent_id=0, constant=False)
-    data = [menu.route_name for menu in menus]
+    data = [{"key": menu.menu_name, "value": menu.id} for menu in menus]
 
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetPages, by_user_id=0)
     return Success(data=data)
@@ -151,14 +132,14 @@ async def build_menu_button_tree(menus: list[Menu], parent_id: int = 0) -> list[
             if children:
                 menu_dict["children"] = children
             else:
-                menu_dict["children"] = [{"id": button.id, "label": button.button_code, "pId": menu.id} for button in await menu.buttons]
+                menu_dict["children"] = [{"id": button.id, "label": button.button_code, "pId": menu.id} for button in await menu.by_menu_buttons]
             tree.append(menu_dict)
     return tree
 
 
 @router.get("/menus/buttons/tree/", summary="查看菜单按钮树")
 async def _():
-    menus_with_button = await Menu.filter(constant=False).annotate(button_count=Count('buttons')).filter(button_count__gt=0)
+    menus_with_button = await Menu.filter(constant=False).annotate(button_count=Count('by_menu_buttons')).filter(button_count__gt=0)
     menu_objs = menus_with_button.copy()
     while len(menus_with_button) > 0:
         menu = menus_with_button.pop()

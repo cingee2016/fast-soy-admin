@@ -42,7 +42,13 @@ function transformElegantRouteToVueRoute(
   }
 
   function getLayoutName(component: string) {
-    return component.replace(LAYOUT_PREFIX, '');
+    const layout = component.replace(LAYOUT_PREFIX, '');
+
+    if(!layouts[layout]) {
+      throw new Error(`Layout component "${layout}" not found`);
+    }
+
+    return layout;
   }
 
   function isView(component: string) {
@@ -50,7 +56,13 @@ function transformElegantRouteToVueRoute(
   }
 
   function getViewName(component: string) {
-    return component.replace(VIEW_PREFIX, '');
+    const view = component.replace(VIEW_PREFIX, '');
+
+    if(!views[view]) {
+      throw new Error(`View component "${view}" not found`);
+    }
+
+    return view;
   }
 
   function isFirstLevelRoute(item: ElegantConstRoute) {
@@ -81,47 +93,55 @@ function transformElegantRouteToVueRoute(
 
   const vueRoute = { name, path, ...rest } as RouteRecordRaw;
 
-  if (component) {
-    if (isSingleLevelRoute(route)) {
-      const { layout, view } = getSingleLevelRouteComponent(component);
+  try {
+    if (component) {
+      if (isSingleLevelRoute(route)) {
+        const { layout, view } = getSingleLevelRouteComponent(component);
 
-      const singleLevelRoute: RouteRecordRaw = {
-        path,
-        component: layouts[layout],
-        children: [
-          {
-            name,
-            path: '',
-            component: views[view],
-            ...rest
-          } as RouteRecordRaw
-        ]
-      };
+        const singleLevelRoute: RouteRecordRaw = {
+          path,
+          component: layouts[layout],
+          meta: {
+            title: route.meta?.title || ''
+          },
+          children: [
+            {
+              name,
+              path: '',
+              component: views[view],
+              ...rest
+            } as RouteRecordRaw
+          ]
+        };
 
-      return [singleLevelRoute];
+        return [singleLevelRoute];
+      }
+
+      if (isLayout(component)) {
+        const layoutName = getLayoutName(component);
+
+        vueRoute.component = layouts[layoutName];
+      }
+
+      if (isView(component)) {
+        const viewName = getViewName(component);
+
+        vueRoute.component = views[viewName];
+      }
+
     }
-
-    if (isLayout(component)) {
-      const layoutName = getLayoutName(component);
-
-      vueRoute.component = layouts[layoutName];
-    }
-
-    if (isView(component)) {
-      const viewName = getViewName(component);
-
-      vueRoute.component = views[viewName];
-    }
-
+  } catch (error: any) {
+    console.error(`Error transforming route "${route.name}": ${error.toString()}`);
+    return [];
   }
-  
+
   // add redirect to child
   if (children?.length && !vueRoute.redirect) {
     vueRoute.redirect = {
       name: children[0].name
     };
   }
-  
+
   if (children?.length) {
     const childRoutes = children.flatMap(child => transformElegantRouteToVueRoute(child, layouts, views));
 
@@ -155,10 +175,15 @@ const routeMap: RouteMap = {
   "document_unocss": "/document/unocss",
   "document_naive": "/document/naive",
   "document_antd": "/document/antd",
+  "document_alova": "/document/alova",
   "403": "/403",
   "404": "/404",
   "500": "/500",
   "about": "/about",
+  "alova": "/alova",
+  "alova_request": "/alova/request",
+  "alova_scenes": "/alova/scenes",
+  "alova_user": "/alova/user",
   "function": "/function",
   "function_hide-child": "/function/hide-child",
   "function_hide-child_one": "/function/hide-child/one",
@@ -185,6 +210,30 @@ const routeMap: RouteMap = {
   "multi-menu_second": "/multi-menu/second",
   "multi-menu_second_child": "/multi-menu/second/child",
   "multi-menu_second_child_home": "/multi-menu/second/child/home",
+  "plugin": "/plugin",
+  "plugin_barcode": "/plugin/barcode",
+  "plugin_charts": "/plugin/charts",
+  "plugin_charts_antv": "/plugin/charts/antv",
+  "plugin_charts_echarts": "/plugin/charts/echarts",
+  "plugin_charts_vchart": "/plugin/charts/vchart",
+  "plugin_copy": "/plugin/copy",
+  "plugin_editor": "/plugin/editor",
+  "plugin_editor_markdown": "/plugin/editor/markdown",
+  "plugin_editor_quill": "/plugin/editor/quill",
+  "plugin_excel": "/plugin/excel",
+  "plugin_gantt": "/plugin/gantt",
+  "plugin_gantt_dhtmlx": "/plugin/gantt/dhtmlx",
+  "plugin_gantt_vtable": "/plugin/gantt/vtable",
+  "plugin_icon": "/plugin/icon",
+  "plugin_map": "/plugin/map",
+  "plugin_pdf": "/plugin/pdf",
+  "plugin_pinyin": "/plugin/pinyin",
+  "plugin_print": "/plugin/print",
+  "plugin_swiper": "/plugin/swiper",
+  "plugin_tables": "/plugin/tables",
+  "plugin_tables_vtable": "/plugin/tables/vtable",
+  "plugin_typeit": "/plugin/typeit",
+  "plugin_video": "/plugin/video",
   "user-center": "/user-center"
 };
 

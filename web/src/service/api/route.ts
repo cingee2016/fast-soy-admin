@@ -1,19 +1,19 @@
 import { request } from '../request';
 
-/** 获取常量路由 */
+/** get constant routes */
 export function fetchGetConstantRoutes() {
   return request<Api.Route.MenuRoute[]>({ url: '/route/constant-routes' });
 }
 
-/** 获取用户路由 */
+/** get user routes */
 export function fetchGetUserRoutes() {
   return request<Api.Route.UserRoute>({ url: '/route/user-routes' });
 }
 
 /**
- * 检查路由是否存在
+ * whether the route is exist
  *
- * @param routeName 路由名称
+ * @param routeName route name
  */
 export function fetchIsRouteExist(routeName: string) {
   return request<boolean>({ url: `/route/${routeName}/exists` });

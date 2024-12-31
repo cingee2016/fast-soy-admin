@@ -47,25 +47,25 @@ async function getTree() {
   }
 }
 
-const apiIds = shallowRef<number[]>([]);
+const byRoleApiIds = shallowRef<number[]>([]);
 
 async function getChecks() {
   // console.log(props.roleId);
   // request
-  apiIds.value = [1, 2, 3, 4, 5];
+  byRoleApiIds.value = [1, 2, 3, 4, 5];
 
   const { error, data } = await fetchGetRoleApi({ id: props.roleId });
   if (!error) {
-    apiIds.value = data.apiIds || [];
+    byRoleApiIds.value = data.byRoleApiIds || [];
   }
 }
 
 async function handleSubmit() {
-  // console.log(apiIds.value, props.roleId);
+  // console.log(byRoleApiIds.value, props.roleId);
   // request
   const { error } = await fetchUpdateRoleApi({
     id: props.roleId,
-    apiIds: apiIds.value.filter(item => typeof item === 'number')
+    byRoleApiIds: byRoleApiIds.value.filter(item => typeof item === 'number')
   });
   if (!error) {
     window.$message?.success?.($t('common.modifySuccess'));
@@ -89,7 +89,7 @@ watch(visible, val => {
 <template>
   <NModal v-model:show="visible" :title="title" preset="card" class="w-480px">
     <NTree
-      v-model:checked-keys="apiIds"
+      v-model:checked-keys="byRoleApiIds"
       :data="tree"
       key-field="id"
       label-field="summary"

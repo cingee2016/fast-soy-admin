@@ -76,16 +76,16 @@ async function getButtonTree() {
   }
 }
 
-const buttonIds = shallowRef<number[]>([]);
+const byRoleButtonIds = shallowRef<number[]>([]);
 
 async function getChecks() {
   // console.log(props.roleId);
   // request
   // checks.value = [1, 2, 3, 4, 5];
-  buttonIds.value = [1, 2, 3];
+  byRoleButtonIds.value = [1, 2, 3];
   const { error, data } = await fetchGetRoleButton({ id: props.roleId });
   if (!error) {
-    buttonIds.value = data.buttonIds || [];
+    byRoleButtonIds.value = data.byRoleButtonIds || [];
   }
 }
 
@@ -95,7 +95,7 @@ async function handleSubmit() {
 
   const { error } = await fetchUpdateRoleButton({
     id: props.roleId,
-    buttonIds: buttonIds.value.filter(item => typeof item === 'number')
+    byRoleButtonIds: byRoleButtonIds.value.filter(item => typeof item === 'number')
   });
   if (!error) {
     window.$message?.success?.($t('common.modifySuccess'));
@@ -119,7 +119,7 @@ watch(visible, val => {
 <template>
   <NModal v-model:show="visible" :title="title" preset="card" class="w-480px">
     <NTree
-      v-model:checked-keys="buttonIds"
+      v-model:checked-keys="byRoleButtonIds"
       :data="tree"
       key-field="id"
       default-expand-all

@@ -7,7 +7,7 @@ export default defineConfig(
       'vue/multi-word-component-names': [
         'warn',
         {
-          ignores: ['index', 'App', '[id]', '[url]']
+          ignores: ['index', 'App', 'Register', '[id]', '[url]']
         }
       ],
       'vue/component-name-in-template-casing': [
@@ -18,7 +18,9 @@ export default defineConfig(
           ignores: ['/^icon-/']
         }
       ],
-      'unocss/order-attributify': 'off'
+      'unocss/order-attributify': 'off',
+      // '@typescript-eslint/no-unused-vars': ['off'],
+      'no-console': 'off' // 禁用 no-console 规则
     }
   }
 );

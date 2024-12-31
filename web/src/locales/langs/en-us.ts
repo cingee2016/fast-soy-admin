@@ -1,12 +1,18 @@
 const local: App.I18n.Schema = {
   system: {
-    title: 'SoybeanAdmin'
+    title: 'SoybeanAdmin',
+    updateTitle: 'System Version Update Notification',
+    updateContent: 'A new version of the system has been detected. Do you want to refresh the page immediately?',
+    updateConfirm: 'Refresh immediately',
+    updateCancel: 'Later'
   },
   common: {
     action: 'Action',
     add: 'Add',
     addSuccess: 'Add Success',
     backToHome: 'Back to home',
+    batchApprove: 'Batch Approve',
+    batchReject: 'Batch Reject',
     batchDelete: 'Batch Delete',
     cancel: 'Cancel',
     close: 'Close',
@@ -18,8 +24,16 @@ const local: App.I18n.Schema = {
     delete: 'Delete',
     deleteSuccess: 'Delete Success',
     confirmDelete: 'Are you sure you want to delete?',
+    approve: 'Approve',
+    approveSuccess: 'Approve Success',
+    confirmApprove: 'Are you sure you want to approve?',
+    reject: 'Reject',
+    rejectSuccess: 'Approve Reject',
+    confirmReject: 'Are you sure you want to reject?',
     edit: 'Edit',
     view: 'View',
+    warning: 'Warning',
+    error: 'Error',
     index: 'Index',
     keywordSearch: 'Please enter keyword',
     logout: 'Logout',
@@ -61,12 +75,14 @@ const local: App.I18n.Schema = {
       auto: 'Follow System'
     },
     grayscale: 'Grayscale',
+    colourWeakness: 'Colour Weakness',
     layoutMode: {
       title: 'Layout Mode',
       vertical: 'Vertical Menu Mode',
       horizontal: 'Horizontal Menu Mode',
       'vertical-mix': 'Vertical Mix Menu Mode',
-      'horizontal-mix': 'Horizontal Mix menu Mode'
+      'horizontal-mix': 'Horizontal Mix menu Mode',
+      reverseHorizontalMix: 'Reverse first level menus and child level menus position'
     },
     recommendColor: 'Apply Recommended Color Algorithm',
     recommendColorDesc: 'The recommended color algorithm refers to',
@@ -107,7 +123,7 @@ const local: App.I18n.Schema = {
     },
     tab: {
       visible: 'Tab Visible',
-      cache: 'Tab Cache',
+      cache: 'Tag Bar Info Cache',
       height: 'Tab Height',
       mode: {
         title: 'Tab Mode',
@@ -129,8 +145,17 @@ const local: App.I18n.Schema = {
       height: 'Footer Height',
       right: 'Right Footer'
     },
+    watermark: {
+      visible: 'Watermark Full Screen Visible',
+      text: 'Watermark Text'
+    },
     themeDrawerTitle: 'Theme Configuration',
     pageFunTitle: 'Page Function',
+    resetCacheStrategy: {
+      title: 'Reset Cache Strategy',
+      close: 'Close Page',
+      refresh: 'Refresh Page'
+    },
     configOperation: {
       copyConfig: 'Copy Config',
       copySuccessMsg: 'Copy Success, Please replace the variable "themeSettings" in "src/theme/settings.ts"',
@@ -153,9 +178,14 @@ const local: App.I18n.Schema = {
     document_unocss: 'UnoCSS Document',
     document_naive: 'Naive UI Document',
     document_antd: 'Ant Design Vue Document',
+    document_alova: 'Alova Document',
     'user-center': 'User Center',
     about: 'About',
     function: 'System Function',
+    alova: 'Alova Example',
+    alova_request: 'Alova Request',
+    alova_user: 'User List',
+    alova_scenes: 'Scenario Request',
     function_tab: 'Tab',
     'function_multi-tab': 'Multi Tab',
     'function_hide-child': 'Hide Child',
@@ -181,7 +211,31 @@ const local: App.I18n.Schema = {
     exception: 'Exception',
     exception_403: '403',
     exception_404: '404',
-    exception_500: '500'
+    exception_500: '500',
+    plugin: 'Plugin',
+    plugin_copy: 'Copy',
+    plugin_charts: 'Charts',
+    plugin_charts_echarts: 'ECharts',
+    plugin_charts_antv: 'AntV',
+    plugin_charts_vchart: 'VChart',
+    plugin_editor: 'Editor',
+    plugin_editor_quill: 'Quill',
+    plugin_editor_markdown: 'Markdown',
+    plugin_icon: 'Icon',
+    plugin_map: 'Map',
+    plugin_print: 'Print',
+    plugin_swiper: 'Swiper',
+    plugin_video: 'Video',
+    plugin_barcode: 'Barcode',
+    plugin_pinyin: 'pinyin',
+    plugin_excel: 'Excel',
+    plugin_pdf: 'PDF preview',
+    plugin_gantt: 'Gantt Chart',
+    plugin_gantt_dhtmlx: 'dhtmlxGantt',
+    plugin_gantt_vtable: 'VTableGantt',
+    plugin_typeit: 'Typeit',
+    plugin_tables: 'Tables',
+    plugin_tables_vtable: 'VTable'
   },
   page: {
     login: {
@@ -197,7 +251,7 @@ const local: App.I18n.Schema = {
         back: 'Back',
         validateSuccess: 'Verification passed',
         loginSuccess: 'Login successfully',
-        welcomeBack: 'Welcome back, {userName} !'
+        welcomeBack: 'Welcome back, {nickName} !'
       },
       pwdLogin: {
         title: 'Password Login',
@@ -244,6 +298,8 @@ const local: App.I18n.Schema = {
       devDep: 'Development Dependency'
     },
     home: {
+      branchDesc:
+        'For the convenience of everyone in developing and updating the merge, we have streamlined the code of the main branch, only retaining the homepage menu, and the rest of the content has been moved to the example branch for maintenance. The preview address displays the content of the example branch.',
       greeting: 'Good morning, {userName}, today is another day full of vitality!',
       weatherDesc: 'Today is cloudy to clear, 20℃ - 25℃!',
       projectCount: 'Project Count',
@@ -309,9 +365,23 @@ const local: App.I18n.Schema = {
         repeatedErrorMsg2: 'Custom Request Error 2'
       }
     },
+    alova: {
+      scenes: {
+        captchaSend: 'Captcha Send',
+        autoRequest: 'Auto Request',
+        visibilityRequestTips: 'Automatically request when switching browser window',
+        pollingRequestTips: 'It will request every 3 seconds',
+        networkRequestTips: 'Automatically request after network reconnecting',
+        refreshTime: 'Refresh Time',
+        startRequest: 'Start Request',
+        stopRequest: 'Stop Request',
+        requestCrossComponent: 'Request Cross Component',
+        triggerAllRequest: 'Manually Trigger All Automated Requests'
+      }
+    },
     manage: {
       common: {
-        status: {
+        statusType: {
           enable: 'Enable',
           disable: 'Disable'
         }
@@ -320,113 +390,19 @@ const local: App.I18n.Schema = {
         title: 'Role List',
         roleName: 'Role Name',
         roleCode: 'Role Code',
-        roleStatus: 'Role Status',
+        rolestatusType: 'Role statusType',
         roleDesc: 'Role Description',
         menuAuth: 'Menu Auth',
         buttonAuth: 'Button Auth',
-        apiAuth: 'API Auth',
+        apiAuth: 'Api Auth',
         form: {
           roleName: 'Please enter role name',
           roleCode: 'Please enter role code',
-          roleStatus: 'Please select role status',
+          rolestatusType: 'Please select role statusType',
           roleDesc: 'Please enter role description'
         },
         addRole: 'Add Role',
         editRole: 'Edit Role'
-      },
-      log: {
-        title: 'Log List',
-        logType: 'Log type',
-        logUser: 'Log user',
-        logDetailType: 'Log deatil',
-        requestUrl: 'Request url',
-        createTime: 'Create time',
-        responseCode: 'Response code',
-        form: {
-          logType: 'Please select Log type',
-          logUser: 'Please enter Log user',
-          logDetailType: 'Please select Log deatil',
-          requestUrl: 'Please enter Request url',
-          createTime: 'Please select Create time',
-          responseCode: 'Please enter Response code'
-        },
-        viewLog: 'View Log',
-        logDetailTypes: {
-          SystemStart: 'System start',
-          SystemStop: 'System stop',
-          UserLoginSuccess: 'User login success',
-          UserAuthRefreshTokenSuccess: 'User authentication refresh token success',
-          UserLoginGetUserInfo: 'User login get user info',
-          UserLoginUserNameVaild: 'User login username valid',
-          UserLoginErrorPassword: 'User login error password',
-          UserLoginForbid: 'User login forbidden',
-          ApiGetList: 'API get list',
-          ApiGetTree: 'API get tree',
-          ApiRefresh: 'API refresh',
-          ApiGetOne: 'API get one',
-          ApiCreateOne: 'API create one',
-          ApiUpdateOne: 'API update one',
-          ApiDeleteOne: 'API delete one',
-          ApiBatchDelete: 'API batch delete',
-          MenuGetList: 'Menu get list',
-          MenuGetTree: 'Menu get tree',
-          MenuGetPages: 'Menu get pages',
-          MenuGetButtonsTree: 'Menu get buttons tree',
-          MenuGetOne: 'Menu get one',
-          MenuCreateOne: 'Menu create one',
-          MenuUpdateOne: 'Menu update one',
-          MenuDeleteOne: 'Menu delete one',
-          MenuBatchDeleteOne: 'Menu batch delete',
-          RoleGetList: 'Role get list',
-          RoleGetMenus: 'Role get menus',
-          RoleUpdateMenus: 'Role update menus',
-          RoleGetButtons: 'Role get buttons',
-          RoleUpdateButtons: 'Role update buttons',
-          RoleGetApis: 'Role get APIs',
-          RoleUpdateApis: 'Role update APIs',
-          RoleGetOne: 'Role get one',
-          RoleCreateOne: 'Role create one',
-          RoleUpdateOne: 'Role update one',
-          RoleDeleteOne: 'Role delete one',
-          RoleBatchDeleteOne: 'Role batch delete',
-          UserGetList: 'User get list',
-          UserGetOne: 'User get one',
-          UserCreateOne: 'User create one',
-          UserUpdateOne: 'User update one',
-          UserDeleteOne: 'User delete one',
-          UserBatchDeleteOne: 'User batch delete'
-        },
-        logTypes: {
-          ApiLog: 'Api log',
-          UserLog: 'User log',
-          AdminLog: 'Admin log',
-          SystemLog: 'System log'
-        }
-      },
-
-      api: {
-        title: 'API List',
-        path: 'Path',
-        method: 'Method',
-        summary: 'Summary',
-        tags: 'Tags',
-        status: 'Status',
-        form: {
-          path: 'Please enter path',
-          method: 'Please select method',
-          summary: 'Please enter summary',
-          tags: 'Please enter tags',
-          status: 'Please select user status'
-        },
-        addApi: 'Add API',
-        editApi: 'Edit API',
-        methods: {
-          GET: 'GET',
-          POST: 'POST',
-          PUT: 'PUT',
-          PATCH: 'PATCH',
-          DELETE: 'DELETE'
-        }
       },
       user: {
         title: 'User List',
@@ -436,7 +412,7 @@ const local: App.I18n.Schema = {
         nickName: 'Nick Name',
         userPhone: 'Phone Number',
         userEmail: 'Email',
-        userStatus: 'User Status',
+        userStatusType: 'User statusType',
         userRole: 'User Role',
         form: {
           userName: 'Please enter user name',
@@ -445,7 +421,7 @@ const local: App.I18n.Schema = {
           nickName: 'Please enter nick name',
           userPhone: 'Please enter phone number',
           userEmail: 'Please enter email',
-          userStatus: 'Please select user status',
+          userStatusType: 'Please select user statusType',
           userRole: 'Please select user role'
         },
         addUser: 'Add User',
@@ -484,7 +460,7 @@ const local: App.I18n.Schema = {
         button: 'Button',
         buttonCode: 'Button Code',
         buttonDesc: 'Button Desc',
-        menuStatus: 'Menu Status',
+        menuStatusType: 'Menu statusType',
         form: {
           home: 'Please select home',
           menuType: 'Please select menu type',
@@ -510,7 +486,7 @@ const local: App.I18n.Schema = {
           button: 'Please select whether it is a button',
           buttonCode: 'Please enter button code',
           buttonDesc: 'Please enter button description',
-          menuStatus: 'Please select menu status'
+          menuStatusType: 'Please select menu statusType'
         },
         addMenu: 'Add Menu',
         editMenu: 'Edit Menu',
@@ -522,6 +498,106 @@ const local: App.I18n.Schema = {
         iconType: {
           iconify: 'Iconify Icon',
           local: 'Local Icon'
+        }
+      },
+      log: {
+        title: '',
+        logType: '',
+        byUser: '',
+        logDetailType: '',
+        createTime: '',
+        requestDomain: '',
+        requestPath: '',
+        responseCode: '',
+        xRequestId: '',
+        requestParams: '',
+        responseData: '',
+        userAgent: '',
+        processTime: '',
+        ipAddress: '',
+        form: {
+          logType: '',
+          byUser: '',
+          logDetailType: '',
+          requestPath: '',
+          createTime: '',
+          responseCode: ''
+        },
+        viewLog: '',
+        logDetailTypes: {
+          SystemStart: '',
+          SystemStop: '',
+          UserLoginSuccess: '',
+          UserAuthRefreshTokenSuccess: '',
+          UserLoginGetUserInfo: '',
+          UserLoginUserNameVaild: '',
+          UserLoginErrorPassword: '',
+          UserLoginForbid: '',
+          ApiGetList: '',
+          ApiGetTree: '',
+          ApiRefresh: '',
+          ApiGetOne: '',
+          ApiCreateOne: '',
+          ApiUpdateOne: '',
+          ApiDeleteOne: '',
+          ApiBatchDelete: '',
+          MenuGetList: '',
+          MenuGetTree: '',
+          MenuGetPages: '',
+          MenuGetButtonsTree: '',
+          MenuGetOne: '',
+          MenuCreateOne: '',
+          MenuUpdateOne: '',
+          MenuDeleteOne: '',
+          MenuBatchDeleteOne: '',
+          RoleGetList: '',
+          RoleGetMenus: '',
+          RoleUpdateMenus: '',
+          RoleGetButtons: '',
+          RoleUpdateButtons: '',
+          RoleGetApis: '',
+          RoleUpdateApis: '',
+          RoleGetOne: '',
+          RoleCreateOne: '',
+          RoleUpdateOne: '',
+          RoleDeleteOne: '',
+          RoleBatchDeleteOne: '',
+          UserGetList: '',
+          UserGetOne: '',
+          UserCreateOne: '',
+          UserUpdateOne: '',
+          UserDeleteOne: '',
+          UserBatchDeleteOne: ''
+        },
+        logTypes: {
+          ApiLog: '',
+          UserLog: '',
+          AdminLog: '',
+          SystemLog: ''
+        }
+      },
+      api: {
+        title: '',
+        path: '',
+        method: '',
+        summary: '',
+        tags: '',
+        statusType: '',
+        form: {
+          path: '',
+          method: '',
+          summary: '',
+          tags: '',
+          statusType: ''
+        },
+        addApi: '',
+        editApi: '',
+        methods: {
+          GET: '',
+          POST: '',
+          PUT: '',
+          PATCH: '',
+          DELETE: ''
         }
       }
     }

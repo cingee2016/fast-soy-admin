@@ -18,6 +18,10 @@ dependencies = [
     "email-validator>=2.1.1",
     "setuptools>=69.5.1",
     "argon2-cffi>=23.1.0",
+    "fastapi-cache2>=0.2.2",
+    "redis>=4.6.0",
+    "orjson>=3.10.12",
+    "alibabacloud-dysmsapi20170525>=3.1.0",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
@@ -27,7 +31,7 @@ license = { text = "MIT" }
 line-length = 120
 
 [tool.ruff.lint]
-exclude = [ "web", "node_modules", "migrations", "src/experimental", "src/typestubs", "src/oldstuff" ]
+exclude = ["web", "node_modules", "migrations", "src/experimental", "src/typestubs", "src/oldstuff"]
 extend-select = [
     "F",
     "E",
@@ -47,6 +51,7 @@ ignore = [
     "F405",
     "E501", # Line too long
     #    "I001", # isort
+    "W293",
 ]
 
 [tool.ruff.format]
@@ -71,9 +76,9 @@ defineConstant = { DEBUG = false }
 stubPath = "src/stubs"
 
 reportMissingImports = true
-reportMissingTypeStubs = false
-
-reportIncompatibleVariableOverride = false
+#reportMissingTypeStubs = false
+#
+#reportIncompatibleVariableOverride = false
 
 [tool.pdm]
 distribution = false

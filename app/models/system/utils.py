@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
@@ -20,9 +21,14 @@ class BaseModel(models.Model):
             if (not include_fields or field in include_fields) and (not exclude_fields or field not in exclude_fields):
                 value = getattr(self, field)
                 if isinstance(value, datetime):
-                    value = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                    d[to_lower_camel_case("fmt_" + field)] = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                    value = int(value.timestamp() * 1000)
                 elif isinstance(value, UUID):
                     value = str(value)
+                elif isinstance(value, Decimal):
+                    value = float(value)
+                elif isinstance(value, Enum):
+                    value = value.value
                 d[to_lower_camel_case(field)] = value
 
         if m2m:
@@ -34,10 +40,13 @@ class BaseModel(models.Model):
                     for value in values:
                         _value = value.copy()
                         for k, v in _value.items():
-                            if isinstance(v, datetime):
-                                v = v.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                            if isinstance(value, datetime):
+                                d[to_lower_camel_case("fmt_" + field)] = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                                value = int(value.timestamp() * 1000)
                             elif isinstance(v, UUID):
                                 v = str(v)
+                            elif isinstance(value, Decimal):
+                                value = float(value)
                             value.pop(k)
                             value[to_lower_camel_case(k)] = v
                     d[to_lower_camel_case(field)] = values
@@ -60,6 +69,12 @@ class EnumBase(Enum):
     @classmethod
     def get_member_names(cls):
         return [name for name in cls._member_names_]
+
+    @classmethod
+    def get_name_by_value(cls, value: str | int):
+        for item in cls._member_map_.values():
+            if item.value == value:
+                return item.name
 
 
 class IntEnum(int, EnumBase):
@@ -149,8 +164,10 @@ class LogDetailType(str, Enum):
 
 
 class StatusType(str, Enum):
+    all = "0"
     enable = "1"
     disable = "2"
+    invalid = "3"
 
 
 class GenderType(str, Enum):
@@ -169,4 +186,17 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]
+__all__ = [
+    "BaseModel",
+    "TimestampMixin",
+    "EnumBase",
+    "IntEnum",
+    "StrEnum",
+    "MethodType",
+    "LogType",
+    "LogDetailType",
+    "StatusType",
+    "GenderType",
+    "MenuType",
+    "IconType"
+]

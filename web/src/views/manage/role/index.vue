@@ -4,20 +4,30 @@ import { fetchBatchDeleteRole, fetchDeleteRole, fetchGetRoleList } from '@/servi
 import { useAppStore } from '@/store/modules/app';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
-import { enableStatusRecord } from '@/constants/business';
+import { statusTypeRecord } from '@/constants/business';
 import RoleOperateDrawer from './modules/role-operate-drawer.vue';
 import RoleSearch from './modules/role-search.vue';
 
 const appStore = useAppStore();
 
-const { columns, columnChecks, data, loading, getData, mobilePagination, searchParams, resetSearchParams } = useTable({
+const {
+  columns,
+  columnChecks,
+  data,
+  loading,
+  getData,
+  getDataByPage,
+  mobilePagination,
+  searchParams,
+  resetSearchParams
+} = useTable({
   apiFn: fetchGetRoleList,
   apiParams: {
     current: 1,
     size: 10,
     // if you want to use the searchParams in Form, you need to define the following properties, and the value is null
     // the value can not be undefined, otherwise the property in Form will not be reactive
-    status: null,
+    statusType: null,
     roleName: null,
     roleCode: null
   },
@@ -51,12 +61,12 @@ const { columns, columnChecks, data, loading, getData, mobilePagination, searchP
       minWidth: 120
     },
     {
-      key: 'status',
-      title: $t('page.manage.role.roleStatus'),
+      key: 'statusType',
+      title: $t('page.manage.role.rolestatusType'),
       align: 'center',
       width: 100,
       render: row => {
-        if (row.status === null) {
+        if (row.statusType === null) {
           return null;
         }
 
@@ -65,9 +75,9 @@ const { columns, columnChecks, data, loading, getData, mobilePagination, searchP
           2: 'warning'
         };
 
-        const label = $t(enableStatusRecord[row.status]);
+        const label = $t(statusTypeRecord[row.statusType]);
 
-        return <NTag type={tagMap[row.status]}>{label}</NTag>;
+        return <NTag type={tagMap[row.statusType]}>{label}</NTag>;
       }
     },
     {
@@ -131,13 +141,14 @@ function edit(id: number) {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <RoleSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getData" />
+    <RoleSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :title="$t('page.manage.role.title')" :bordered="false" size="small" class="sm:flex-1-hidden card-wrapper">
       <template #header-extra>
         <TableHeaderOperation
           v-model:columns="columnChecks"
           :disabled-delete="checkedRowKeys.length === 0"
           :loading="loading"
+          table-id="role"
           @add="handleAdd"
           @delete="handleBatchDelete"
           @refresh="getData"
@@ -160,7 +171,7 @@ function edit(id: number) {
         v-model:visible="drawerVisible"
         :operate-type="operateType"
         :row-data="editingData"
-        @submitted="getData"
+        @submitted="getDataByPage"
       />
     </NCard>
   </div>

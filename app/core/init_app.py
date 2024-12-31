@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from tortoise.contrib.fastapi import register_tortoise
+from tortoise.exceptions import MultipleObjectsReturned
 
 from app.api import api_router
 from app.controllers import role_controller
@@ -19,6 +20,7 @@ from app.core.exceptions import (
     ResponseValidationError,
     ResponseValidationHandle,
 )
+
 from app.core.middlewares import BackGroundTaskMiddleware, APILoggerMiddleware, APILoggerAddResponseMiddleware
 from app.models.system import Menu, Role, User, Button, Api
 from app.models.system import StatusType, IconType, MenuType
@@ -36,7 +38,7 @@ def make_middlewares():
         ),
         Middleware(BackGroundTaskMiddleware),
         Middleware(APILoggerMiddleware),
-        Middleware(APILoggerAddResponseMiddleware),
+        Middleware(APILoggerAddResponseMiddleware)
     ]
     return middleware
 
@@ -66,9 +68,13 @@ async def modify_db():
     try:
         await command.init_db(safe=True)
     except FileExistsError:
-        pass
+        ...
 
-    await command.init()
+    try:
+        await command.init()
+    except Exception:
+        ...
+
     await command.migrate()
     await command.upgrade(run_in_transaction=True)
 
@@ -149,6 +155,19 @@ async def init_menus():
         icon="mdi:monitor-dashboard",
         icon_type=IconType.iconify,
     )
+    await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=0,
+        menu_type=MenuType.menu,
+        menu_name="关于",
+        route_name="about",
+        route_path="/about",
+        component="layout.base$view.about",
+        order=99,
+        i18n_key="route.about",
+        icon="fluent:book-information-24-regular",
+        icon_type=IconType.iconify,
+    )
 
     # 2
     root_menu = await Menu.create(
@@ -180,15 +199,16 @@ async def init_menus():
     )
 
     button_code1 = await Button.create(button_code="B_CODE1", button_desc="超级管理员可见")
-    await parent_menu.buttons.add(button_code1)
+    await parent_menu.by_menu_buttons.add(button_code1)
     button_code2 = await Button.create(button_code="B_CODE2", button_desc="管理员可见")
-    await parent_menu.buttons.add(button_code2)
+    await parent_menu.by_menu_buttons.add(button_code2)
     button_code3 = await Button.create(button_code="B_CODE3", button_desc="管理员和用户可见")
-    await parent_menu.buttons.add(button_code3)
+    await parent_menu.by_menu_buttons.add(button_code3)
+    await parent_menu.save()
 
     children_menu = [
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="请求",
@@ -201,7 +221,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="超级管理员可见",
@@ -214,23 +234,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
-            parent_id=root_menu.id,
-            menu_type=MenuType.menu,
-            menu_name="多标签页",
-            route_name="function_multi-tab",
-            route_path="/function/multi-tab",
-            component="view.function_multi-tab",
-            order=1,
-            i18n_key="route.function_multi-tab",
-            icon="ic:round-tab",
-            icon_type=IconType.iconify,
-            multi_tab=True,
-            hide_in_menu=True,
-            active_menu="function_tab",
-        ),
-        Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="标签页",
@@ -244,9 +248,25 @@ async def init_menus():
         ),
     ]
     await Menu.bulk_create(children_menu)
+    await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=root_menu.id,
+        menu_type=MenuType.menu,
+        menu_name="多标签页",
+        route_name="function_multi-tab",
+        route_path="/function/multi-tab",
+        component="view.function_multi-tab",
+        order=1,
+        i18n_key="route.function_multi-tab",
+        icon="ic:round-tab",
+        icon_type=IconType.iconify,
+        multi_tab=True,
+        hide_in_menu=True,
+        active_menu=await Menu.get(route_name="function_tab")
+    )
 
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=root_menu.id,
         menu_type=MenuType.catalog,
         menu_name="隐藏子菜单",
@@ -261,7 +281,7 @@ async def init_menus():
 
     children_menu = [
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=parent_menu.id,
             menu_type=MenuType.menu,
             menu_name="隐藏子菜单1",
@@ -273,10 +293,10 @@ async def init_menus():
             icon="material-symbols:filter-list-off",
             icon_type=IconType.iconify,
             hide_in_menu=True,
-            active_menu="function_hide-child",
+            active_menu=parent_menu,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=parent_menu.id,
             menu_type=MenuType.menu,
             menu_name="隐藏子菜单2",
@@ -286,10 +306,10 @@ async def init_menus():
             order=2,
             i18n_key="route.function_hide-child_two",
             hide_in_menu=True,
-            active_menu="function_hide-child",
+            active_menu=parent_menu,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=parent_menu.id,
             menu_type=MenuType.menu,
             menu_name="隐藏子菜单3",
@@ -299,14 +319,14 @@ async def init_menus():
             order=3,
             i18n_key="route.function_hide-child_three",
             hide_in_menu=True,
-            active_menu="function_hide-child",
+            active_menu=parent_menu,
         )
     ]
     await Menu.bulk_create(children_menu)
 
     # 5
     root_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=0,
         menu_type=MenuType.catalog,
         menu_name="异常页",
@@ -320,7 +340,7 @@ async def init_menus():
     )
     children_menu = [
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="403",
@@ -333,7 +353,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="404",
@@ -346,7 +366,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="500",
@@ -361,9 +381,422 @@ async def init_menus():
     ]
     await Menu.bulk_create(children_menu)
 
+    # 6
+    root_menu = await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=0,
+        menu_type=MenuType.catalog,
+        menu_name="alova示例",
+        route_name="alova",
+        route_path="/alova",
+        component="layout.base",
+        order=7,
+        i18n_key="route.alova",
+        icon="carbon:http",
+        icon_type=IconType.iconify,
+    )
+    children_menu = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="alova_request",
+            route_name="alova_request",
+            route_path="/alova/request",
+            component="view.alova_request",
+            order=1,
+            i18n_key="route.alova_request",
+            icon="ic:baseline-block",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="alova_user",
+            route_name="alova_user",
+            route_path="/alova/user",
+            component="view.alova_user",
+            order=2,
+            i18n_key="route.alova_user",
+            icon="carbon:user-multiple",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="alova_scenes",
+            route_name="alova_scenes",
+            route_path="/alova/scenes",
+            component="view.alova_scenes",
+            order=3,
+            i18n_key="route.alova_scenes",
+            icon="cbi:scene-dynamic",
+            icon_type=IconType.iconify,
+        )
+    ]
+    await Menu.bulk_create(children_menu)
+
+    # 插件示例1
+
+    # 7
+    root_menu = await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=0,
+        menu_type=MenuType.catalog,
+        menu_name="插件示例",
+        route_name="plugin",
+        route_path="/plugin",
+        component="layout.base",
+        order=7,
+        i18n_key="route.plugin",
+        icon="clarity:plugin-line",
+        icon_type=IconType.iconify,
+    )
+
+    children_menu = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_barcode",
+            route_name="plugin_barcode",
+            route_path="/plugin/barcode",
+            component="view.plugin_barcode",
+            order=1,
+            i18n_key="route.plugin_barcode",
+            icon="ic:round-barcode",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_charts",
+            route_name="plugin_charts",
+            route_path="/plugin/charts",
+            component=None,  # No component specified for the parent
+            order=2,
+            i18n_key="route.plugin_charts",
+            icon="mdi:chart-areaspline",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_copy",
+            route_name="plugin_copy",
+            route_path="/plugin/copy",
+            component="view.plugin_copy",
+            order=3,
+            i18n_key="route.plugin_copy",
+            icon="mdi:clipboard-outline",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_editor",
+            route_name="plugin_editor",
+            route_path="/plugin/editor",
+            component=None,  # No component specified for the parent
+            order=4,
+            i18n_key="route.plugin_editor",
+            icon="icon-park-outline:editor",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_excel",
+            route_name="plugin_excel",
+            route_path="/plugin/excel",
+            component="view.plugin_excel",
+            order=5,
+            i18n_key="route.plugin_excel",
+            icon="ri:file-excel-2-line",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_gantt",
+            route_name="plugin_gantt",
+            route_path="/plugin/gantt",
+            component=None,  # No component specified for the parent
+            order=6,
+            i18n_key="route.plugin_gantt",
+            icon="ant-design:bar-chart-outlined",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_icon",
+            route_name="plugin_icon",
+            route_path="/plugin/icon",
+            component="view.plugin_icon",
+            order=7,
+            i18n_key="route.plugin_icon",
+            icon="custom-icon",
+            icon_type=IconType.local,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_map",
+            route_name="plugin_map",
+            route_path="/plugin/map",
+            component="view.plugin_map",
+            order=8,
+            i18n_key="route.plugin_map",
+            icon="mdi:map",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_pdf",
+            route_name="plugin_pdf",
+            route_path="/plugin/pdf",
+            component="view.plugin_pdf",
+            order=9,
+            i18n_key="route.plugin_pdf",
+            icon="uiw:file-pdf",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_pinyin",
+            route_name="plugin_pinyin",
+            route_path="/plugin/pinyin",
+            component="view.plugin_pinyin",
+            order=10,
+            i18n_key="route.plugin_pinyin",
+            icon="entypo-social:google-hangouts",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_print",
+            route_name="plugin_print",
+            route_path="/plugin/print",
+            component="view.plugin_print",
+            order=11,
+            i18n_key="route.plugin_print",
+            icon="mdi:printer",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_swiper",
+            route_name="plugin_swiper",
+            route_path="/plugin/swiper",
+            component="view.plugin_swiper",
+            order=12,
+            i18n_key="route.plugin_swiper",
+            icon="simple-icons:swiper",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_tables",
+            route_name="plugin_tables",
+            route_path="/plugin/tables",
+            component=None,  # No component specified for the parent
+            order=13,
+            i18n_key="route.plugin_tables",
+            icon="icon-park-outline:table",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_typeit",
+            route_name="plugin_typeit",
+            route_path="/plugin/typeit",
+            component="view.plugin_typeit",
+            order=14,
+            i18n_key="route.plugin_typeit",
+            icon="mdi:typewriter",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=root_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_video",
+            route_name="plugin_video",
+            route_path="/plugin/video",
+            component="view.plugin_video",
+            order=15,
+            i18n_key="route.plugin_video",
+            icon="mdi:video",
+            icon_type=IconType.iconify,
+        ),
+    ]
+
+    # Bulk create all child menus
+    await Menu.bulk_create(children_menu)
+
+    # Now, handle the nested children for 'plugin_charts' and 'plugin_editor' separately
+
+    plugin_charts_menu = await Menu.get(route_name="plugin_charts")
+    plugin_charts_children = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_charts_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_charts_antv",
+            route_name="plugin_charts_antv",
+            route_path="/plugin/charts/antv",
+            component="view.plugin_charts_antv",
+            order=1,
+            i18n_key="route.plugin_charts_antv",
+            icon="hugeicons:flow-square",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_charts_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_charts_echarts",
+            route_name="plugin_charts_echarts",
+            route_path="/plugin/charts/echarts",
+            component="view.plugin_charts_echarts",
+            order=2,
+            i18n_key="route.plugin_charts_echarts",
+            icon="simple-icons:apacheecharts",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_charts_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_charts_vchart",
+            route_name="plugin_charts_vchart",
+            route_path="/plugin/charts/vchart",
+            component="view.plugin_charts_vchart",
+            order=3,
+            i18n_key="route.plugin_charts_vchart",
+            icon="visactor",
+            icon_type=IconType.local,
+        ),
+    ]
+
+    await Menu.bulk_create(plugin_charts_children)
+
+    # Nested children for 'plugin_editor'
+    plugin_editor_menu = await Menu.get(route_name="plugin_editor")
+    plugin_editor_children = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_editor_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_editor_markdown",
+            route_name="plugin_editor_markdown",
+            route_path="/plugin/editor/markdown",
+            component="view.plugin_editor_markdown",
+            order=1,
+            i18n_key="route.plugin_editor_markdown",
+            icon="ri:markdown-line",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_editor_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_editor_quill",
+            route_name="plugin_editor_quill",
+            route_path="/plugin/editor/quill",
+            component="view.plugin_editor_quill",
+            order=2,
+            i18n_key="route.plugin_editor_quill",
+            icon="mdi:file-document-edit-outline",
+            icon_type=IconType.iconify,
+        ),
+    ]
+
+    # Bulk create editor children
+    await Menu.bulk_create(plugin_editor_children)
+
+    # Nested children for 'plugin_gantt'
+    plugin_gantt_menu = await Menu.get(route_name="plugin_gantt")
+    plugin_gantt_children = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_gantt_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_gantt_dhtmlx",
+            route_name="plugin_gantt_dhtmlx",
+            route_path="/plugin/gantt/dhtmlx",
+            component="view.plugin_gantt_dhtmlx",
+            order=1,
+            i18n_key="route.plugin_gantt_dhtmlx",
+            icon=None,  # No icon specified
+            icon_type=None,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_gantt_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_gantt_vtable",
+            route_name="plugin_gantt_vtable",
+            route_path="/plugin/gantt/vtable",
+            component="view.plugin_gantt_vtable",
+            order=2,
+            i18n_key="route.plugin_gantt_vtable",
+            icon="visactor",
+            icon_type=IconType.local,
+        ),
+    ]
+
+    # Bulk create gantt children
+    await Menu.bulk_create(plugin_gantt_children)
+
+    # Nested children for 'plugin_tables'
+    plugin_tables_menu = await Menu.get(route_name="plugin_tables")
+    plugin_tables_children = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=plugin_tables_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="plugin_tables_vtable",
+            route_name="plugin_tables_vtable",
+            route_path="/plugin/tables/vtable",
+            component="view.plugin_tables_vtable",
+            order=1,
+            i18n_key="route.plugin_tables_vtable",
+            icon="visactor",
+            icon_type=IconType.local,
+        ),
+    ]
+
+    # Bulk create tables children
+    await Menu.bulk_create(plugin_tables_children)
+
+    # 插件示例2
+
     # 9
     root_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=0,
         menu_type=MenuType.catalog,
         menu_name="多级菜单",
@@ -376,7 +809,7 @@ async def init_menus():
         icon_type=IconType.iconify,
     )
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=root_menu.id,
         menu_type=MenuType.catalog,
         menu_name="一级子菜单1",
@@ -388,7 +821,7 @@ async def init_menus():
         icon_type=IconType.iconify,
     )
     await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=parent_menu.id,
         menu_type=MenuType.menu,
         menu_name="二级子菜单",
@@ -402,7 +835,7 @@ async def init_menus():
     )
 
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=root_menu.id,
         menu_type=MenuType.catalog,
         menu_name="一级子菜单2",
@@ -415,7 +848,7 @@ async def init_menus():
     )
 
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=parent_menu.id,
         menu_type=MenuType.catalog,
         menu_name="二级子菜单2",
@@ -428,7 +861,7 @@ async def init_menus():
     )
 
     await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=parent_menu.id,
         menu_type=MenuType.menu,
         menu_name="三级菜单",
@@ -443,7 +876,7 @@ async def init_menus():
 
     # 16
     root_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=0,
         menu_type=MenuType.catalog,
         menu_name="系统管理",
@@ -457,7 +890,7 @@ async def init_menus():
     )
 
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=root_menu.id,
         menu_type=MenuType.menu,
         menu_name="日志管理",
@@ -474,10 +907,11 @@ async def init_menus():
         button_desc="新增_删除_批量删除"
     )
 
-    await parent_menu.buttons.add(button_add_del_batch_del)
+    await parent_menu.by_menu_buttons.add(button_add_del_batch_del)
+    await parent_menu.save()
 
     parent_menu = await Menu.create(
-        status=StatusType.enable,
+        status_type=StatusType.enable,
         parent_id=root_menu.id,
         menu_type=MenuType.menu,
         menu_name="API管理",
@@ -494,11 +928,12 @@ async def init_menus():
         button_desc="刷新API"
     )
 
-    await parent_menu.buttons.add(button_refreshAPI)
+    await parent_menu.by_menu_buttons.add(button_refreshAPI)
+    await parent_menu.save()
 
     children_menu = [
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="用户管理",
@@ -511,7 +946,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="角色管理",
@@ -524,7 +959,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="菜单管理",
@@ -537,7 +972,7 @@ async def init_menus():
             icon_type=IconType.iconify,
         ),
         Menu(
-            status=StatusType.enable,
+            status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
             menu_name="用户详情",
@@ -551,116 +986,119 @@ async def init_menus():
     ]
     await Menu.bulk_create(children_menu)
 
-    await Menu.create(
-        status=StatusType.enable,
-        parent_id=0,
-        menu_type=MenuType.menu,
-        menu_name="关于",
-        route_name="about",
-        route_path="/about",
-        component="layout.base$view.about",
-        order=6,
-        i18n_key="route.about",
-        icon="fluent:book-information-24-regular",
-        icon_type=IconType.iconify,
-    )
+
+async def insert_role(children_role: list[Role], role_apis: list[tuple[str, str]] = None, role_menus: list[str] = None, role_buttons: list[str] = None):
+    if role_apis is None:
+        role_apis = []
+    if role_menus is None:
+        role_menus = []
+    if role_buttons is None:
+        role_buttons = []
+
+    on_conflict = ("role_code",)
+    update_fields = ("role_name", "role_desc")
+
+    await Role.bulk_create(children_role, on_conflict=on_conflict, update_fields=update_fields)
+
+    for role_zs in children_role:
+        role_obj = await Role.get(role_code=role_zs.role_code)
+        for api_method, api_path in role_apis:
+            try:
+                api_obj: Api = await Api.get(api_method=api_method, api_path=api_path)
+                await role_obj.by_role_apis.add(api_obj)
+            except DoesNotExist:
+                print("不存在API", api_method, api_path)
+                return False
+
+        for route_name in role_menus:
+            try:
+                menu_obj: Menu = await Menu.get(route_name=route_name)
+                await role_obj.by_role_menus.add(menu_obj)
+            except MultipleObjectsReturned:
+                print("多个菜单", route_name)
+                return False
+
+        for button_code in role_buttons:
+            button_obj: Button = await Button.get(button_code=button_code)
+            await role_obj.by_role_buttons.add(button_obj)
+
+        await role_obj.save()
+    return True
 
 
 async def init_users():
     role_exist = await role_controller.model.exists()
     if not role_exist:
-        # 超级管理员拥有所有菜单
-        role_super = await Role.create(role_name="超级管理员", role_code="R_SUPER", role_desc="超级管理员")
+        role_home_menu = await Menu.get(route_name="home")
+        # 超级管理员拥有所有菜单 所有按钮
+        super_role_obj = await Role.create(role_name="超级管理员", role_code="R_SUPER", role_desc="超级管理员", by_role_home=role_home_menu)
         role_super_menu_objs = await Menu.filter(constant=False)  # 过滤常量路由(公共路由)
         for menu_obj in role_super_menu_objs:
-            await role_super.menus.add(menu_obj)
-
-        button_code1 = await Button.get(button_code="B_CODE1")
-        await role_super.buttons.add(button_code1)
-        button_refreshAPI = await Button.get(button_code="B_refreshAPI")
-        await role_super.buttons.add(button_refreshAPI)
+            await super_role_obj.by_role_menus.add(menu_obj)
+        for button_obj in await Button.all():
+            await super_role_obj.by_role_buttons.add(button_obj)
 
         # 管理员拥有 首页 关于 系统管理-API管理 系统管理-用户管理
-        role_admin = await Role.create(role_name="管理员", role_code="R_ADMIN", role_desc="管理员")
+        role_admin = await Role.create(role_name="管理员", role_code="R_ADMIN", role_desc="管理员", by_role_home=role_home_menu)
 
         role_admin_apis = [
-            ("get", "/api/v1/system-manage/logs"),
-            ("get", "/api/v1/system-manage/apis"),
-            ("get", "/api/v1/system-manage/users"),
+            ("post", "/api/v1/system-manage/logs/all/"),
+            ("post", "/api/v1/system-manage/apis/all/"),
+            ("post", "/api/v1/system-manage/users/all/"),
             ("get", "/api/v1/system-manage/roles"),
-            ("post", "/api/v1/system-manage/users"),  #新增用户
-            ("patch", "/api/v1/system-manage/users/{user_id}"),  #修改用户
-            ("delete", "/api/v1/system-manage/users/{user_id}"),  #删除用户
-            ("delete", "/api/v1/system-manage/users"),  #批量删除用户
-
+            ("post", "/api/v1/system-manage/users"),  # 新增用户
+            ("patch", "/api/v1/system-manage/users/{user_id}"),  # 修改用户
+            ("delete", "/api/v1/system-manage/users/{user_id}"),  # 删除用户
+            ("delete", "/api/v1/system-manage/users"),  # 批量删除用户
         ]
-        for api_method, api_path in role_admin_apis:
-            api_obj: Api = await Api.get(method=api_method, path=api_path)
-            await role_admin.apis.add(api_obj)
-
         role_admin_menus = ["home", "about", "function_toggle-auth", "manage_log", "manage_api", "manage_user"]
-        for route_name in role_admin_menus:
-            menu_obj: Menu = await Menu.get(route_name=route_name)
-            await role_admin.menus.add(menu_obj)
-
-        button_code2 = await Button.get(button_code="B_CODE2")
-        await role_admin.buttons.add(button_code2)
-        await role_super.buttons.add(button_code2)
+        role_admin_buttons = ["B_CODE2", "B_CODE3"]
+        await insert_role([role_admin], role_admin_apis, role_admin_menus, role_admin_buttons)
 
         # 普通用户拥有 首页 关于 系统管理-API管理
-        role_user = await Role.create(role_name="普通用户", role_code="R_USER", role_desc="普通用户")
-        role_user_apis = [("get", "/api/v1/system-manage/logs"), ("get", "/api/v1/system-manage/apis")]
-        for api_method, api_path in role_user_apis:
-            api_obj: Api = await Api.get(method=api_method, path=api_path)
-            await role_user.apis.add(api_obj)
-
+        role_user = await Role.create(role_name="普通用户", role_code="R_USER", role_desc="普通用户", by_role_home=role_home_menu)
+        role_user_apis = [("post", "/api/v1/system-manage/logs/all/"), ("post", "/api/v1/system-manage/apis/all/")]
         role_user_menus = ["home", "about", "function_toggle-auth", "manage_log", "manage_api"]
-        for route_name in role_user_menus:
-            menu_obj: Menu = await Menu.get(route_name=route_name)
-            await role_user.menus.add(menu_obj)
-
-        button_code3 = await Button.get(button_code="B_CODE3")
-        await role_user.buttons.add(button_code3)
-        await role_admin.buttons.add(button_code3)
-        await role_super.buttons.add(button_code3)
+        role_user_buttons = ["B_CODE3"]
+        await insert_role([role_user], role_user_apis, role_user_menus, role_user_buttons)
 
     user = await user_controller.model.exists()
     if not user:
-        role_super: Role | None = await role_controller.get_by_code("R_SUPER")
-        user_super: User = await user_controller.create(
+        super_role_obj: Role | None = await role_controller.get_by_code("R_SUPER")
+        user_super_obj: User = await user_controller.create(
             UserCreate(
-                userName="Soybean",
-                userEmail="admin@admin.com",
+                userName="Soybean",  # type: ignore
+                userEmail="admin@admin.com",  # type: ignore
                 password="123456",
             )
         )
-        await user_super.roles.add(role_super)
+        await user_super_obj.by_user_roles.add(super_role_obj)
 
-        user_super: User = await user_controller.create(
+        user_super_obj: User = await user_controller.create(
             UserCreate(
-                userName="Super",
-                userEmail="admin1@admin.com",
+                userName="Super",  # type: ignore
+                userEmail="admin1@admin.com",  # type: ignore
                 password="123456",
             )
         )
-        await user_super.roles.add(role_super)
+        await user_super_obj.by_user_roles.add(super_role_obj)
 
-        role_admin: Role | None = await role_controller.get_by_code("R_ADMIN")
-        user_admin = await user_controller.create(
+        admin_role_obj: Role | None = await role_controller.get_by_code("R_ADMIN")
+        user_admin_obj = await user_controller.create(
             UserCreate(
-                userName="Admin",
-                userEmail="admin2@admin.com",
+                userName="Admin",  # type: ignore
+                userEmail="admin2@admin.com",  # type: ignore
                 password="123456",
             )
         )
-        await user_admin.roles.add(role_admin)
+        await user_admin_obj.by_user_roles.add(admin_role_obj)
 
-        role_user: Role | None = await role_controller.get_by_code("R_USER")
-        user_user = await user_controller.create(
+        user_role_obj: Role | None = await role_controller.get_by_code("R_USER")
+        user_user_obj = await user_controller.create(
             UserCreate(
-                userName="User",
-                userEmail="user@user.com",
+                userName="User",  # type: ignore
+                userEmail="user@user.com",  # type: ignore
                 password="123456",
             )
         )
-        await user_user.roles.add(role_user)
+        await user_user_obj.by_user_roles.add(user_role_obj)

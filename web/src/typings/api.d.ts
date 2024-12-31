@@ -20,6 +20,9 @@ declare namespace Api {
       records: T[];
     }
 
+    /** common search params of table */
+    type CommonSearchParams = Pick<Common.PaginatingCommonParams, 'current' | 'size'>;
+
     /**
      * enable status
      *
@@ -35,13 +38,17 @@ declare namespace Api {
       /** record creator */
       createBy: string;
       /** record create time */
-      createTime: string;
+      createTime: number;
       /** record updater */
       updateBy: string;
       /** record update time */
-      updateTime: string;
+      updateTime: number;
       /** record status */
-      status: EnableStatus | null;
+      statusType: EnableStatus | null;
+      /** record fmt create time */
+      fmtCreateTime: string;
+      /** record fmt updateTime time */
+      fmtUpdateTime: string;
     } & T;
   }
 
@@ -59,6 +66,7 @@ declare namespace Api {
     interface UserInfo {
       userId: string;
       userName: string;
+      nickName: string;
       roles: string[];
       buttons: string[];
     }
@@ -91,10 +99,12 @@ declare namespace Api {
     type CommonSearchParams = Pick<Common.PaginatingCommonParams, 'current' | 'size'>;
 
     /** common delete params */
-    type CommonDeleteParams = { id: number };
+    type CommonDeleteParams = { id: number | string };
 
     /** common batch delete params */
     type CommonBatchDeleteParams = { ids: string[] };
+
+    type tableColumnSetting = { [tableId: string]: { [key: string]: boolean } };
 
     /** role */
     type Role = Common.CommonRecord<{
@@ -105,25 +115,32 @@ declare namespace Api {
       /** role description */
       roleDesc: string;
       /** role home */
-      roleHome: string;
+      byRoleHomeId: number;
     }>;
 
     /** role add params */
-    type RoleAddParams = Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'roleDesc' | 'roleHome' | 'status'>;
+    type RoleAddParams = Pick<
+      Api.SystemManage.Role,
+      'roleName' | 'roleCode' | 'roleDesc' | 'byRoleHomeId' | 'statusType'
+    >;
 
     /** role update params */
     type RoleUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.Role, 'id'>> & RoleAddParams;
 
     /** role search params */
     type RoleSearchParams = CommonType.RecordNullable<
-      Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'status'> & CommonSearchParams
+      Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'statusType'> & CommonSearchParams
     >;
 
     /** role list */
     type RoleList = Common.PaginatingQueryRecord<Role>;
 
     /** role authorized */
-    type RoleAuthorized = Api.SystemManage.Role & { menuIds: number[]; apiIds: number[]; buttonIds: number[] };
+    type RoleAuthorized = Api.SystemManage.Role & {
+      byRoleMenuIds: number[];
+      byRoleApiIds: number[];
+      byRoleButtonIds: number[];
+    };
 
     /** get role authorized params */
     type RoleAuthorizedParams = Pick<Api.SystemManage.RoleAuthorized, 'id'>;
@@ -148,24 +165,24 @@ declare namespace Api {
     /** api */
     type Api = Common.CommonRecord<{
       /** api path */
-      path: string;
+      apiPath: string;
       /** api method */
-      method: methods;
+      apiMethod: methods;
       /** api summary */
       summary: string;
       /** api tags name */
-      tags: string;
+      tags: string[];
     }>;
 
     /** api add params */
-    type ApiAddParams = Pick<Api.SystemManage.Api, 'path' | 'method' | 'summary' | 'tags' | 'status'>;
+    type ApiAddParams = Pick<Api.SystemManage.Api, 'apiPath' | 'apiMethod' | 'summary' | 'tags' | 'statusType'>;
 
     /** api update params */
     type ApiUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.Api, 'id'>> & ApiAddParams;
 
     /** api search params */
     type ApiSearchParams = CommonType.RecordNullable<
-      Pick<Api.SystemManage.Api, 'path' | 'method' | 'summary' | 'tags' | 'status'> & CommonSearchParams
+      Pick<Api.SystemManage.Api, 'apiPath' | 'apiMethod' | 'summary' | 'tags' | 'statusType'> & CommonSearchParams
     >;
 
     /** api list */
@@ -239,22 +256,53 @@ declare namespace Api {
     type Log = Common.CommonRecord<{
       /** log type */
       logType: logTypes;
-      /** log user */
-      logUser: string;
       /** log detail */
       logDetailType: logDetailTypes | null;
-      /** request url */
-      requestUrl: string;
       /** create time */
-      createTime: string;
+      createTime: number;
+      /** format create time */
+
+      /** request domain */
+      requestDomain: string;
+      /** request path */
+      requestPath: string;
       /** create time */
       responseCode: string;
+      /** x-request-id */
+      xRequestId: string;
+      /** request params */
+      requestParams: string;
+      /** response data */
+      responseData: string;
+      /** user agent */
+      userAgent: string;
+      /** process time */
+      processTime: string;
+      /** ip address */
+      ipAddress: string;
+
+      /** by user id */
+      byUser: string;
+      /** user info */
+      byUserInfo: User;
     }>;
 
     /** log add params */
     type LogAddParams = Pick<
       Api.SystemManage.Log,
-      'logType' | 'logUser' | 'logDetailType' | 'requestUrl' | 'createTime' | 'responseCode'
+      | 'logType'
+      | 'logDetailType'
+      | 'createTime'
+      | 'byUser'
+      | 'requestDomain'
+      | 'requestPath'
+      | 'responseCode'
+      | 'xRequestId'
+      | 'requestParams'
+      | 'responseData'
+      | 'userAgent'
+      | 'processTime'
+      | 'ipAddress'
     >;
 
     /** log update params */
@@ -264,9 +312,16 @@ declare namespace Api {
     type LogSearchParams = CommonType.RecordNullable<
       Pick<
         Api.SystemManage.Log,
-        'logType' | 'logUser' | 'logDetailType' | 'requestUrl' | 'createTime' | 'responseCode'
+        | 'logType'
+        | 'logDetailType'
+        | 'requestDomain'
+        | 'requestPath'
+        | 'createTime'
+        | 'responseCode'
+        | 'byUser'
+        | 'xRequestId'
       > &
-        CommonSearchParams & { timeRange: string }
+        CommonSearchParams & { timeRange: [number, number] }
     >;
 
     /** log list */
@@ -296,23 +351,37 @@ declare namespace Api {
       /** user email */
       userEmail: string;
       /** user role code collection */
-      userRoles: string[];
+      byUserRoleCodeList: string[];
     }>;
 
     /** user add params */
     type UserAddParams = Pick<
       Api.SystemManage.User,
-      'userName' | 'password' | 'userGender' | 'nickName' | 'userPhone' | 'userEmail' | 'userRoles' | 'status'
+      | 'userName'
+      | 'password'
+      | 'userGender'
+      | 'nickName'
+      | 'userPhone'
+      | 'userEmail'
+      | 'byUserRoleCodeList'
+      | 'statusType'
     >;
 
     /** user update params */
-    type UserUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.User, 'id'>> & UserAddParams;
+    type UserUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.User, 'id'> & UserAddParams>;
 
     /** user search params */
     type UserSearchParams = CommonType.RecordNullable<
       Pick<
         Api.SystemManage.User,
-        'userName' | 'password' | 'userGender' | 'nickName' | 'userPhone' | 'userEmail' | 'status'
+        | 'userName'
+        | 'password'
+        | 'userGender'
+        | 'nickName'
+        | 'userPhone'
+        | 'userEmail'
+        | 'statusType'
+        | 'byUserRoleCodeList'
       > &
         CommonSearchParams
     >;
@@ -410,7 +479,7 @@ declare namespace Api {
       | 'i18nKey'
       | 'icon'
       | 'iconType'
-      | 'status'
+      | 'statusType'
       | 'parentId'
       | 'keepAlive'
       | 'constant'

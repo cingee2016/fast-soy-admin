@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { $t } from '@/locales';
+import { localStg } from '@/utils/storage';
 
 defineOptions({
   name: 'TableHeaderOperation'
@@ -9,9 +11,10 @@ interface Props {
   itemAlign?: NaiveUI.Align;
   disabledDelete?: boolean;
   loading?: boolean;
+  tableId?: string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 interface Emits {
   (e: 'add'): void;
@@ -36,6 +39,33 @@ function batchDelete() {
 function refresh() {
   emit('refresh');
 }
+
+function updateValue() {
+  const tableId = props.tableId;
+  if (tableId) {
+    const tableColumnSetting = (localStg.get('tableColumnSetting') as Api.SystemManage.tableColumnSetting) || {};
+
+    tableColumnSetting[tableId] = {};
+    columns.value.forEach(column => {
+      tableColumnSetting[tableId][column.key] = column.checked; // 存储 checked 状态
+    });
+
+    // 保存到 localStg
+    localStg.set('tableColumnSetting', tableColumnSetting);
+  }
+}
+onMounted(() => {
+  const tableColumnSetting = localStg.get('tableColumnSetting') as Api.SystemManage.tableColumnSetting;
+  const tableId = props.tableId;
+  if (tableId && tableColumnSetting && Object.keys(tableColumnSetting).includes(tableId)) {
+    const settings = tableColumnSetting[tableId];
+    columns.value.forEach(column => {
+      if (settings[column.key] !== undefined) {
+        column.checked = settings[column.key]; // 更新 columns 中的 checked 属性
+      }
+    });
+  }
+});
 </script>
 
 <template>
@@ -66,7 +96,7 @@ function refresh() {
       </template>
       {{ $t('common.refresh') }}
     </NButton>
-    <TableColumnSetting v-model:columns="columns" />
+    <TableColumnSetting v-model:columns="columns" @update-value="updateValue" />
     <slot name="suffix"></slot>
   </NSpace>
 </template>

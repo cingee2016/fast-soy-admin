@@ -1,9 +1,9 @@
 <script setup lang="tsx">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
-import { enableStatusOptions, menuIconTypeOptions, menuTypeOptions } from '@/constants/business';
+import { menuIconTypeOptions, menuTypeOptions, statusTypeOptions } from '@/constants/business';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import { getLocalIcons } from '@/utils/icon';
 import { fetchAddMenu, fetchGetRoleList, fetchUpdateMenu } from '@/service/api';
@@ -65,7 +65,7 @@ type Model = Pick<
   | 'i18nKey'
   | 'icon'
   | 'iconType'
-  | 'status'
+  | 'statusType'
   | 'parentId'
   | 'keepAlive'
   | 'constant'
@@ -82,7 +82,7 @@ type Model = Pick<
   pathParam: string;
 };
 
-const model: Model = reactive(createDefaultModel());
+const model = ref(createDefaultModel());
 
 function createDefaultModel(): Model {
   return {
@@ -98,7 +98,7 @@ function createDefaultModel(): Model {
     icon: '',
     iconType: '1',
     parentId: 0,
-    status: '1',
+    statusType: '1',
     keepAlive: false,
     constant: false,
     order: 0,
@@ -112,11 +112,11 @@ function createDefaultModel(): Model {
   };
 }
 
-type RuleKey = Extract<keyof Model, 'menuName' | 'status' | 'routeName' | 'routePath'>;
+type RuleKey = Extract<keyof Model, 'menuName' | 'statusType' | 'routeName' | 'routePath'>;
 
 const rules: Record<RuleKey, App.Global.FormRule> = {
   menuName: defaultRequiredRule,
-  status: defaultRequiredRule,
+  statusType: defaultRequiredRule,
   routeName: defaultRequiredRule,
   routePath: defaultRequiredRule
 };
@@ -134,15 +134,15 @@ const localIconOptions = localIcons.map<SelectOption>(item => ({
   value: item
 }));
 
-const showLayout = computed(() => model.parentId === 0);
+const showLayout = computed(() => model.value.parentId === 0);
 
-const showPage = computed(() => model.menuType === '2');
+const showPage = computed(() => model.value.menuType === '2');
 
 const pageOptions = computed(() => {
   const allPages = [...props.allPages];
 
-  if (model.routeName && !allPages.includes(model.routeName)) {
-    allPages.unshift(model.routeName);
+  if (model.value.routeName && !allPages.includes(model.value.routeName)) {
+    allPages.unshift(model.value.routeName);
   }
 
   const opts: CommonType.Option[] = allPages.map(page => ({
@@ -168,7 +168,7 @@ const layoutOptions: CommonType.Option[] = [
 const roleOptions = ref<CommonType.Option<string>[]>([]);
 
 async function getRoleOptions() {
-  const { error, data } = await fetchGetRoleList({ status: '1' });
+  const { error, data } = await fetchGetRoleList({ statusType: '1' });
 
   if (!error) {
     const options = data.records.map(item => ({
@@ -181,14 +181,14 @@ async function getRoleOptions() {
 }
 
 function handleInitModel() {
-  Object.assign(model, createDefaultModel());
+  model.value = createDefaultModel();
 
   if (!props.rowData) return;
 
   if (props.operateType === 'addChild') {
     const { id } = props.rowData;
 
-    Object.assign(model, { parentId: id });
+    Object.assign(model.value, { parentId: id });
   }
 
   if (props.operateType === 'edit') {
@@ -197,14 +197,14 @@ function handleInitModel() {
     const { layout, page } = getLayoutAndPage(component);
     const { path, param } = getPathParamFromRoutePath(rest.routePath);
 
-    Object.assign(model, rest, { layout, page, routePath: path, pathParam: param });
+    Object.assign(model.value, rest, { layout, page, routePath: path, pathParam: param });
   }
 
-  if (!model.query) {
-    model.query = [];
+  if (!model.value.query) {
+    model.value.query = [];
   }
-  if (!model.buttons) {
-    model.buttons = [];
+  if (!model.value.buttons) {
+    model.value.buttons = [];
   }
 }
 
@@ -213,18 +213,18 @@ function closeDrawer() {
 }
 
 function handleUpdateRoutePathByRouteName() {
-  if (model.routeName) {
-    model.routePath = getRoutePathByRouteName(model.routeName);
+  if (model.value.routeName) {
+    model.value.routePath = getRoutePathByRouteName(model.value.routeName);
   } else {
-    model.routePath = '';
+    model.value.routePath = '';
   }
 }
 
 function handleUpdateI18nKeyByRouteName() {
-  if (model.routeName) {
-    model.i18nKey = `route.${model.routeName}` as App.I18n.I18nKey;
+  if (model.value.routeName) {
+    model.value.i18nKey = `route.${model.value.routeName}` as App.I18n.I18nKey;
   } else {
-    model.i18nKey = null;
+    model.value.i18nKey = null;
   }
 }
 
@@ -238,10 +238,10 @@ function handleCreateButton() {
 }
 
 function getSubmitParams() {
-  const { layout, page, pathParam, ...params } = model;
+  const { layout, page, pathParam, ...params } = model.value;
 
   const component = transformLayoutAndPageToComponent(layout, page);
-  const routePath = getRoutePathWithParam(model.routePath, pathParam);
+  const routePath = getRoutePathWithParam(model.value.routePath, pathParam);
 
   params.component = component;
   params.routePath = routePath;
@@ -254,19 +254,19 @@ async function handleSubmit() {
 
   const params = getSubmitParams();
 
-  // console.log('params: ', params);
-  // console.log('props.operateType: ', props.operateType);
+  console.log('params: ', params);
+
   // request
-  model.component = params.component;
-  model.routePath = params.routePath;
+  model.value.component = params.component;
+  model.value.routePath = params.routePath;
 
   if (props.operateType === 'add' || props.operateType === 'addChild') {
-    const { error } = await fetchAddMenu(model);
+    const { error } = await fetchAddMenu(model.value);
     if (!error) {
       window.$message?.success($t('common.addSuccess'));
     }
   } else if (props.operateType === 'edit') {
-    const { error } = await fetchUpdateMenu(model);
+    const { error } = await fetchUpdateMenu(model.value);
     if (!error) {
       window.$message?.success($t('common.updateSuccess'));
     }
@@ -285,7 +285,7 @@ watch(visible, () => {
 });
 
 watch(
-  () => model.routeName,
+  () => model.value.routeName,
   () => {
     handleUpdateRoutePathByRouteName();
     handleUpdateI18nKeyByRouteName();
@@ -320,6 +320,8 @@ watch(
               v-model:value="model.layout"
               :options="layoutOptions"
               :placeholder="$t('page.manage.menu.form.layout')"
+              filterable
+              clearable
             />
           </NFormItemGi>
           <NFormItemGi v-if="showPage" span="24 m:12" :label="$t('page.manage.menu.page')" path="page">
@@ -327,6 +329,8 @@ watch(
               v-model:value="model.page"
               :options="pageOptions"
               :placeholder="$t('page.manage.menu.form.page')"
+              filterable
+              clearable
             />
           </NFormItemGi>
           <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.i18nKey')" path="i18nKey">
@@ -358,28 +362,25 @@ watch(
                 v-model:value="model.icon"
                 :placeholder="$t('page.manage.menu.form.localIcon')"
                 :options="localIconOptions"
+                filterable
+                clearable
               />
             </template>
           </NFormItemGi>
-          <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.menuStatus')" path="status">
-            <NRadioGroup v-model:value="model.status">
-              <NRadio
-                v-for="item in enableStatusOptions"
-                :key="item.value"
-                :value="item.value"
-                :label="$t(item.label)"
-              />
+          <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.menuStatusType')" path="status">
+            <NRadioGroup v-model:value="model.statusType">
+              <NRadio v-for="item in statusTypeOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
             </NRadioGroup>
           </NFormItemGi>
           <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.keepAlive')" path="keepAlive">
             <NRadioGroup v-model:value="model.keepAlive">
-              <NRadio value :label="$t('common.yesOrNo.yes')" />
+              <NRadio :value="true" :label="$t('common.yesOrNo.yes')" />
               <NRadio :value="false" :label="$t('common.yesOrNo.no')" />
             </NRadioGroup>
           </NFormItemGi>
           <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.constant')" path="constant">
             <NRadioGroup v-model:value="model.constant">
-              <NRadio value :label="$t('common.yesOrNo.yes')" />
+              <NRadio :value="true" :label="$t('common.yesOrNo.yes')" />
               <NRadio :value="false" :label="$t('common.yesOrNo.no')" />
             </NRadioGroup>
           </NFormItemGi>
@@ -388,7 +389,6 @@ watch(
           </NFormItemGi>
           <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.hideInMenu')" path="hideInMenu">
             <NRadioGroup v-model:value="model.hideInMenu">
-              <!-- eslint-disable-next-line vue/prefer-true-attribute-shorthand -->
               <NRadio :value="true" :label="$t('common.yesOrNo.yes')" />
               <NRadio :value="false" :label="$t('common.yesOrNo.no')" />
             </NRadioGroup>
@@ -402,13 +402,14 @@ watch(
             <NSelect
               v-model:value="model.activeMenu"
               :options="pageOptions"
-              clearable
               :placeholder="$t('page.manage.menu.form.activeMenu')"
+              filterable
+              clearable
             />
           </NFormItemGi>
           <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.multiTab')" path="multiTab">
             <NRadioGroup v-model:value="model.multiTab">
-              <NRadio value :label="$t('common.yesOrNo.yes')" />
+              <NRadio :value="true" :label="$t('common.yesOrNo.yes')" />
               <NRadio :value="false" :label="$t('common.yesOrNo.no')" />
             </NRadioGroup>
           </NFormItemGi>

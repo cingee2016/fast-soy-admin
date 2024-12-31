@@ -68,6 +68,7 @@ function handleDropdown(key: DropdownKey) {
   if (key === 'logout') {
     logout();
   } else {
+    // If your other options are jumps from other routes, they will be directly supported here
     routerPushByKey(key);
   }
 }
@@ -81,7 +82,7 @@ function handleDropdown(key: DropdownKey) {
     <div>
       <ButtonIcon>
         <SvgIcon icon="ph:user-circle" class="text-icon-large" />
-        <span class="text-16px font-medium">{{ authStore.userInfo.userName }}</span>
+        <span class="text-16px font-medium">{{ authStore.userInfo.nickName }}</span>
       </ButtonIcon>
     </div>
   </NDropdown>
