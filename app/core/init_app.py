@@ -38,7 +38,7 @@ def make_middlewares():
         ),
         Middleware(BackGroundTaskMiddleware),
         Middleware(APILoggerMiddleware),
-        Middleware(APILoggerAddResponseMiddleware)
+        Middleware(APILoggerAddResponseMiddleware),
     ]
     return middleware
 
@@ -262,7 +262,7 @@ async def init_menus():
         icon_type=IconType.iconify,
         multi_tab=True,
         hide_in_menu=True,
-        active_menu=await Menu.get(route_name="function_tab")
+        active_menu=await Menu.get(route_name="function_tab"),
     )
 
     parent_menu = await Menu.create(
@@ -320,7 +320,7 @@ async def init_menus():
             i18n_key="route.function_hide-child_three",
             hide_in_menu=True,
             active_menu=parent_menu,
-        )
+        ),
     ]
     await Menu.bulk_create(children_menu)
 
@@ -413,28 +413,15 @@ async def init_menus():
             status_type=StatusType.enable,
             parent_id=root_menu.id,
             menu_type=MenuType.menu,
-            menu_name="alova_user",
-            route_name="alova_user",
-            route_path="/alova/user",
-            component="view.alova_user",
-            order=2,
-            i18n_key="route.alova_user",
-            icon="carbon:user-multiple",
-            icon_type=IconType.iconify,
-        ),
-        Menu(
-            status_type=StatusType.enable,
-            parent_id=root_menu.id,
-            menu_type=MenuType.menu,
             menu_name="alova_scenes",
             route_name="alova_scenes",
             route_path="/alova/scenes",
             component="view.alova_scenes",
-            order=3,
+            order=2,
             i18n_key="route.alova_scenes",
             icon="cbi:scene-dynamic",
             icon_type=IconType.iconify,
-        )
+        ),
     ]
     await Menu.bulk_create(children_menu)
 
@@ -902,10 +889,7 @@ async def init_menus():
         icon="material-symbols:list-alt-outline",
         icon_type=IconType.iconify,
     )
-    button_add_del_batch_del = await Button.create(
-        button_code="B_Add_Del_Batch-del",
-        button_desc="新增_删除_批量删除"
-    )
+    button_add_del_batch_del = await Button.create(button_code="B_Add_Del_Batch-del", button_desc="新增_删除_批量删除")
 
     await parent_menu.by_menu_buttons.add(button_add_del_batch_del)
     await parent_menu.save()
@@ -923,10 +907,7 @@ async def init_menus():
         icon="ant-design:api-outlined",
         icon_type=IconType.iconify,
     )
-    button_refreshAPI = await Button.create(
-        button_code="B_refreshAPI",
-        button_desc="刷新API"
-    )
+    button_refreshAPI = await Button.create(button_code="B_refreshAPI", button_desc="刷新API")
 
     await parent_menu.by_menu_buttons.add(button_refreshAPI)
     await parent_menu.save()

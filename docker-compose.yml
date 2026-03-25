@@ -1,28 +1,11 @@
 services:
-  web:
-    image: node:lts-slim
-    working_dir: /build/web
-    volumes:
-      - ./web:/build/web
-      - web_node_modules:/build/web/node_modules
-    command: >
-      sh -c "
-        corepack enable &&
-        corepack prepare pnpm@latest --activate &&
-        pnpm install --frozen-lockfile &&
-        NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
-      "
-
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
     ports:
       - "1880:80"
-    volumes:
-      - ./web/dist:/var/www/html/fast-soy-admin:ro
-      - ./deploy/web.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      web:
-        condition: service_completed_successfully
       app:
         condition: service_started
     restart: always
@@ -30,17 +13,9 @@ services:
       - internal
 
   app:
-    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-    working_dir: /opt/fast-soy-admin
-    command: >
-      sh -c "
-        uv sync --frozen --no-dev --no-install-project &&
-        uv run run.py
-      "
-    environment:
-      - LANG=zh_CN.UTF-8
-    volumes:
-      - .:/opt/fast-soy-admin
+    build:
+      context: .
+      dockerfile: deploy/app.Dockerfile
     depends_on:
       - redis
     restart: always
@@ -56,17 +31,10 @@ services:
 
   # Optional: run with `docker compose --profile cron up -d`
   cron_reset:
-    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-    working_dir: /opt/fast-soy-admin
-    command: >
-      sh -c "
-        uv sync --frozen --no-dev --no-install-project &&
-        uv run cron_reset.py
-      "
-    environment:
-      - LANG=zh_CN.UTF-8
-    volumes:
-      - .:/opt/fast-soy-admin
+    build:
+      context: .
+      dockerfile: deploy/app.Dockerfile
+    command: ["uv", "run", "cron_reset.py"]
     depends_on:
       - app
     restart: unless-stopped
@@ -76,7 +44,6 @@ services:
       - internal
 
 volumes:
-  web_node_modules:
   redis_data:
 
 networks:

@@ -41,6 +41,8 @@ Dockerfile
 
 # Misc
 *.log
+.env
 .env.local
 .env.*.local
+!.env.docker
 tests/
