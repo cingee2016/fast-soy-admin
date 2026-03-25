@@ -1,62 +1,83 @@
-version: '3.8'
-
 services:
   web:
-    image: gplane/pnpm:9.15-node18-bullseye
-    working_dir: /opt/fast-soy-admin/web
+    image: node:lts-slim
+    working_dir: /build/web
     volumes:
-      - ./web:/opt/fast-soy-admin/web
+      - ./web:/build/web
+      - web_node_modules:/build/web/node_modules
     command: >
       sh -c "
-        cd /opt/fast-soy-admin/web &&
+        corepack enable &&
+        corepack prepare pnpm@latest --activate &&
         pnpm install --frozen-lockfile &&
-        export NODE_OPTIONS=--max_old_space_size=4096 &&
-        pnpm run build
+        NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
       "
-    networks:
-      - internal
 
   nginx:
-    image: nginx:alpine
+    image: nginx:latest
     ports:
       - "1880:80"
-    environment:
-      - LANG=zh_CN.UTF-8
     volumes:
-      - ./web/dist:/var/www/html/fast-soy-admin
+      - ./web/dist:/var/www/html/fast-soy-admin:ro
       - ./deploy/web.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - web
-      - redis
-      - app
+      web:
+        condition: service_completed_successfully
+      app:
+        condition: service_started
     restart: always
     networks:
       - internal
 
   app:
-    image: seven45/pdm-ci:3.11-buster
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     working_dir: /opt/fast-soy-admin
     command: >
       sh -c "
-        pdm config pypi.url https://pypi.tuna.tsinghua.edu.cn/simple/ &&
-        pdm install --frozen-lockfile --no-editable &&
-        pdm run run.py
+        uv sync --frozen --no-dev --no-install-project &&
+        uv run run.py
       "
     environment:
       - LANG=zh_CN.UTF-8
     volumes:
       - .:/opt/fast-soy-admin
+    depends_on:
+      - redis
+    restart: always
     networks:
       - internal
 
   redis:
-    image: redis:alpine
+    image: redis:latest
     networks:
       - internal
     volumes:
-      - ./redis_data:/data
-#    command: redis-server --requirepass yourpassword
+      - redis_data:/data
 
+  # Optional: run with `docker compose --profile cron up -d`
+  cron_reset:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    working_dir: /opt/fast-soy-admin
+    command: >
+      sh -c "
+        uv sync --frozen --no-dev --no-install-project &&
+        uv run cron_reset.py
+      "
+    environment:
+      - LANG=zh_CN.UTF-8
+    volumes:
+      - .:/opt/fast-soy-admin
+    depends_on:
+      - app
+    restart: unless-stopped
+    profiles:
+      - cron
+    networks:
+      - internal
+
+volumes:
+  web_node_modules:
+  redis_data:
 
 networks:
   internal:

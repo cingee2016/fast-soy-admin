@@ -1,13 +1,44 @@
-"*.vue"    eol=lf
-"*.js"     eol=lf
-"*.ts"     eol=lf
-"*.jsx"    eol=lf
-"*.tsx"    eol=lf
-"*.mjs"    eol=lf
-"*.json"   eol=lf
-"*.html"   eol=lf
-"*.css"    eol=lf
-"*.scss"   eol=lf
-"*.md"     eol=lf
-"*.yaml"   eol=lf
-"*.yml"    eol=lf
+# Frontend sources
+*.vue      eol=lf
+*.js       eol=lf
+*.ts       eol=lf
+*.jsx      eol=lf
+*.tsx      eol=lf
+*.mjs      eol=lf
+*.json     eol=lf
+*.html     eol=lf
+*.css      eol=lf
+*.scss     eol=lf
+
+# Backend sources
+*.py       eol=lf
+*.toml     eol=lf
+*.cfg      eol=lf
+*.ini      eol=lf
+
+# Config & docs
+*.md       eol=lf
+*.yaml     eol=lf
+*.yml      eol=lf
+*.env      eol=lf
+*.conf     eol=lf
+
+# Shell scripts
+*.sh       eol=lf
+
+# Docker
+Dockerfile    eol=lf
+*.dockerfile  eol=lf
+
+# Treat lockfiles as generated
+uv.lock          linguist-generated
+pnpm-lock.yaml   linguist-generated
+
+# Binary — do not diff
+*.sqlite3  binary
+*.png      binary
+*.jpg      binary
+*.ico      binary
+*.woff     binary
+*.woff2    binary
+*.ttf      binary

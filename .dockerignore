@@ -1,7 +1,46 @@
-web
-
-node_modules
-.git
+# Version control
+.git/
 .gitignore
+.gitattributes
+
+# Frontend build artifacts (built inside Docker)
+web/node_modules/
+web/dist/
+web/dist-ssr/
+web/coverage/
+web/.pnpm-store/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Database files (runtime only)
+*.sqlite3
+*.sqlite3-journal
+redis_data/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+*.sw?
+
+# Docs
 *.md
-dist
+LICENSE
+
+# Docker own files
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Misc
+*.log
+.env.local
+.env.*.local
+tests/

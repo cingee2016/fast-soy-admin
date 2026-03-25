@@ -7,6 +7,7 @@
 <div align="center">
 
 # FastSoyAdmin
+
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable-next-line MD036 -->
 
@@ -21,7 +22,6 @@
 [![black](https://img.shields.io/badge/code%20style-black-000000.svg?logo=python&logoColor=edb641)](https://github.com/psf/black)
 [![pyright](https://img.shields.io/badge/types-pyright-797952.svg?logo=python&logoColor=edb641)](https://github.com/Microsoft/pyright)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-
 
 <span><a href="./README.en.md">English</a> | 中文</span>
 
@@ -48,7 +48,6 @@
 - **丰富的页面组件**：内置多样页面和组件，包括403、404、500页面，以及布局组件、标签组件、主题配置组件等。
 - **命令行工具**：内置高效的命令行工具，git提交、删除文件、发布等。
 - **移动端适配**：完美支持移动端，实现自适应布局。
-
 
 ## 相关
 
@@ -78,10 +77,10 @@
 ![](https://soybeanjs-1300612522.cos.ap-guangzhou.myqcloud.com/uPic/soybean-admin-v1-10.png)
 ![](https://soybeanjs-1300612522.cos.ap-guangzhou.myqcloud.com/uPic/soybean-admin-v1-mobile.png)
 
-
 ## 使用
 
 ### 方法一
+
 **克隆项目**
 
 ```bash
@@ -95,6 +94,7 @@ $ sudo docker compose up -d
 ```
 
 **查看日志**
+
 ```bash
 $ sudo docker compose logs -f # 查看所有日志
 $ sudo docker compose logs -f app # 单独查看 FastAPI 日志
@@ -103,19 +103,21 @@ $ sudo docker compose logs -f web # 单独查看 pnpm build 日志
 ```
 
 **改动重新部署**
+
 ```bash
 $ sudo docker compose down && sudo docker compose up -d
 ```
 
 ### 方法二
+
 **环境准备**
 
 确保你的环境满足以下要求：
 
 - **git**: 你需要使用 git 来克隆和管理项目版本。
-- **python**: >= 3.10
-- **NodeJS**: >=18.0.0，推荐 18.19.0 或更高。
-- **pnpm**: >= 8.0.0，推荐最新版本。
+- **python**: >= 3.12
+- **NodeJS**: >=20.0.0
+- **pnpm**: >= 9.0.0，推荐最新版本。
 
 **克隆项目**
 
@@ -129,16 +131,19 @@ $ git clone https://github.com/sleep1223/fast-soy-admin
 $ pdm install 或者 pip install -r requirements.txt
 $ cd web && pnpm i
 ```
+
 > 由于本项目采用了 pnpm monorepo 的管理方式，因此请不要使用 npm 或 yarn 来安装依赖。
 
 **启动项目**
 
 前端
+
 ```bash
 $ cd web && pnpm dev
 ```
 
 后端
+
 ```bash
 $ pdm run run.py 或者 python run.py
 ```
@@ -149,18 +154,15 @@ $ pdm run run.py 或者 python run.py
 $ cd web && pnpm build
 ```
 
-
 ## TODO
+
 - [ ] 使用 Redis 优化响应速度
 - [x] 使用 Docker 部署
 - [ ] 集成 FastCURD
 
-
 ## 如何贡献
 
 我们热烈欢迎并感谢所有形式的贡献。如果您有任何想法或建议，欢迎通过提交 [pull requests](https://github.com/sleep1223/fast-soy-admin/pulls) 或创建 GitHub [issue](https://github.com/sleep1223/fast-soy-admin/issues/new) 来分享。
-
-
 
 ## 贡献者
 
@@ -177,8 +179,6 @@ $ cd web && pnpm build
 <a href="https://github.com/sleep1223/fast-soy-admin/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=sleep1223/fast-soy-admin" />
 </a>
-
-
 
 ## Star 趋势
 

@@ -1,66 +1,78 @@
+# ========================
+# Python / Backend
+# ========================
 __pycache__/
-.idea/
-venv/
+*.py[cod]
+*.pyo
 .venv/
-.vscode/
+venv/
+*.egg-info/
 .ruff_cache/
 .pytest_cache/
-
-# Tortoise ORM generated files
 .mypy_cache/
+.pdm-python
+.python-version
+
+# ========================
+# Database & Migrations
+# ========================
 *.sqlite3
+*.sqlite3-journal
 tortoise_queries.json
 tortoise_last.txt
-
-# Aerich migrations
 aerich.ini
 migrations/
 
+# ========================
+# Logs
+# ========================
 *.log
-*.sqlite3*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
+# ========================
+# Node / Frontend
+# ========================
+node_modules/
+web/dist/
+web/dist-ssr/
+web/coverage/
+web/.VSCodeCounter/
+web/.pnpm-store/
+*.local
+
+# ========================
+# IDE & OS
+# ========================
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
 .DS_Store
 ._.DS_Store
-.pdm-python
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
+# ========================
+# Docker runtime
+# ========================
+redis_data/
 
-# Logs
-/web/logs
-/web/*.log
-/web/npm-debug.log*
-/web/yarn-debug.log*
-/web/yarn-error.log*
-/web/pnpm-debug.log*
-/web/lerna-debug.log*
+# ========================
+# Secrets & env overrides
+# ========================
+.env.local
+.env.*.local
 
-/web/node_modules
-/web/.DS_Store
-/web/dist
-/web/dist-ssr
-/web/coverage
-/web/*.local
-
-/web/cypress/videos/
-/web/cypress/screenshots/
-
-# Editor directories and files
-/web/.vscode/*
-/web/!.vscode/extensions.json
-/web/!.vscode/settings.json
-/web/!.vscode/launch.json
-/web/.idea
-/web/*.suo
-/web/*.ntvs*
-/web/*.njsproj
-/web/*.sln
-/web/*.sw?
-
-/web/.VSCodeCounter
-/web/packages/scripts/node_modules/*
-/web/packages/axios/node_modules/*
-/web/packages/color/node_modules/*
-/web/packages/hooks/node_modules/*
-/web/packages/materials/node_modules/*
-/web/packages/ofetch/node_modules/*
-/web/packages/utils/node_modules/*
-/web/.pnpm-store/*
+# ========================
+# Testing
+# ========================
+web/cypress/videos/
+web/cypress/screenshots/
