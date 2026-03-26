@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.core.code import Code
 from app.core.crud import CRUDBase
 from app.core.exceptions import HTTPException
 from app.models.system import LogType, LogDetailType
@@ -46,17 +47,17 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
 
         if not user:
             await Log.create(log_type=LogType.UserLog, by_user=None, log_detail_type=LogDetailType.UserLoginUserNameVaild)
-            raise HTTPException(code="4040", msg="Incorrect username or password!")
+            raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
 
         verified = verify_password(credentials.password, user.password)
 
         if not verified:
             await Log.create(log_type=LogType.UserLog, by_user=user, log_detail_type=LogDetailType.UserLoginErrorPassword)
-            raise HTTPException(code="4040", msg="Incorrect username or password!")
+            raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
 
         if user.status_type == StatusType.disable:
             await Log.create(log_type=LogType.UserLog, by_user=user, log_detail_type=LogDetailType.UserLoginForbid)
-            raise HTTPException(code="4040", msg="This user has been disabled.")
+            raise HTTPException(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
         return user
 

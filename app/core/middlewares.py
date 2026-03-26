@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.bgtask import BgTasks
+from app.core.code import Code
 from app.core.ctx import CTX_X_REQUEST_ID, CTX_USER_ID
 from app.core.dependency import check_token
 from app.core.exceptions import HTTPException
@@ -83,7 +84,7 @@ class APILoggerMiddleware(BaseHTTPMiddleware):
 
                 url = str(request.url.path)
                 if len(url) > 500:
-                    raise HTTPException(msg="请求url path过长, 请联系开发人员", code="4001")
+                    raise HTTPException(msg="请求url path过长, 请联系开发人员", code=Code.FAIL)
 
                 api_log_data = dict(
                     ip_address=request.client.host if request.client else None,

@@ -30,6 +30,7 @@ services:
       - redis_data:/data
 
   # Optional: run with `docker compose --profile cron up -d`
+  # View logs: `docker compose --profile cron logs -f cron_reset`
   cron_reset:
     build:
       context: .

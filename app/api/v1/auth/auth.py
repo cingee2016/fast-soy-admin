@@ -7,6 +7,7 @@ from fastapi_cache.decorator import cache
 from app.log import log
 from app.api.v1.utils import insert_log
 from app.controllers.user import user_controller
+from app.core.code import Code
 from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth, check_token
 from app.models.system import LogDetailType, LogType
@@ -54,7 +55,7 @@ async def _(credentials: CredentialsSchema):
 @router.post("/refresh-token", summary="刷新认证")
 async def _(jwt_token: JWTOut):
     if not jwt_token.refresh_token:
-        return Fail(code="4000", msg="The refreshToken is not valid.")
+        return Fail(code=Code.INVALID_TOKEN, msg="The refreshToken is not valid.")
     status, code, data = check_token(jwt_token.refresh_token)
     if not status:
         return Fail(code=code, msg=data)
@@ -63,11 +64,11 @@ async def _(jwt_token: JWTOut):
     user_obj = await user_controller.get(id=user_id)
 
     if data["data"]["tokenType"] != "refreshToken":
-        return Fail(code="4000", msg="The token is not an refresh token.")
+        return Fail(code=Code.INVALID_SESSION, msg="The token is not an refresh token.")
 
     if user_obj.status_type == StatusType.disable:
         await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginForbid, by_user_id=user_id)
-        return Fail(code="4040", msg="This user has been disabled.")
+        return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
     await user_controller.update_last_login(user_id)
     payload = JWTPayload(
@@ -115,7 +116,7 @@ async def _():
 
 @router.get("/error", summary="自定义后端错误")  # todo 使用限流器, 每秒最多一次
 async def _(code: str, msg: str):
-    if code == "9999":
-        return Success(code="4040", msg="accessToken已过期")
+    if code == Code.TOKEN_EXPIRED:
+        return Fail(code=Code.TOKEN_EXPIRED, msg="accessToken已过期")
 
     return Fail(code=code, msg=f"未知错误, code: {code} msg: {msg}")
