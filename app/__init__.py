@@ -4,7 +4,6 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
-from redis import asyncio as aioredis
 from starlette.staticfiles import StaticFiles
 
 from app.api.v1.utils import refresh_api_list
@@ -18,6 +17,7 @@ from app.core.init_app import (
     register_exceptions,
     register_routers,
 )
+from app.core.redis import close_redis, init_redis
 from app.log import log
 from app.models.system import Log
 from app.models.system import LogType, LogDetailType
@@ -50,15 +50,14 @@ def create_app() -> FastAPI:
     register_db(_app)
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
-
-    redis = aioredis.from_url(url=APP_SETTINGS.REDIS_URL)
-    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     return _app
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     start_time = datetime.now()
+    _app.state.redis = await init_redis()
+    FastAPICache.init(RedisBackend(_app.state.redis), prefix="fastapi-cache")
     try:
         await modify_db()
         await init_menus()
@@ -72,6 +71,7 @@ async def lifespan(_app: FastAPI):
         runtime = (end_time - start_time).total_seconds() / 60
         log.info(f"App {_app.title} runtime: {runtime} min")  # noqa
         await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStop)
+        await close_redis(_app.state.redis)
 
 
 app = create_app()

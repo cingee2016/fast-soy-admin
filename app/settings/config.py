@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
     BASE_DIR: Path = PROJECT_ROOT.parent
-    LOGS_ROOT: Path = BASE_DIR / "app/logs/"
+    LOGS_ROOT: Path = BASE_DIR / "logs/"
     STATIC_ROOT: Path = BASE_DIR / "static/"
     SECRET_KEY: str = "015a42020f023ac2c3eda3d45fe5ca3fef8921ce63589f6d4fcdef9814cd7fa7"
     JWT_ALGORITHM: str = "HS256"
