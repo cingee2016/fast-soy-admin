@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Query
-from fastapi.params import Depends
 from tortoise.expressions import Q
 
-from app.api.v1.utils import refresh_api_list, insert_log, generate_tags_recursive_list
+from app.api.v1.utils import generate_tags_recursive_list, insert_log, refresh_api_list
 from app.controllers import user_controller
 from app.controllers.api import api_controller
 from app.core.ctx import CTX_USER_ID
-from app.models.system import Api, Role
-from app.models.system import LogType, LogDetailType
-from app.schemas.apis import ApiCreate, ApiUpdate, ApiSearch
+from app.models.system import Api, LogDetailType, LogType, Role
+from app.schemas.admin import ApiCreate, ApiSearch, ApiUpdate
 from app.schemas.base import Success, SuccessExtra
 
 router = APIRouter()
@@ -43,8 +41,8 @@ async def _(obj_in: ApiSearch):
         unique_apis = list(set(api_objs))
         sorted_menus = sorted(unique_apis, key=lambda x: x.id)
         # 实现分页
-        start = (obj_in.current - 1) * obj_in.size
-        end = start + obj_in.size
+        start = ((obj_in.current or 1) - 1) * (obj_in.size or 10)
+        end = start + (obj_in.size or 10)
         api_objs = sorted_menus[start:end]
         total = len(sorted_menus)
 

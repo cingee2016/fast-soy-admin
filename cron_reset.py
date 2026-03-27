@@ -9,8 +9,8 @@ try:
 except ImportError:
     raise SettingNotFound("Can not import settings")
 
-from tortoise import Tortoise, run_async
 from loguru import logger
+from tortoise import Tortoise, run_async
 
 
 async def init():

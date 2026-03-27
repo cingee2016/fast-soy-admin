@@ -1,6 +1,6 @@
-from uuid import uuid4
 from datetime import datetime
 from json import JSONDecodeError
+from uuid import uuid4
 
 import orjson
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -9,11 +9,10 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.bgtask import BgTasks
 from app.core.code import Code
-from app.core.ctx import CTX_X_REQUEST_ID, CTX_USER_ID
+from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
 from app.core.dependency import check_token
 from app.core.exceptions import HTTPException
-from app.models.system import LogType
-from app.models.system import User, Log, APILog
+from app.models.system import APILog, Log, LogType, User
 from app.settings import APP_SETTINGS
 
 
@@ -38,11 +37,9 @@ class SimpleBaseMiddleware:
 
         await response(scope, receive, send_wrapper)
 
-    async def before_request(self, request: Request) -> ASGIApp | None:
-        ...
+    async def before_request(self, request: Request) -> ASGIApp | None: ...
 
-    async def after_request(self, request: Request, response: dict):
-        ...
+    async def after_request(self, request: Request, response: dict): ...
 
 
 class BackGroundTaskMiddleware(SimpleBaseMiddleware):
@@ -61,11 +58,8 @@ class APILoggerMiddleware(BaseHTTPMiddleware):
         x_request_id = uuid4().hex
         CTX_X_REQUEST_ID.set(x_request_id)
         request.state.x_request_id = x_request_id
-        if (
-                all([declude not in path for declude in APP_SETTINGS.ADD_LOG_ORIGINS_DECLUDE])
-                and (
-                "*" in APP_SETTINGS.ADD_LOG_ORIGINS_INCLUDE
-                or any([include in path for include in APP_SETTINGS.ADD_LOG_ORIGINS_INCLUDE]))
+        if all([declude not in path for declude in APP_SETTINGS.ADD_LOG_ORIGINS_DECLUDE]) and (
+            "*" in APP_SETTINGS.ADD_LOG_ORIGINS_INCLUDE or any([include in path for include in APP_SETTINGS.ADD_LOG_ORIGINS_INCLUDE])
         ):
             if request.scope["type"] == "http":
                 token = request.headers.get("Authorization")

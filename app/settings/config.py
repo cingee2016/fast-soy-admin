@@ -1,23 +1,16 @@
 from pathlib import Path
 from typing import Any
 
-from pydantic_settings import BaseSettings
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 def tortoise_orm_factory() -> dict[str, Any]:
     return {
-        "connections": {
-            "conn_system": {
-                "engine": "tortoise.backends.sqlite",
-                "credentials": {"file_path": "app_system.sqlite3"}
-            }
-        },
-        "apps": {
-            "app_system": {"models": ["app.models.system", "aerich.models"], "default_connection": "conn_system"}
-        },
+        "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3"}}},
+        "apps": {"app_system": {"models": ["app.models.system", "aerich.models"], "default_connection": "conn_system"}},
         "use_tz": False,
-        "timezone": "Asia/Shanghai"
+        "timezone": "Asia/Shanghai",
     }
 
 
@@ -58,3 +51,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Ensure required directories exist
+for _dir in [settings.LOGS_ROOT, settings.STATIC_ROOT, settings.BASE_DIR / "migrations"]:
+    _dir.mkdir(parents=True, exist_ok=True)

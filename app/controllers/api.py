@@ -1,6 +1,6 @@
 from app.core.crud import CRUDBase
 from app.models.system import Api
-from app.schemas.apis import ApiCreate, ApiUpdate
+from app.schemas.admin import ApiCreate, ApiUpdate
 
 
 class ApiController(CRUDBase[Api, ApiCreate, ApiUpdate]):

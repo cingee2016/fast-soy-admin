@@ -1,6 +1,6 @@
 from app.core.crud import CRUDBase
 from app.models.system import Api, Button, Role
-from app.schemas.roles import RoleCreate, RoleUpdate
+from app.schemas.admin import RoleCreate, RoleUpdate
 
 
 class RoleController(CRUDBase[Role, RoleCreate, RoleUpdate]):
@@ -35,10 +35,10 @@ class RoleController(CRUDBase[Role, RoleCreate, RoleUpdate]):
         if not apis_codes:
             return False
 
-        await role.apis.clear()
+        await role.by_role_apis.clear()
         for api_code in apis_codes:
             api_obj = await Api.get(api_code=api_code)
-            await role.apis.add(api_obj)
+            await role.by_role_apis.add(api_obj)
         return True
 
 

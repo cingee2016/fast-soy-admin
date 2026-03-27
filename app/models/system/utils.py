@@ -3,16 +3,14 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from tortoise import models, fields
+from tortoise import fields, models
 
 from app.settings import APP_SETTINGS
 from app.utils.tools import to_lower_camel_case
 
 
 class BaseModel(models.Model):
-    async def to_dict(
-            self, include_fields: list[str] | None = None, exclude_fields: list[str] | None = None, m2m: bool = False
-    ):
+    async def to_dict(self, include_fields: list[str] | None = None, exclude_fields: list[str] | None = None, m2m: bool = False):
         include_fields = include_fields or []
         exclude_fields = exclude_fields or []
 
@@ -33,20 +31,18 @@ class BaseModel(models.Model):
 
         if m2m:
             for field in self._meta.m2m_fields:
-                if (not include_fields or field in include_fields) and (
-                        not exclude_fields or field not in exclude_fields
-                ):
+                if (not include_fields or field in include_fields) and (not exclude_fields or field not in exclude_fields):
                     values = [value for value in await getattr(self, field).all().values()]
                     for value in values:
                         _value = value.copy()
                         for k, v in _value.items():
-                            if isinstance(value, datetime):
-                                d[to_lower_camel_case("fmt_" + field)] = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
-                                value = int(value.timestamp() * 1000)
+                            if isinstance(v, datetime):
+                                d[to_lower_camel_case("fmt_" + field)] = v.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                                v = int(v.timestamp() * 1000)
                             elif isinstance(v, UUID):
                                 v = str(v)
-                            elif isinstance(value, Decimal):
-                                value = float(value)
+                            elif isinstance(v, Decimal):
+                                v = float(v)
                             value.pop(k)
                             value[to_lower_camel_case(k)] = v
                     d[to_lower_camel_case(field)] = values
@@ -77,12 +73,10 @@ class EnumBase(Enum):
                 return item.name
 
 
-class IntEnum(int, EnumBase):
-    ...
+class IntEnum(int, EnumBase): ...
 
 
-class StrEnum(str, EnumBase):
-    ...
+class StrEnum(str, EnumBase): ...
 
 
 class MethodType(str, Enum):
@@ -110,6 +104,7 @@ class LogDetailType(str, Enum):
     1500-1599 角色
     1600-1699 用户
     """
+
     SystemStart = "1101"
     SystemStop = "1102"
 
@@ -186,17 +181,4 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = [
-    "BaseModel",
-    "TimestampMixin",
-    "EnumBase",
-    "IntEnum",
-    "StrEnum",
-    "MethodType",
-    "LogType",
-    "LogDetailType",
-    "StatusType",
-    "GenderType",
-    "MenuType",
-    "IconType"
-]
+__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]

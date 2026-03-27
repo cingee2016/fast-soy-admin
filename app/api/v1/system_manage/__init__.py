@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.dependency import DependPermission
+
 from .apis import router as api_router
 from .logs import router as log_router
 from .menus import router as menu_router

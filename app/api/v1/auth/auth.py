@@ -1,17 +1,16 @@
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter
 from fastapi_cache import JsonCoder
 from fastapi_cache.decorator import cache
 
-from app.log import log
 from app.api.v1.utils import insert_log
 from app.controllers.user import user_controller
 from app.core.code import Code
 from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth, check_token
-from app.models.system import LogDetailType, LogType
-from app.models.system import User, Role, Button, StatusType
+from app.log import log
+from app.models.system import Button, LogDetailType, LogType, Role, StatusType, User
 from app.schemas.base import Fail, Success
 from app.schemas.login import CredentialsSchema, JWTOut, JWTPayload
 from app.settings import APP_SETTINGS
@@ -33,11 +32,7 @@ async def _(credentials: CredentialsSchema):
     #     return Fail(msg="This user has no permission to login.")
 
     await user_controller.update_last_login(user_obj.id)
-    payload = JWTPayload(
-        data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"},
-        iat=datetime.now(UTC),
-        exp=datetime.now(UTC)
-    )
+    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"}, iat=datetime.now(UTC), exp=datetime.now(UTC))
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_payload = payload.model_copy(deep=True)
@@ -71,11 +66,7 @@ async def _(jwt_token: JWTOut):
         return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
     await user_controller.update_last_login(user_id)
-    payload = JWTPayload(
-        data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"},
-        iat=datetime.now(UTC),
-        exp=datetime.now(UTC)
-    )
+    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"}, iat=datetime.now(UTC), exp=datetime.now(UTC))
 
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -105,11 +96,7 @@ async def _():
 
     user_role_button_codes = list(set(user_role_button_codes))
 
-    data.update({
-        "userId": user_id,
-        "roles": user_role_codes,
-        "buttons": user_role_button_codes
-    })
+    data.update({"userId": user_id, "roles": user_role_codes, "buttons": user_role_button_codes})
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginGetUserInfo, by_user_id=user_obj.id)
     return Success(data=data)
 

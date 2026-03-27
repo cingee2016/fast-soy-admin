@@ -10,7 +10,7 @@ from app.core.exceptions import (
     HTTPException,
 )
 from app.log import log
-from app.models.system import User, StatusType
+from app.models.system import StatusType, User
 from app.settings import APP_SETTINGS
 from app.utils.tools import check_url
 
@@ -20,7 +20,7 @@ oauth2_schema = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 def check_token(token: str) -> tuple[bool, str, Any]:
     try:
         options = {"verify_signature": True, "verify_aud": False, "exp": True}
-        decode_data = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM], options=options)
+        decode_data = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM], options=options)  # type: ignore[arg-type]
         return True, Code.SUCCESS, decode_data
     except jwt.DecodeError:
         return False, Code.INVALID_TOKEN, "无效的Token"
@@ -69,7 +69,7 @@ class PermissionControl:
 
         apis = [await role.by_role_apis for role in current_user.by_user_roles]
         permission_apis = list(set((api.api_method.value, api.api_path, api.status_type) for api in sum(apis, [])))
-        for (api_method, api_path, api_status) in permission_apis:
+        for api_method, api_path, api_status in permission_apis:
             if api_method == method and check_url(api_path, request.url.path):  # API权限检测通过
                 if api_status == StatusType.disable:
                     raise HTTPException(code=Code.API_DISABLED, msg=f"The API has been disabled, method: {method} path: {path}")

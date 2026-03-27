@@ -6,10 +6,9 @@ from tortoise.expressions import Q
 from app.controllers import user_controller
 from app.controllers.log import log_controller
 from app.core.ctx import CTX_USER_ID
-from app.models.system import LogType
-from app.models.system import User, Role, Log, APILog
-from app.schemas.base import Success, SuccessExtra, Fail
-from app.schemas.logs import LogUpdate, LogSearch
+from app.models.system import APILog, Log, LogType, Role, User
+from app.schemas.admin import LogSearch, LogUpdate
+from app.schemas.base import Fail, Success, SuccessExtra
 
 router = APIRouter()
 

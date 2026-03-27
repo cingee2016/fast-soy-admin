@@ -1,4 +1,4 @@
-from typing import Generic, NewType, TypeVar, Any
+from typing import Any, Generic, NewType, TypeVar
 
 from pydantic import BaseModel
 from tortoise.expressions import Q
@@ -18,14 +18,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return await self.model.get(*args, **kwargs)
 
     async def list(
-            self,
-            page: int | None,
-            page_size: int | None,
-            search: Q = Q(),
-            order: list[str] | None = None,
-            fields: list[str] | None = None,
-            last_id: int | None = None,
-            count_by_pk_field: bool = False
+        self, page: int | None, page_size: int | None, search: Q = Q(), order: list[str] | None = None, fields: list[str] | None = None, last_id: int | None = None, count_by_pk_field: bool = False
     ) -> tuple[Total, list[ModelType]]:
         order = order or []
         page = page or 1

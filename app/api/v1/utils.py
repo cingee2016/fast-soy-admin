@@ -2,8 +2,7 @@ from fastapi.routing import APIRoute
 from loguru import logger
 
 from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
-from app.models.system import Api, Log
-from app.models.system import LogType, LogDetailType
+from app.models.system import Api, Log, LogDetailType, LogType
 
 
 async def refresh_api_list():

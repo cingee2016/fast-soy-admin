@@ -20,19 +20,19 @@ class Code:
     FAIL = "4000"
 
     # ---- logout codes (frontend redirects to login page) ----
-    INVALID_TOKEN = "4001"          # token decode error / generic token failure / missing token
-    INVALID_SESSION = "4002"        # wrong token type / user not found
+    INVALID_TOKEN = "4001"  # token decode error / generic token failure / missing token
+    INVALID_SESSION = "4002"  # wrong token type / user not found
 
     # ---- modal logout codes (frontend shows confirmation modal) ----
-    ACCOUNT_DISABLED = "4003"       # user has been disabled (while already logged in)
+    ACCOUNT_DISABLED = "4003"  # user has been disabled (while already logged in)
 
     # ---- expired token codes (frontend auto-refreshes and retries) ----
-    TOKEN_EXPIRED = "4010"          # access/refresh token expired
+    TOKEN_EXPIRED = "4010"  # access/refresh token expired
 
     # ---- permission codes (frontend shows error message, no logout) ----
-    API_DISABLED = "4031"           # API endpoint has been disabled
-    PERMISSION_DENIED = "4032"      # RBAC permission denied
+    API_DISABLED = "4031"  # API endpoint has been disabled
+    PERMISSION_DENIED = "4032"  # RBAC permission denied
 
     # ---- business codes ----
-    DUPLICATE_RESOURCE = "4090"     # duplicate resource (e.g., username, role code)
-    VALIDATION_ERROR = "4220"       # request validation error
+    DUPLICATE_RESOURCE = "4090"  # duplicate resource (e.g., username, role code)
+    VALIDATION_ERROR = "4220"  # request validation error

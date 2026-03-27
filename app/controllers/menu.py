@@ -2,7 +2,7 @@ from loguru import logger
 
 from app.core.crud import CRUDBase
 from app.models.system import Button, Menu
-from app.schemas.menus import ButtonBase, MenuCreate, MenuUpdate
+from app.schemas.admin import ButtonBase, MenuCreate, MenuUpdate
 
 
 class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
@@ -17,7 +17,7 @@ class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
 
     async def get_by_id_list(self, id_list: list[int] | str) -> list[Menu] | None:
         if isinstance(id_list, str):
-            id_list = id_list.split(",")
+            id_list = [int(x) for x in id_list.split(",")]
         return await self.model.filter(id__in=id_list)
 
     @staticmethod

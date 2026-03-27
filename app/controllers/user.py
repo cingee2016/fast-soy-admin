@@ -3,8 +3,7 @@ from datetime import datetime
 from app.core.code import Code
 from app.core.crud import CRUDBase
 from app.core.exceptions import HTTPException
-from app.models.system import LogType, LogDetailType
-from app.models.system import Role, User, Log, StatusType
+from app.models.system import Log, LogDetailType, LogType, Role, StatusType, User
 from app.schemas.login import CredentialsSchema
 from app.schemas.users import UserCreate, UserUpdate
 from app.utils.security import get_password_hash, verify_password
@@ -21,7 +20,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         return await self.model.filter(user_name=user_name).first()
 
     async def create(self, obj_in: UserCreate) -> User:  # type: ignore
-        obj_in.password = get_password_hash(password=obj_in.password)
+        obj_in.password = get_password_hash(password=obj_in.password or "")
 
         if not obj_in.nick_name:
             obj_in.nick_name = obj_in.user_name
@@ -33,7 +32,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if obj_in.password:
             obj_in.password = get_password_hash(password=obj_in.password)
         else:
-            obj_in.password = None
+            obj_in.password = None  # type: ignore[assignment]
 
         return await super().update(id=user_id, obj_in=obj_in, exclude={"byUserRoles"})
 
@@ -49,7 +48,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             await Log.create(log_type=LogType.UserLog, by_user=None, log_detail_type=LogDetailType.UserLoginUserNameVaild)
             raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
 
-        verified = verify_password(credentials.password, user.password)
+        verified = verify_password(credentials.password or "", user.password or "")
 
         if not verified:
             await Log.create(log_type=LogType.UserLog, by_user=user, log_detail_type=LogDetailType.UserLoginErrorPassword)
@@ -67,7 +66,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             return False
 
         if isinstance(role_id_list, str):
-            role_id_list = role_id_list.split("|")
+            role_id_list = [int(x) for x in role_id_list.split("|")]
 
         await user.by_user_roles.clear()
         user_role_objs = await Role.filter(id__in=role_id_list)

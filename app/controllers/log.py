@@ -1,6 +1,6 @@
 from app.core.crud import CRUDBase
 from app.models.system import Log
-from app.schemas.logs import LogCreate, LogUpdate
+from app.schemas.admin import LogCreate, LogUpdate
 
 
 class LogController(CRUDBase[Log, LogCreate, LogUpdate]):

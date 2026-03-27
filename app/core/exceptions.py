@@ -17,11 +17,7 @@ class SettingNotFound(Exception):
 
 
 class HTTPException(Exception):
-    def __init__(
-            self,
-            code: int | str,
-            msg: str | None = None
-    ) -> None:
+    def __init__(self, code: int | str, msg: str | None = None) -> None:
         if msg is None:
             msg = http.HTTPStatus(int(code)).phrase
         self.code = code
@@ -37,9 +33,9 @@ class HTTPException(Exception):
 
 async def BaseHandle(req: Request, exc: Exception, handle_exc, code: int | str, msg: str | dict, status_code: int = 500, **kwargs) -> JSONResponse:
     headers = {"x-request-id": CTX_X_REQUEST_ID.get() or ""}
-    request_body = await req.body() or {}
+    request_body_raw = await req.body()
     try:
-        request_body = orjson.loads(request_body)
+        request_body = orjson.loads(request_body_raw) if request_body_raw else {}
     except (orjson.JSONDecodeError, UnicodeDecodeError):
         request_body = {}
 
@@ -64,8 +60,8 @@ async def HttpExcHandle(req: Request, exc: HTTPException) -> JSONResponse:
 
 
 async def RequestValidationHandle(req: Request, exc: RequestValidationError) -> JSONResponse:
-    return await BaseHandle(req, exc, RequestValidationError, 422, f"RequestValidationError", detail=exc.errors())
+    return await BaseHandle(req, exc, RequestValidationError, 422, "RequestValidationError", detail=exc.errors())
 
 
 async def ResponseValidationHandle(req: Request, exc: ResponseValidationError) -> JSONResponse:
-    return await BaseHandle(req, exc, ResponseValidationError, 422, f"ResponseValidationError", detail=exc.errors())
+    return await BaseHandle(req, exc, ResponseValidationError, 422, "ResponseValidationError", detail=exc.errors())

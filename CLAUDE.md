@@ -9,6 +9,7 @@ FastSoyAdmin is a full-stack admin template with a **FastAPI** backend (Python) 
 ## Common Commands
 
 ### Backend
+
 ```bash
 # Install dependencies (uses uv or pdm)
 uv sync                       # or: pdm install
@@ -18,20 +19,22 @@ python run.py
 ruff check app/               # lint
 ruff format app/               # format
 # Type check
-pyright
+pyright app/
 ```
 
 ### Frontend
+
 ```bash
 cd web
 pnpm install                  # install dependencies
 pnpm dev                      # dev server (port 9527)
 pnpm build                    # production build
 pnpm lint                     # eslint
-pnpm type-check               # vue-tsc type check
+pnpm typecheck                # vue-tsc type check
 ```
 
 ### Docker
+
 ```bash
 docker compose up -d          # full stack: nginx(:1880) + fastapi + redis
 ```
@@ -57,6 +60,7 @@ Layered architecture: **Router → Controller → CRUD/Model**
 - `app/utils/security.py` — Password hashing (argon2), JWT token creation
 
 **Key patterns:**
+
 - RBAC: Users ↔ Roles ↔ (Menus, APIs, Buttons) — all many-to-many
 - Super admin role `R_SUPER` bypasses permission checks
 - Standard response format: `{"code": "0000", "msg": "OK", "data": {...}}`
@@ -80,6 +84,25 @@ Vue3 + Vite + Naive UI + Elegant Router + Pinia
 - ORM: Tortoise ORM
 - Migrations: Aerich
 - Caching: Redis via fastapi-cache2
+
+## Gate Checks
+
+After modifying code, run the corresponding checks before finishing:
+
+### Backend
+```bash
+ruff check app/               # lint
+ruff format app/               # format
+pyright app                    # type check
+pytest tests/ -v               # tests
+```
+
+### Frontend
+```bash
+cd web
+pnpm lint                     # eslint
+pnpm typecheck                # vue-tsc type check
+```
 
 ## Configuration
 

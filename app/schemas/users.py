@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -26,8 +26,7 @@ class UserSearch(UserBase):
     size: Annotated[int | None, Field(description="每页数量")] = 10
 
 
-class UserCreate(UserBase):
-    ...
+class UserCreate(UserBase): ...
 
 
 class UserUpdate(UserBase):

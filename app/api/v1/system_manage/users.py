@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter
 from tortoise.expressions import Q
 
 from app.api.v1.utils import insert_log
 from app.controllers.user import user_controller
-from app.models.system import LogType, LogDetailType
-from app.schemas.base import Success, SuccessExtra, CommonIds
-from app.schemas.users import UserCreate, UserUpdate, UserSearch
+from app.models.system import LogDetailType, LogType
+from app.schemas.base import CommonIds, Success, SuccessExtra
+from app.schemas.users import UserCreate, UserSearch, UserUpdate
 
 router = APIRouter()
 

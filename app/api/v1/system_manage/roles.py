@@ -4,21 +4,20 @@ from tortoise.expressions import Q
 from app.api.v1.utils import insert_log
 from app.controllers import role_controller
 from app.controllers.menu import menu_controller
-from app.models.system import Api, Button, Role
-from app.models.system import LogType, LogDetailType
+from app.models.system import Api, Button, LogDetailType, LogType, Role
+from app.schemas.admin import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 from app.schemas.base import Success, SuccessExtra
-from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 
 router = APIRouter()
 
 
 @router.get("/roles", summary="查看角色列表")
 async def _(
-        current: int = Query(1, description="页码"),
-        size: int = Query(10, description="每页数量"),
-        roleName: str = Query(None, description="角色名称"),
-        roleCode: str = Query(None, description="角色编码"),
-        status: str = Query(None, description="用户状态")
+    current: int = Query(1, description="页码"),
+    size: int = Query(10, description="每页数量"),
+    roleName: str = Query(None, description="角色名称"),
+    roleCode: str = Query(None, description="角色编码"),
+    status: str = Query(None, description="用户状态"),
 ):
     q = Q()
     if roleName:

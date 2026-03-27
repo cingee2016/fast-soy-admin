@@ -19,8 +19,7 @@ from app.core.init_app import (
 )
 from app.core.redis import close_redis, init_redis
 from app.log import log
-from app.models.system import Log
-from app.models.system import LogType, LogDetailType
+from app.models.system import Log, LogDetailType, LogType
 
 try:
     from app.settings import APP_SETTINGS
@@ -31,22 +30,10 @@ except ImportError:
 def create_app() -> FastAPI:
     if APP_SETTINGS.DEBUG:
         _app = FastAPI(
-            title=APP_SETTINGS.APP_TITLE,
-            description=APP_SETTINGS.APP_DESCRIPTION,
-            version=APP_SETTINGS.VERSION,
-            openapi_url="/openapi.json",
-            middleware=make_middlewares(),
-            lifespan=lifespan
+            title=APP_SETTINGS.APP_TITLE, description=APP_SETTINGS.APP_DESCRIPTION, version=APP_SETTINGS.VERSION, openapi_url="/openapi.json", middleware=make_middlewares(), lifespan=lifespan
         )
     else:
-        _app = FastAPI(
-            title=APP_SETTINGS.APP_TITLE,
-            description=APP_SETTINGS.APP_DESCRIPTION,
-            version=APP_SETTINGS.VERSION,
-            openapi_url=None,
-            middleware=make_middlewares(),
-            lifespan=lifespan
-        )
+        _app = FastAPI(title=APP_SETTINGS.APP_TITLE, description=APP_SETTINGS.APP_DESCRIPTION, version=APP_SETTINGS.VERSION, openapi_url=None, middleware=make_middlewares(), lifespan=lifespan)
     register_db(_app)
     register_exceptions(_app)
     register_routers(_app, prefix="/api")

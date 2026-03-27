@@ -5,7 +5,7 @@ from fastapi_cache.decorator import cache
 from app.controllers.menu import menu_controller
 from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth
-from app.models.system import Menu, Role, User, IconType
+from app.models.system import IconType, Menu, Role, User
 from app.schemas.base import Success
 
 router = APIRouter()
@@ -40,7 +40,7 @@ async def build_route_tree(menus: list[Menu], parent_id: int = 0, simple: bool =
                         "activeMenu": menu.active_menu.route_name if menu.active_menu else None,
                         "multiTab": menu.multi_tab,
                         "fixedIndexInTab": menu.fixed_index_in_tab,
-                    }
+                    },
                 }
                 if menu.icon_type == IconType.local:
                     menu_dict["meta"]["localIcon"] = menu.icon
@@ -73,12 +73,7 @@ async def _():
             "name": menu_obj.route_name,
             "path": menu_obj.route_path,
             "component": menu_obj.component,
-            "meta": {
-                "title": menu_obj.menu_name,
-                "i18nKey": menu_obj.i18n_key,
-                "constant": menu_obj.constant,
-                "hideInMenu": menu_obj.hide_in_menu
-            }
+            "meta": {"title": menu_obj.menu_name, "i18nKey": menu_obj.i18n_key, "constant": menu_obj.constant, "hideInMenu": menu_obj.hide_in_menu},
         }
 
         if menu_obj.props:

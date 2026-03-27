@@ -3,10 +3,9 @@ from tortoise.functions import Count
 
 from app.api.v1.utils import insert_log
 from app.controllers.menu import menu_controller
-from app.models.system import LogType, LogDetailType, IconType
-from app.models.system import Menu
+from app.models.system import IconType, LogDetailType, LogType, Menu
+from app.schemas.admin import MenuCreate, MenuUpdate
 from app.schemas.base import Success, SuccessExtra
-from app.schemas.menus import MenuCreate, MenuUpdate
 
 router = APIRouter()
 
@@ -38,10 +37,7 @@ async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = 
 
 
 @router.get("/menus", summary="查看用户菜单")
-async def _(
-        current: int = Query(1, description="页码"),
-        size: int = Query(100, description="每页数量")
-):
+async def _(current: int = Query(1, description="页码"), size: int = Query(100, description="每页数量")):
     total, menus = await menu_controller.list(page=current, page_size=size, order=["id"])
     # 递归生成菜单
     menu_tree = await build_menu_tree(menus, simple=False)
@@ -139,7 +135,7 @@ async def build_menu_button_tree(menus: list[Menu], parent_id: int = 0) -> list[
 
 @router.get("/menus/buttons/tree/", summary="查看菜单按钮树")
 async def _():
-    menus_with_button = await Menu.filter(constant=False).annotate(button_count=Count('by_menu_buttons')).filter(button_count__gt=0)
+    menus_with_button = await Menu.filter(constant=False).annotate(button_count=Count("by_menu_buttons")).filter(button_count__gt=0)
     menu_objs = menus_with_button.copy()
     while len(menus_with_button) > 0:
         menu = menus_with_button.pop()

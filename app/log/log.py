@@ -1,8 +1,9 @@
+import logging
 import sys
 import time
-import logging
 from types import FrameType
 from typing import cast
+
 from loguru import logger
 
 from app.core.ctx import CTX_X_REQUEST_ID
@@ -24,20 +25,17 @@ class Logger:
         self.logger.remove()
         APP_SETTINGS.LOGS_ROOT.mkdir(parents=True, exist_ok=True)
         self.logger.add(sys.stdout)
-        self.logger.add(log_path,
-                        format="{time:YYYY-MM-DD HH:mm:ss} - "
-                               "{process.name} | "
-                               "{thread.name} | "
-                               "<red> {x_request_id} </red> | "
-                               "{module}.{function}:{line} - {level} -{message}",
-                        encoding="utf-8",
-                        retention="3 days",
-                        backtrace=True,
-                        diagnose=True,
-                        enqueue=True,
-                        rotation="00:00",
-                        filter=x_request_id_filter
-                        )
+        self.logger.add(
+            log_path,
+            format="{time:YYYY-MM-DD HH:mm:ss} - {process.name} | {thread.name} | <red> {x_request_id} </red> | {module}.{function}:{line} - {level} -{message}",
+            encoding="utf-8",
+            retention="3 days",
+            backtrace=True,
+            diagnose=True,
+            enqueue=True,
+            rotation="00:00",
+            filter=x_request_id_filter,
+        )
 
     @staticmethod
     def init_config():

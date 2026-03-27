@@ -22,6 +22,8 @@
 [![pyright](https://img.shields.io/badge/types-pyright-797952.svg?logo=python&logoColor=edb641)](https://github.com/Microsoft/pyright)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-sleep1223%2Ffast--soy--admin-blue?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzFFOTBGRiIvPgo8cGF0aCBkPSJNOCAxMEgxMlYyMkg4VjEwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTE1IDEwSDE5VjIySDE1VjEwWiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNyIvPgo8cGF0aCBkPSJNMjIgMTBIMjZWMjJIMjJWMTBaIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC40Ii8+Cjwvc3ZnPg==)](https://deepwiki.com/sleep1223/fast-soy-admin)
+
 <span><a href="./README.en.md">English</a> | 中文</span>
 
 </div>
@@ -32,8 +34,6 @@
 ## 简介
 
 [`FastSoyAdmin`](https://github.com/sleep1223/fast-soy-admin) 是一套开箱即用的全栈后台管理模板。前端基于 Vue3、Vite7、TypeScript、Pinia 和 UnoCSS 构建，后端采用 FastAPI、Pydantic v2 和 Tortoise ORM，并通过 Redis 加速接口响应。项目内置丰富的主题配置、完整的 RBAC 权限控制、自动化文件路由以及多语言支持，适合作为中后台项目的起步脚手架，也适合用来学习全栈开发的最佳实践。
-
-[![DeepWiki](https://img.shields.io/badge/DeepWiki-sleep1223%2Ffast--soy--admin-blue?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzFFOTBGRiIvPgo8cGF0aCBkPSJNOCAxMEgxMlYyMkg4VjEwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTE1IDEwSDE5VjIySDE1VjEwWiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNyIvPgo8cGF0aCBkPSJNMjIgMTBIMjZWMjJIMjJWMTBaIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC40Ii8+Cjwvc3ZnPg==)](https://deepwiki.com/sleep1223/fast-soy-admin)
 
 ## 特性
 
@@ -107,12 +107,13 @@ docker compose down && docker compose up -d
 
 **环境要求**
 
-| 工具 | 版本 |
-|------|------|
-| Git | - |
-| Python | >= 3.12 |
-| Node.js | >= 20.19.0 |
-| pnpm | >= 10.5.0 |
+| 工具    | 版本       |
+| ------- | ---------- |
+| Git     | -          |
+| Python  | >= 3.12    |
+| Node.js | >= 20.0.0  |
+| uv      | ---------- |
+| pnpm    | ---------- |
 
 **安装与启动**
 
@@ -128,7 +129,7 @@ uv sync  # 或 pdm install / pip install -r requirements.txt
 cd web && pnpm install
 
 # 启动后端（端口 9999）
-python run.py
+uv run python run.py
 
 # 启动前端（端口 9527，新开终端）
 cd web && pnpm dev
