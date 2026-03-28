@@ -1,8 +1,7 @@
 from fastapi.routing import APIRoute
 from loguru import logger
 
-from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
-from app.models.system import Api, Log, LogDetailType, LogType
+from app.models.system import Api
 from app.radar.developer import radar_log
 
 
@@ -51,18 +50,3 @@ async def generate_tags_recursive_list():
         return tree
 
     return build_tree()
-
-
-async def insert_log(log_type: LogType, log_detail_type: LogDetailType, by_user_id: int | None = None):
-    """
-    插入日志
-    :param log_type:
-    :param log_detail_type:
-    :param by_user_id: 0为从上下文获取当前用户id, 需要请求携带token
-    :return:
-    """
-    if by_user_id == 0 and (by_user_id := CTX_USER_ID.get()) == 0:
-        by_user_id = None
-
-    radar_log(f"日志: {log_detail_type.name}", data={"logType": log_type.value, "logDetailType": log_detail_type.value, "byUserId": by_user_id})
-    await Log.create(log_type=log_type, log_detail_type=log_detail_type, by_user_id=by_user_id, x_request_id=CTX_X_REQUEST_ID.get())

@@ -87,77 +87,6 @@ class MethodType(str, Enum):
     DELETE = "delete"
 
 
-class LogType(str, Enum):
-    ApiLog = "1"
-    UserLog = "2"
-    AdminLog = "3"
-    SystemLog = "4"
-
-
-class LogDetailType(str, Enum):
-    """
-    1000-1999 内置
-    1100-1199 系统
-    1200-1299 用户
-    1300-1399 API
-    1400-1499 菜单
-    1500-1599 角色
-    1600-1699 用户
-    """
-
-    SystemStart = "1101"
-    SystemStop = "1102"
-
-    UserLoginSuccess = "1201"
-    UserAuthRefreshTokenSuccess = "1202"
-    UserLoginGetUserInfo = "1203"
-    UserLoginUserNameVaild = "1211"
-    UserLoginErrorPassword = "1212"
-    UserLoginForbid = "1213"
-
-    ApiGetList = "1301"
-    ApiGetTree = "1302"
-    ApiRefresh = "1303"
-
-    ApiGetOne = "1311"
-    ApiCreateOne = "1312"
-    ApiUpdateOne = "1313"
-    ApiDeleteOne = "1314"
-    ApiBatchDelete = "1315"
-
-    MenuGetList = "1401"
-    MenuGetTree = "1402"
-    MenuGetPages = "1403"
-    MenuGetButtonsTree = "1404"
-
-    MenuGetOne = "1411"
-    MenuCreateOne = "1412"
-    MenuUpdateOne = "1413"
-    MenuDeleteOne = "1414"
-    MenuBatchDeleteOne = "1415"
-
-    RoleGetList = "1501"
-    RoleGetMenus = "1502"
-    RoleUpdateMenus = "1503"
-    RoleGetButtons = "1504"
-    RoleUpdateButtons = "1505"
-    RoleGetApis = "1506"
-    RoleUpdateApis = "1507"
-
-    RoleGetOne = "1511"
-    RoleCreateOne = "1512"
-    RoleUpdateOne = "1513"
-    RoleDeleteOne = "1514"
-    RoleBatchDeleteOne = "1515"
-
-    UserGetList = "1601"
-    UserGetOne = "1611"
-    UserCreateOne = "1612"
-    UserUpdateOne = "1613"
-    UserDeleteOne = "1614"
-    UserBatchDeleteOne = "1615"
-
-
 class StatusType(str, Enum):
     all = "0"
     enable = "1"
@@ -181,4 +110,4 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]
+__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "StatusType", "GenderType", "MenuType", "IconType"]

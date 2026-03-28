@@ -20,7 +20,6 @@ from app.core.init_app import (
 )
 from app.core.redis import close_redis, init_redis
 from app.log import log
-from app.models.system import Log, LogDetailType, LogType
 
 try:
     from app.settings import APP_SETTINGS
@@ -56,7 +55,6 @@ async def lifespan(_app: FastAPI):
         await init_menus()
         await refresh_api_list()
         await init_users()
-        await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStart)
         if APP_SETTINGS.RADAR_ENABLED:
             from app.radar import startup_radar
 
@@ -71,7 +69,6 @@ async def lifespan(_app: FastAPI):
         end_time = datetime.now()
         runtime = (end_time - start_time).total_seconds() / 60
         log.info(f"App {_app.title} runtime: {runtime} min")  # noqa
-        await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStop)
         await close_redis(_app.state.redis)
 
 

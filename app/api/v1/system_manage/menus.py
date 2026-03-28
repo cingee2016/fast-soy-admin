@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Query
 from tortoise.functions import Count
 
-from app.api.v1.utils import insert_log
 from app.controllers.menu import menu_controller
-from app.models.system import IconType, LogDetailType, LogType, Menu
+from app.models.system import IconType, Menu
 from app.schemas.admin import MenuCreate, MenuUpdate
 from app.schemas.base import Success, SuccessExtra
 
@@ -42,7 +41,6 @@ async def _(current: int = Query(1, description="页码"), size: int = Query(100
     # 递归生成菜单
     menu_tree = await build_menu_tree(menus, simple=False)
     data = {"records": menu_tree}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetList, by_user_id=0)
     return SuccessExtra(data=data, total=total, current=current, size=size)
 
 
@@ -51,14 +49,12 @@ async def _():
     menus = await Menu.filter(constant=False)
     # 递归生成菜单
     menu_tree = await build_menu_tree(menus, simple=True)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetTree, by_user_id=0)
     return Success(data=menu_tree)
 
 
 @router.get("/menus/{menu_id}", summary="查看菜单")
 async def get_menu(menu_id: int):
     menu_obj: Menu = await menu_controller.get(id=menu_id)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetOne, by_user_id=0)
     return Success(data=await menu_obj.to_dict())
 
 
@@ -74,7 +70,6 @@ async def _(menu_in: MenuCreate):
     new_menu = await menu_controller.create(obj_in=menu_in, exclude={"buttons"})
     if new_menu and menu_in.by_menu_buttons:
         await menu_controller.update_buttons_by_code(new_menu, menu_in.by_menu_buttons)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuCreateOne, by_user_id=0)
     return Success(msg="Created Successfully", data={"created_id": new_menu.id})
 
 
@@ -83,14 +78,12 @@ async def _(menu_id: int, menu_in: MenuUpdate):
     menu_obj = await menu_controller.update(id=menu_id, obj_in=menu_in, exclude={"buttons"})
     if menu_obj and menu_in.by_menu_buttons:
         await menu_controller.update_buttons_by_code(menu_obj, menu_in.by_menu_buttons)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuUpdateOne, by_user_id=0)
     return Success(msg="Updated Successfully", data={"updated_id": menu_id})
 
 
 @router.delete("/menus/{menu_id}", summary="删除菜单")
 async def _(menu_id: int):
     await menu_controller.remove(id=menu_id)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_id": menu_id})
 
 
@@ -100,7 +93,6 @@ async def _(ids: str = Query(description="菜单ID列表, 用逗号隔开")):
     for menu_id in menu_ids:
         menu_obj = await Menu.get(id=int(menu_id))
         await menu_obj.delete()
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuBatchDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_ids": menu_ids})
 
 
@@ -109,7 +101,6 @@ async def _():
     menus = await Menu.filter(parent_id=0, constant=False)
     data = [{"key": menu.menu_name, "value": menu.id} for menu in menus]
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetPages, by_user_id=0)
     return Success(data=data)
 
 
@@ -150,5 +141,4 @@ async def _():
     if menu_objs:
         data = await build_menu_button_tree(menu_objs)
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetButtonsTree, by_user_id=0)
     return Success(data=data)

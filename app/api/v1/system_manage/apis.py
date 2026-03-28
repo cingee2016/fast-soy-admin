@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
-from app.api.v1.utils import generate_tags_recursive_list, insert_log, refresh_api_list
+from app.api.v1.utils import generate_tags_recursive_list, refresh_api_list
 from app.controllers import user_controller
 from app.controllers.api import api_controller
 from app.core.ctx import CTX_USER_ID
-from app.models.system import Api, LogDetailType, LogType, Role
+from app.models.system import Api, Role
 from app.schemas.admin import ApiCreate, ApiSearch, ApiUpdate
 from app.schemas.base import Success, SuccessExtra
 
@@ -51,7 +51,6 @@ async def _(obj_in: ApiSearch):
         data = await obj.to_dict(exclude_fields=["create_time", "update_time"])
         records.append(data)
     data = {"records": records}
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetList, by_user_id=user_obj.id)
     return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -59,7 +58,6 @@ async def _(obj_in: ApiSearch):
 async def _(api_id: int):
     api_obj = await api_controller.get(id=api_id)
     data = await api_obj.to_dict(exclude_fields=["id", "create_time", "update_time"])
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetOne, by_user_id=0)
     return Success(data=data)
 
 
@@ -90,7 +88,6 @@ async def _():
     data = []
     if api_objs:
         data = build_api_tree(api_objs)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetTree, by_user_id=0)
     return Success(data=data)
 
 
@@ -99,7 +96,6 @@ async def _(api_in: ApiCreate):
     if isinstance(api_in.tags, str):
         api_in.tags = api_in.tags.split("|")
     new_api = await api_controller.create(obj_in=api_in)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiCreateOne, by_user_id=0)
     return Success(msg="Created Successfully", data={"created_id": new_api.id})
 
 
@@ -108,14 +104,12 @@ async def _(api_id: int, api_in: ApiUpdate):
     if isinstance(api_in.tags, str):
         api_in.tags = api_in.tags.split("|")
     await api_controller.update(id=api_id, obj_in=api_in)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiUpdateOne, by_user_id=0)
     return Success(msg="Update Successfully", data={"updated_id": api_id})
 
 
 @router.delete("/apis/{api_id}", summary="删除API")
 async def _(api_id: int):
     await api_controller.remove(id=api_id)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_id": api_id})
 
 
@@ -127,19 +121,16 @@ async def _(ids: str = Query(..., description="API ID列表, 用逗号隔开")):
         api_obj = await Api.get(id=int(api_id))
         await api_obj.delete()
         deleted_ids.append(int(api_id))
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiBatchDelete, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
 
 
 @router.post("/apis/refresh/", summary="刷新API列表")
 async def _():
     await refresh_api_list()
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiRefresh, by_user_id=0)
     return Success()
 
 
 @router.post("/apis/tags/all/", summary="查看API tags")
 async def _():
     data = await generate_tags_recursive_list()
-    # await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiRefresh, by_user_id=0)
     return Success(data=data)

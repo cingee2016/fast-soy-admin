@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
-from app.api.v1.utils import insert_log
 from app.controllers import role_controller
 from app.controllers.menu import menu_controller
-from app.models.system import Api, Button, LogDetailType, LogType, Role
+from app.models.system import Api, Button, Role
 from app.schemas.admin import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 from app.schemas.base import Success, SuccessExtra
 
@@ -30,7 +29,6 @@ async def _(
     total, role_objs = await role_controller.list(page=current, page_size=size, search=q, order=["id"])
     records = [await role_obj.to_dict() for role_obj in role_objs]  # exclude_fields=["role_desc"]
     data = {"records": records}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetList, by_user_id=0)
     return SuccessExtra(data=data, total=total, current=current, size=size)
 
 
@@ -38,7 +36,6 @@ async def _(
 async def get_role(role_id: int):
     role_obj: Role = await role_controller.get(id=role_id)
     data = await role_obj.to_dict()
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetOne, by_user_id=0)
     return Success(data=data)
 
 
@@ -49,21 +46,18 @@ async def _(role_in: RoleCreate):
         return Success(code="4090", msg="The role with this code already exists in the system.")
 
     new_user = await role_controller.create(obj_in=role_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleCreateOne, by_user_id=0)
     return Success(msg="Created Successfully", data={"created_id": new_user.id})
 
 
 @router.patch("/roles/{role_id}", summary="更新角色")
 async def _(role_id: int, role_in: RoleUpdate):
     await role_controller.update(id=role_id, obj_in=role_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateOne, by_user_id=0)
     return Success(msg="Updated Successfully", data={"updated_id": role_id})
 
 
 @router.delete("/roles/{role_id}", summary="删除角色")
 async def _(role_id: int):
     await role_controller.remove(id=role_id)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_id": role_id})
 
 
@@ -75,7 +69,6 @@ async def _(ids: str = Query(..., description="角色ID列表, 用逗号隔开")
         role_obj = await role_controller.get(id=int(role_id))
         await role_obj.delete()
         deleted_ids.append(int(role_id))
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleBatchDeleteOne, by_user_id=0)
     return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
 
 
@@ -87,7 +80,6 @@ async def _(role_id: int):
     else:
         menu_objs = await role_obj.by_role_menus
     data = {"byRoleHomeId": role_obj.by_role_home.id, "byRoleMenuIds": [menu_obj.id for menu_obj in menu_objs]}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetMenus, by_user_id=0)
     return Success(data=data)
 
 
@@ -109,7 +101,6 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
         else:
             await role_obj.by_role_menus.clear()  # 去除所有角色菜单
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateMenus, by_user_id=0)
     return Success(msg="Updated Successfully", data={"by_role_menu_ids": role_in.by_role_menu_ids, "by_role_home_id": role_in.by_role_home_id})
 
 
@@ -122,7 +113,6 @@ async def _(role_id: int):
         button_objs = await role_obj.by_role_buttons
 
     data = {"byRoleButtonIds": [button_obj.id for button_obj in button_objs]}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetButtons, by_user_id=0)
     return Success(data=data)
 
 
@@ -135,7 +125,6 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
             button_obj = await Button.get(id=button_id)
             await role_obj.by_role_buttons.add(button_obj)
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateButtons, by_user_id=0)
     return Success(msg="Updated Successfully", data={"by_role_button_ids": role_in.by_role_button_ids})
 
 
@@ -148,7 +137,6 @@ async def _(role_id: int):
         api_objs = await role_obj.by_role_apis
 
     data = {"byRoleApiIds": [api_obj.id for api_obj in api_objs]}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleGetApis, by_user_id=0)
     return Success(data=data)
 
 
@@ -161,5 +149,4 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
             api_obj = await Api.get(id=api_id)
             await role_obj.by_role_apis.add(api_obj)
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateApis, by_user_id=0)
     return Success(msg="Updated Successfully", data={"by_role_api_ids": role_in.by_role_api_ids})

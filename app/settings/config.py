@@ -24,9 +24,6 @@ class Settings(BaseSettings):
     CORS_ALLOW_METHODS: list[str] = Field(default_factory=lambda: ["*"])
     CORS_ALLOW_HEADERS: list[str] = Field(default_factory=lambda: ["*"])
 
-    ADD_LOG_ORIGINS_INCLUDE: list[str] = Field(default_factory=lambda: ["*"])
-    ADD_LOG_ORIGINS_DECLUDE: list[str] = Field(default_factory=lambda: ["/system-manage", "/redoc", "/doc", "/openapi.json"])
-
     DEBUG: bool = False
     RADAR_ENABLED: bool = True
 

@@ -1,6 +1,6 @@
 from tortoise import fields
 
-from .utils import BaseModel, GenderType, IconType, LogDetailType, LogType, MenuType, MethodType, StatusType, TimestampMixin
+from .utils import BaseModel, GenderType, IconType, MenuType, MethodType, StatusType, TimestampMixin
 
 
 class User(BaseModel, TimestampMixin):
@@ -119,50 +119,4 @@ class Button(BaseModel, TimestampMixin):
         table = "buttons"
 
 
-class Log(BaseModel):
-    id = fields.IntField(pk=True, description="日志id")
-    log_type = fields.CharEnumField(LogType, description="日志类型")
-    by_user: fields.ForeignKeyRelation["User"] = fields.ForeignKeyField(null=True, model_name="app_system.User", related_name=None, related_nameon_delete=fields.NO_ACTION, description="关联专员")
-    api_log: fields.OneToOneRelation["APILog"] = fields.OneToOneField("app_system.APILog", null=True, related_name=None, on_delete=fields.SET_NULL, description="API日志")
-    log_detail_type = fields.CharEnumField(LogDetailType, null=True, description="日志详情类型")
-    create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
-    x_request_id = fields.CharField(null=True, max_length=32, description="请求id")
-
-    class Meta:
-        table = "logs"
-        table_description = "日志表"
-        indexes = [
-            ("log_type",),
-            ("by_user",),
-            ("log_detail_type",),
-            ("x_request_id",),
-        ]
-
-
-class APILog(BaseModel):
-    id = fields.IntField(pk=True, description="API日志id")
-    x_request_id = fields.CharField(max_length=32, description="请求id")
-    ip_address = fields.CharField(null=True, max_length=60, description="IP地址")
-    user_agent = fields.CharField(null=True, max_length=500, description="User-Agent")
-    request_domain = fields.CharField(max_length=200, description="请求域名")
-    request_path = fields.CharField(max_length=500, description="请求路径")
-    request_params = fields.JSONField(null=True, description="请求参数")
-    request_data = fields.JSONField(null=True, description="请求体数据")
-    response_data = fields.JSONField(null=True, description="响应数据")
-    response_code = fields.CharField(null=True, max_length=6, description="业务状态码")
-    create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
-    process_time = fields.FloatField(null=True, description="请求处理时间")
-
-    class Meta:
-        table = "api_logs"
-        table_description = "API日志"
-        indexes = [
-            ("create_time",),
-            ("process_time",),
-            ("x_request_id",),
-            ("request_path",),
-            ("response_code",),
-        ]
-
-
-__all__ = ["User", "Role", "Api", "Menu", "Button", "Log", "APILog"]
+__all__ = ["User", "Role", "Api", "Menu", "Button"]

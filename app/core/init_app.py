@@ -20,7 +20,7 @@ from app.core.exceptions import (
     ResponseValidationError,
     ResponseValidationHandle,
 )
-from app.core.middlewares import APILoggerAddResponseMiddleware, APILoggerMiddleware, BackGroundTaskMiddleware, PrettyErrorsMiddleware
+from app.core.middlewares import BackGroundTaskMiddleware, PrettyErrorsMiddleware, RequestIDMiddleware
 from app.models.system import Api, Button, IconType, Menu, MenuType, Role, StatusType, User
 from app.settings import APP_SETTINGS
 
@@ -36,8 +36,7 @@ def make_middlewares():
             allow_headers=APP_SETTINGS.CORS_ALLOW_HEADERS,
         ),
         Middleware(BackGroundTaskMiddleware),
-        Middleware(APILoggerMiddleware),
-        Middleware(APILoggerAddResponseMiddleware),
+        Middleware(RequestIDMiddleware),
     ]
     if APP_SETTINGS.RADAR_ENABLED:
         from app.radar.middleware import RadarMiddleware
