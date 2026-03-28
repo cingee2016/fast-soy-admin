@@ -16,8 +16,7 @@ venv/
 # ========================
 # Database & Migrations
 # ========================
-*.sqlite3
-*.sqlite3-journal
+*.sqlite3*
 tortoise_queries.json
 tortoise_last.txt
 aerich.ini
@@ -80,3 +79,4 @@ web/cypress/screenshots/
 
 .codex/
 .claude/
+

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 def tortoise_orm_factory() -> dict[str, Any]:
     return {
         "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3"}}},
-        "apps": {"app_system": {"models": ["app.models.system", "aerich.models"], "default_connection": "conn_system"}},
+        "apps": {"app_system": {"models": ["app.models.system", "app.radar.models", "aerich.models"], "default_connection": "conn_system"}},
         "use_tz": False,
         "timezone": "Asia/Shanghai",
     }
@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     ADD_LOG_ORIGINS_DECLUDE: list[str] = Field(default_factory=lambda: ["/system-manage", "/redoc", "/doc", "/openapi.json"])
 
     DEBUG: bool = False
+    RADAR_ENABLED: bool = True
 
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
     BASE_DIR: Path = PROJECT_ROOT.parent

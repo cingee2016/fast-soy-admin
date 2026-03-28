@@ -20,13 +20,14 @@ from app.core.exceptions import (
     ResponseValidationError,
     ResponseValidationHandle,
 )
-from app.core.middlewares import APILoggerAddResponseMiddleware, APILoggerMiddleware, BackGroundTaskMiddleware
+from app.core.middlewares import APILoggerAddResponseMiddleware, APILoggerMiddleware, BackGroundTaskMiddleware, PrettyErrorsMiddleware
 from app.models.system import Api, Button, IconType, Menu, MenuType, Role, StatusType, User
 from app.settings import APP_SETTINGS
 
 
 def make_middlewares():
     middleware = [
+        Middleware(PrettyErrorsMiddleware),
         Middleware(
             CORSMiddleware,
             allow_origins=APP_SETTINGS.CORS_ORIGINS,
@@ -38,6 +39,10 @@ def make_middlewares():
         Middleware(APILoggerMiddleware),
         Middleware(APILoggerAddResponseMiddleware),
     ]
+    if APP_SETTINGS.RADAR_ENABLED:
+        from app.radar.middleware import RadarMiddleware
+
+        middleware.append(Middleware(RadarMiddleware))
     return middleware
 
 
@@ -53,8 +58,8 @@ def register_exceptions(app: FastAPI):
     app.add_exception_handler(DoesNotExist, DoesNotExistHandle)
     app.add_exception_handler(HTTPException, HttpExcHandle)  # type: ignore
     app.add_exception_handler(IntegrityError, IntegrityHandle)
-    app.add_exception_handler(RequestValidationError, RequestValidationHandle)
-    app.add_exception_handler(ResponseValidationError, ResponseValidationHandle)
+    app.add_exception_handler(RequestValidationError, RequestValidationHandle)  # type: ignore
+    app.add_exception_handler(ResponseValidationError, ResponseValidationHandle)  # type: ignore
 
 
 def register_routers(app: FastAPI, prefix: str = "/api"):
@@ -964,6 +969,75 @@ async def init_menus():
         ),
     ]
     await Menu.bulk_create(children_menu)
+
+    # Radar 性能监控
+    radar_menu = await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=root_menu.id,
+        menu_type=MenuType.catalog,
+        menu_name="性能监控",
+        route_name="manage_radar",
+        route_path="/manage/radar",
+        order=7,
+        i18n_key="route.manage_radar",
+        icon="mdi:radar",
+        icon_type=IconType.iconify,
+    )
+    radar_children = [
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=radar_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="监控概览",
+            route_name="manage_radar_overview",
+            route_path="/manage/radar/overview",
+            component="view.manage_radar_overview",
+            order=1,
+            i18n_key="route.manage_radar_overview",
+            icon="mdi:chart-box-outline",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=radar_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="请求列表",
+            route_name="manage_radar_requests",
+            route_path="/manage/radar/requests",
+            component="view.manage_radar_requests",
+            order=2,
+            i18n_key="route.manage_radar_requests",
+            icon="mdi:swap-horizontal",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=radar_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="SQL查询",
+            route_name="manage_radar_queries",
+            route_path="/manage/radar/queries",
+            component="view.manage_radar_queries",
+            order=3,
+            i18n_key="route.manage_radar_queries",
+            icon="mdi:database-search",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=radar_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="异常列表",
+            route_name="manage_radar_exceptions",
+            route_path="/manage/radar/exceptions",
+            component="view.manage_radar_exceptions",
+            order=4,
+            i18n_key="route.manage_radar_exceptions",
+            icon="mdi:bug-outline",
+            icon_type=IconType.iconify,
+        ),
+    ]
+    await Menu.bulk_create(radar_children)
 
 
 async def insert_role(children_role: list[Role], role_apis: list[tuple[str, str]] = None, role_menus: list[str] = None, role_buttons: list[str] = None):

@@ -2,6 +2,7 @@ from loguru import logger
 
 from app.core.crud import CRUDBase
 from app.models.system import Button, Menu
+from app.radar.developer import radar_log
 from app.schemas.admin import ButtonBase, MenuCreate, MenuUpdate
 
 
@@ -31,6 +32,7 @@ class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
 
         for button_code in set(existing_buttons) - set(menu_buttons):
             logger.error(f"Button Deleted {button_code}")
+            radar_log("按钮已删除", level="WARNING", data={"buttonCode": button_code})
             await Button.filter(button_code=button_code).delete()
 
         await menu.by_menu_buttons.clear()

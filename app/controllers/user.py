@@ -4,6 +4,7 @@ from app.core.code import Code
 from app.core.crud import CRUDBase
 from app.core.exceptions import HTTPException
 from app.models.system import Log, LogDetailType, LogType, Role, StatusType, User
+from app.radar.developer import radar_log
 from app.schemas.login import CredentialsSchema
 from app.schemas.users import UserCreate, UserUpdate
 from app.utils.security import get_password_hash, verify_password
@@ -46,16 +47,19 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
 
         if not user:
             await Log.create(log_type=LogType.UserLog, by_user=None, log_detail_type=LogDetailType.UserLoginUserNameVaild)
+            radar_log("用户登录失败: 用户名不存在", level="WARNING", data={"userName": credentials.user_name})
             raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
 
         verified = verify_password(credentials.password or "", user.password or "")
 
         if not verified:
             await Log.create(log_type=LogType.UserLog, by_user=user, log_detail_type=LogDetailType.UserLoginErrorPassword)
+            radar_log("用户登录失败: 密码错误", level="WARNING", data={"userName": user.user_name, "userId": user.id})
             raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
 
         if user.status_type == StatusType.disable:
             await Log.create(log_type=LogType.UserLog, by_user=user, log_detail_type=LogDetailType.UserLoginForbid)
+            radar_log("用户登录失败: 账号已禁用", level="ERROR", data={"userName": user.user_name, "userId": user.id})
             raise HTTPException(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
         return user

@@ -1,8 +1,13 @@
+import re
+import sys
 from datetime import datetime
+from io import StringIO
 from json import JSONDecodeError
 from uuid import uuid4
 
 import orjson
+import pretty_errors
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -11,8 +16,9 @@ from app.core.bgtask import BgTasks
 from app.core.code import Code
 from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
 from app.core.dependency import check_token
-from app.core.exceptions import HTTPException
+from app.core.exceptions import BaseHandle, HTTPException
 from app.models.system import APILog, Log, LogType, User
+from app.radar.developer import radar_log
 from app.settings import APP_SETTINGS
 
 
@@ -93,6 +99,7 @@ class APILoggerMiddleware(BaseHTTPMiddleware):
                 api_log_obj = await APILog.create(**api_log_data)
                 request.state.api_log_id = api_log_obj.id
                 await Log.create(log_type=LogType.ApiLog, by_user=user_obj, api_log=api_log_obj, x_request_id=x_request_id)
+                radar_log("API请求", data={"method": request.method, "path": request.url.path, "xRequestId": x_request_id})
 
         response = await call_next(request)
         return response
@@ -120,3 +127,68 @@ class APILoggerAddResponseMiddleware(SimpleBaseMiddleware):
 
         if response.get("type") == "http.response.start" and hasattr(request.state, "x_request_id"):
             response["headers"].append((b"x-request-id", request.state.x_request_id.encode()))
+
+
+class PrettyErrorsMiddleware(BaseHTTPMiddleware):
+    """
+    异常捕获中间件，使用 pretty_errors 格式化异常信息并记录到日志文件。
+    """
+
+    class _ExceptionWriter(pretty_errors.ExceptionWriter):
+        def __init__(self, buffer: StringIO):
+            super().__init__()
+            self.buffer = buffer
+
+        def output_text(self, texts):
+            if not isinstance(texts, (list, tuple)):
+                texts = [texts]
+            count = 0
+            for text in texts:
+                _text = str(text)
+                self.buffer.write(_text)
+                count += self.visible_length(_text)
+            line_length = self.get_line_length()
+            if count == 0 or count % line_length != 0 or self.config.full_line_newline:
+                self.buffer.write("\n")
+            self.buffer.write(pretty_errors.RESET_COLOR)
+
+    @staticmethod
+    def _remove_ansi_codes(text: str) -> str:
+        return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", text)
+
+    def __init__(self, app, **pretty_errors_config):
+        super().__init__(app)
+        self.error_buffer = StringIO()
+        pretty_errors.configure(**pretty_errors_config)
+        pretty_errors.exception_writer = self._ExceptionWriter(self.error_buffer)
+
+    async def dispatch(self, request: Request, call_next):
+        self.error_buffer.seek(0)
+        self.error_buffer.truncate(0)
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as exc:
+            pretty_errors.excepthook(*sys.exc_info())
+            output = self.error_buffer.getvalue()
+            logger.bind(x_request_id=CTX_X_REQUEST_ID.get()).error(output)
+
+            msg = f"服务器内部错误, path: {request.url.path}, query: {dict(request.query_params)}"
+            details = f"{msg}\n{self._remove_ansi_codes(output)}"
+
+            error_dir = APP_SETTINGS.LOGS_ROOT / "error"
+            error_dir.mkdir(parents=True, exist_ok=True)
+            error_file = error_dir / f"{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}.log"
+            sink_id = logger.add(
+                error_file,
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[x_request_id]} | {module}.{function}:{line} | {message}",
+                level="ERROR",
+                encoding="utf-8",
+            )
+            logger.bind(x_request_id=CTX_X_REQUEST_ID.get()).error(details)
+            logger.remove(sink_id)
+
+            if not APP_SETTINGS.DEBUG:
+                details = None
+
+            return await BaseHandle(request, exc, Exception, "5001", f"服务器内部错误: {exc.__class__.__name__}", 200, details=details)

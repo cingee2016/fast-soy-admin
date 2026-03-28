@@ -7,7 +7,7 @@ services:
       - "1880:80"
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
     restart: always
     networks:
       - internal
@@ -19,6 +19,12 @@ services:
     depends_on:
       - redis
     restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9999/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - internal
 

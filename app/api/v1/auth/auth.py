@@ -11,6 +11,7 @@ from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth, check_token
 from app.log import log
 from app.models.system import Button, LogDetailType, LogType, Role, StatusType, User
+from app.radar.developer import radar_log
 from app.schemas.base import Fail, Success
 from app.schemas.login import CredentialsSchema, JWTOut, JWTPayload
 from app.settings import APP_SETTINGS
@@ -43,6 +44,7 @@ async def _(credentials: CredentialsSchema):
         refresh_token=create_access_token(data=refresh_token_payload),
     )
     log.info(f"用户登录成功, 用户名: {user_obj.user_name}")
+    radar_log("用户登录成功", data={"userName": user_obj.user_name, "userId": user_obj.id})
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginSuccess, by_user_id=user_obj.id)
     return Success(data=data.model_dump(by_alias=True))
 
@@ -62,6 +64,7 @@ async def _(jwt_token: JWTOut):
         return Fail(code=Code.INVALID_SESSION, msg="The token is not an refresh token.")
 
     if user_obj.status_type == StatusType.disable:
+        radar_log("刷新令牌失败: 账号已禁用", level="WARNING", data={"userId": user_id})
         await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginForbid, by_user_id=user_id)
         return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
@@ -78,6 +81,7 @@ async def _(jwt_token: JWTOut):
         access_token=create_access_token(data=access_token_payload),
         refresh_token=create_access_token(data=refresh_token_payload),
     )
+    radar_log("刷新令牌成功", data={"userId": user_obj.id})
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserAuthRefreshTokenSuccess, by_user_id=user_obj.id)
     return Success(data=data.model_dump(by_alias=True))
 
@@ -97,6 +101,7 @@ async def _():
     user_role_button_codes = list(set(user_role_button_codes))
 
     data.update({"userId": user_id, "roles": user_role_codes, "buttons": user_role_button_codes})
+    radar_log("获取用户信息", data={"userId": user_obj.id})
     await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginGetUserInfo, by_user_id=user_obj.id)
     return Success(data=data)
 

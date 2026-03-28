@@ -6,6 +6,7 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from starlette.staticfiles import StaticFiles
 
+from app.api.health import router as health_router
 from app.api.v1.utils import refresh_api_list
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
@@ -37,6 +38,11 @@ def create_app() -> FastAPI:
     register_db(_app)
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
+    _app.include_router(health_router)
+    if APP_SETTINGS.RADAR_ENABLED:
+        from app.radar import setup_radar
+
+        setup_radar(_app)
     return _app
 
 
@@ -51,9 +57,17 @@ async def lifespan(_app: FastAPI):
         await refresh_api_list()
         await init_users()
         await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStart)
+        if APP_SETTINGS.RADAR_ENABLED:
+            from app.radar import startup_radar
+
+            await startup_radar()
         yield
 
     finally:
+        if APP_SETTINGS.RADAR_ENABLED:
+            from app.radar import shutdown_radar
+
+            await shutdown_radar()
         end_time = datetime.now()
         runtime = (end_time - start_time).total_seconds() / 60
         log.info(f"App {_app.title} runtime: {runtime} min")  # noqa

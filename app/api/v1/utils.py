@@ -3,6 +3,7 @@ from loguru import logger
 
 from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
 from app.models.system import Api, Log, LogDetailType, LogType
+from app.radar.developer import radar_log
 
 
 async def refresh_api_list():
@@ -15,6 +16,7 @@ async def refresh_api_list():
 
     for api_method, api_path in set(existing_apis) - set(app_routes_compared):
         logger.error(f"API Deleted {api_method} {api_path}")
+        radar_log("API已删除", level="WARNING", data={"method": api_method, "path": api_path})
         await Api.filter(api_method=api_method, api_path=api_path).delete()
 
     for route in app_routes:
@@ -62,4 +64,5 @@ async def insert_log(log_type: LogType, log_detail_type: LogDetailType, by_user_
     if by_user_id == 0 and (by_user_id := CTX_USER_ID.get()) == 0:
         by_user_id = None
 
+    radar_log(f"日志: {log_detail_type.name}", data={"logType": log_type.value, "logDetailType": log_detail_type.value, "byUserId": by_user_id})
     await Log.create(log_type=log_type, log_detail_type=log_detail_type, by_user_id=by_user_id, x_request_id=CTX_X_REQUEST_ID.get())

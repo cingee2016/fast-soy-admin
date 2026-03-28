@@ -11,6 +11,7 @@ from app.core.exceptions import (
 )
 from app.log import log
 from app.models.system import StatusType, User
+from app.radar.developer import radar_log
 from app.settings import APP_SETTINGS
 from app.utils.tools import check_url
 
@@ -75,10 +76,8 @@ class PermissionControl:
                     raise HTTPException(code=Code.API_DISABLED, msg=f"The API has been disabled, method: {method} path: {path}")
                 return
 
-        log.error("*" * 20)
-        log.error(f"Permission denied, method: {method.upper()} path: {path}")
-        log.error(f"x-request-id: {CTX_X_REQUEST_ID.get()}")
-        log.error("*" * 20)
+        log.error(f"Permission denied, method: {method.upper()} path: {path}, x-request-id: {CTX_X_REQUEST_ID.get()}")
+        radar_log("权限拒绝", level="ERROR", data={"method": method.upper(), "path": path, "xRequestId": CTX_X_REQUEST_ID.get()})
         raise HTTPException(code=Code.PERMISSION_DENIED, msg=f"Permission denied, method: {method} path: {path}")
 
 

@@ -12,7 +12,7 @@ async def init_redis() -> Redis:
 
 
 async def close_redis(redis: Redis) -> None:
-    await redis.aclose()  # type: ignore[union-attr]
+    await redis.close()
 
 
 def get_redis(request: Request) -> Redis:
