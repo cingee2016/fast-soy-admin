@@ -8,6 +8,7 @@ class RadarRequest(BaseModel):
     x_request_id = fields.CharField(max_length=64, unique=True, description="请求ID")
     method = fields.CharField(max_length=10, description="请求方法")
     path = fields.CharField(max_length=500, description="请求路径")
+    client_ip = fields.CharField(max_length=45, null=True, description="客户端IP")
     query_params = fields.TextField(null=True, description="查询参数")
     request_headers = fields.JSONField(null=True, description="请求头")
     request_body = fields.TextField(null=True, description="请求体")

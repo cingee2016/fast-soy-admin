@@ -58,7 +58,6 @@ def format_exception_pretty(
     try:
         pretty_errors.exception_writer = _Writer()  # type: ignore[union-attr]
         pretty_errors.excepthook(exc_type, exc_value, exc_tb)  # type: ignore[union-attr]
-        output = buffer.getvalue()
-        return remove_ansi_codes(output)
+        return buffer.getvalue()
     finally:
         pretty_errors.exception_writer = original_writer  # type: ignore[union-attr]

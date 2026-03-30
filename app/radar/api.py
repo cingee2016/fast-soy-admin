@@ -102,8 +102,14 @@ async def list_user_logs(
 
 
 @router.get("/stats", summary="统计概览")
-async def get_stats():
-    stats = await db.query_stats()
+async def get_stats(hours: int | None = Query(default=None, ge=1, le=720)):
+    stats = await db.query_stats(hours=hours)
+    return {"code": "0000", "msg": "OK", "data": stats}
+
+
+@router.get("/dashboard", summary="仪表板统计")
+async def get_dashboard_stats(hours: int = Query(default=1, ge=1, le=720)):
+    stats = await db.query_dashboard_stats(hours=hours)
     return {"code": "0000", "msg": "OK", "data": stats}
 
 

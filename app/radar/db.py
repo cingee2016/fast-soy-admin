@@ -22,6 +22,7 @@ async def flush_request_data(ctx: RadarRequestContext) -> None:
             x_request_id=ctx.x_request_id,
             method=ctx.method,
             path=ctx.path,
+            client_ip=ctx.client_ip,
             query_params=ctx.query_params,
             request_headers=ctx.request_headers,
             request_body=ctx.request_body,
@@ -171,8 +172,14 @@ async def query_all_queries(
 
     total = await RadarQuery.filter(q).count()
     offset = (page - 1) * page_size
-    objs = await RadarQuery.filter(q).order_by("-duration_ms").offset(offset).limit(page_size)
-    records = [await obj.to_dict() for obj in objs]
+    objs = await RadarQuery.filter(q).order_by("-duration_ms").offset(offset).limit(page_size).select_related("request")
+    records = []
+    for obj in objs:
+        d = await obj.to_dict()
+        d["xRequestId"] = obj.request.x_request_id if obj.request else None
+        d["requestPath"] = obj.request.path if obj.request else None
+        d["requestMethod"] = obj.request.method if obj.request else None
+        records.append(d)
     return total, records
 
 
@@ -199,18 +206,25 @@ async def query_user_logs(page: int = 1, page_size: int = 20, level: str | None 
     return total, records
 
 
-async def query_stats() -> dict:
+async def query_stats(hours: int | None = None) -> dict:
     from app.radar.config import RADAR_SETTINGS
 
-    req_count = await RadarRequest.all().count()
+    base_q = Q()
+    query_base_q = Q()
+    if hours is not None:
+        cutoff = datetime.now() - timedelta(hours=hours)
+        base_q &= Q(created_at__gte=cutoff)
+        query_base_q &= Q(created_at__gte=cutoff)
+
+    req_count = await RadarRequest.filter(base_q).count()
     from tortoise.functions import Avg
 
-    avg_row = await RadarRequest.all().annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
+    avg_row = await RadarRequest.filter(base_q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
     avg_duration: float = avg_row["avg_dur"] if avg_row and avg_row.get("avg_dur") is not None else 0
-    error_count = await RadarRequest.filter(error_type__not_isnull=True).count()
-    query_count = await RadarQuery.all().count()
-    slow_query_count = await RadarQuery.filter(duration_ms__gte=RADAR_SETTINGS.RADAR_SLOW_QUERY_THRESHOLD_MS).count()
-    user_log_count = await RadarUserLog.all().count()
+    error_count = await RadarRequest.filter(base_q & Q(error_type__not_isnull=True)).count()
+    query_count = await RadarQuery.filter(query_base_q).count()
+    slow_query_count = await RadarQuery.filter(query_base_q & Q(duration_ms__gte=RADAR_SETTINGS.RADAR_SLOW_QUERY_THRESHOLD_MS)).count()
+    user_log_count = await RadarUserLog.filter(query_base_q).count()
 
     return {
         "request_count": req_count,
@@ -221,3 +235,168 @@ async def query_stats() -> dict:
         "slow_query_count": slow_query_count,
         "user_log_count": user_log_count,
     }
+
+
+async def query_dashboard_stats(hours: int = 1) -> dict:
+    """Enhanced dashboard stats with percentiles, trends, and distributions."""
+    cutoff = datetime.now() - timedelta(hours=hours)
+    base_q = Q(created_at__gte=cutoff)
+
+    # Basic counts
+    req_count = await RadarRequest.filter(base_q).count()
+    from tortoise.functions import Avg
+
+    avg_row = await RadarRequest.filter(base_q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
+    avg_duration: float = avg_row["avg_dur"] if avg_row and avg_row.get("avg_dur") is not None else 0
+    error_count = await RadarRequest.filter(base_q & Q(error_type__not_isnull=True)).count()
+    query_count = await RadarQuery.filter(base_q).count()
+    exception_count = await RadarRequest.filter(base_q & Q(response_status__gte=500)).count()
+
+    # Success/error breakdown
+    success_count = await RadarRequest.filter(base_q & Q(response_status__lt=400)).count()
+    error_rate = round(error_count / req_count * 100, 2) if req_count else 0
+    success_rate = round(success_count / req_count * 100, 2) if req_count else 100
+
+    # Response time percentiles (P50, P95, P99)
+    raw_durations = await RadarRequest.filter(base_q & Q(duration_ms__not_isnull=True)).order_by("duration_ms").values_list("duration_ms", flat=True)
+    durations: list[float] = [float(d) for d in raw_durations if d is not None]  # type: ignore[arg-type]
+    p50 = _percentile(durations, 50)
+    p95 = _percentile(durations, 95)
+    p99 = _percentile(durations, 99)
+
+    # Query performance (avg query time)
+    q_avg_row = await RadarQuery.filter(base_q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
+    avg_query_time: float = q_avg_row["avg_dur"] if q_avg_row and q_avg_row.get("avg_dur") is not None else 0
+
+    # Response time trend (buckets by interval)
+    trend = await _build_time_trend(cutoff, hours)
+
+    # Query activity trend
+    query_activity = await _build_query_activity(cutoff, hours)
+
+    # Business code distribution - parse response_body JSON for "code" field
+    code_distribution = await _build_code_distribution(base_q)
+
+    return {
+        # Top cards
+        "total_requests": req_count,
+        "avg_response_time": round(avg_duration, 2) if avg_duration else 0,
+        "total_queries": query_count,
+        "total_exceptions": exception_count,
+        # Performance overview
+        "success_rate": success_rate,
+        "error_count": error_count,
+        "error_rate": error_rate,
+        # Response time percentiles
+        "p50": p50,
+        "p95": p95,
+        "p99": p99,
+        "avg_query_time": round(avg_query_time, 2) if avg_query_time else 0,
+        # Business code distribution
+        "distribution": code_distribution,
+        # Trends
+        "response_time_trend": trend,
+        "query_activity": query_activity,
+    }
+
+
+async def _build_code_distribution(base_q: Q) -> list[dict]:
+    """Build business code distribution from response_body JSON."""
+    import json
+
+    rows = await RadarRequest.filter(base_q & Q(response_body__not_isnull=True)).values_list("response_body", flat=True)
+    counter: dict[str, int] = {}
+    no_code_count = 0
+    for body in rows:
+        if not body:
+            no_code_count += 1
+            continue
+        try:
+            parsed = json.loads(body)  # type: ignore[arg-type]
+            code = str(parsed.get("code", ""))
+            if code:
+                counter[code] = counter.get(code, 0) + 1
+            else:
+                no_code_count += 1
+        except (json.JSONDecodeError, AttributeError):
+            no_code_count += 1
+
+    result = [{"code": code, "count": count} for code, count in sorted(counter.items(), key=lambda x: -x[1])]
+    if no_code_count:
+        result.append({"code": "unknown", "count": no_code_count})
+    return result
+
+
+def _percentile(sorted_values: list[float], pct: int) -> float:
+    if not sorted_values:
+        return 0
+    k = (len(sorted_values) - 1) * pct / 100
+    f = int(k)
+    c = f + 1
+    if c >= len(sorted_values):
+        return round(sorted_values[f], 2)
+    return round(sorted_values[f] + (k - f) * (sorted_values[c] - sorted_values[f]), 2)
+
+
+async def _build_time_trend(cutoff: datetime, hours: int) -> list[dict]:
+    """Build time-bucketed response time trend."""
+    if hours <= 1:
+        bucket_minutes = 5
+    elif hours <= 6:
+        bucket_minutes = 15
+    elif hours <= 24:
+        bucket_minutes = 60
+    else:
+        bucket_minutes = 180
+
+    buckets: list[dict] = []
+    now = datetime.now()
+    current = cutoff
+    while current < now:
+        bucket_end = min(current + timedelta(minutes=bucket_minutes), now)
+        q = Q(created_at__gte=current, created_at__lt=bucket_end, duration_ms__not_isnull=True)
+        from tortoise.functions import Avg
+
+        row = await RadarRequest.filter(q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
+        count = await RadarRequest.filter(Q(created_at__gte=current, created_at__lt=bucket_end)).count()
+        avg_val = row["avg_dur"] if row and row.get("avg_dur") is not None else 0
+        buckets.append({
+            "time": current.strftime("%H:%M"),
+            "avg_response_time": round(avg_val, 2),
+            "request_count": count,
+        })
+        current = bucket_end
+
+    return buckets
+
+
+async def _build_query_activity(cutoff: datetime, hours: int) -> list[dict]:
+    """Build time-bucketed query activity."""
+    if hours <= 1:
+        bucket_minutes = 5
+    elif hours <= 6:
+        bucket_minutes = 15
+    elif hours <= 24:
+        bucket_minutes = 60
+    else:
+        bucket_minutes = 180
+
+    buckets: list[dict] = []
+    now = datetime.now()
+    current = cutoff
+    while current < now:
+        bucket_end = min(current + timedelta(minutes=bucket_minutes), now)
+        q = Q(created_at__gte=current, created_at__lt=bucket_end)
+        count = await RadarQuery.filter(q).count()
+        from tortoise.functions import Avg
+
+        row = await RadarQuery.filter(q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
+        avg_val = row["avg_dur"] if row and row.get("avg_dur") is not None else 0
+        buckets.append({
+            "time": current.strftime("%H:%M"),
+            "query_count": count,
+            "avg_duration": round(avg_val, 2),
+        })
+        current = bucket_end
+
+    return buckets

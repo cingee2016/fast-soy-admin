@@ -141,6 +141,32 @@ cd web && pnpm dev
 cd web && pnpm build
 ```
 
+## 业务响应码
+
+所有接口统一返回格式 `{"code": "xxxx", "msg": "...", "data": ...}`，业务码定义如下（源码位于 `app/core/code.py`）：
+
+| 码值 | 常量名 | 说明 | 前端行为 |
+| ---- | ------ | ---- | -------- |
+| `0000` | `SUCCESS` | 请求成功 | 正常处理 |
+| `4000` | `FAIL` | 通用业务失败 | 显示错误消息 |
+| `4001` | `INVALID_TOKEN` | Token 无效 / 缺失 / 解码失败 | 跳转登录页 |
+| `4002` | `INVALID_SESSION` | Token 类型错误 / 用户不存在 | 跳转登录页 |
+| `4003` | `ACCOUNT_DISABLED` | 账号已被禁用 | 弹窗确认后登出 |
+| `4010` | `TOKEN_EXPIRED` | Token 已过期 | 自动刷新 Token 并重试 |
+| `4031` | `API_DISABLED` | API 接口已停用 | 显示错误消息 |
+| `4032` | `PERMISSION_DENIED` | RBAC 权限不足 | 显示错误消息 |
+| `4090` | `DUPLICATE_RESOURCE` | 资源重复（用户名、角色编码等） | 显示错误消息 |
+| `4220` | `VALIDATION_ERROR` | 请求参数校验失败 | 显示错误消息 |
+
+前端环境变量对应关系（`.env`）：
+
+```
+VITE_SERVICE_SUCCESS_CODE=0000
+VITE_SERVICE_LOGOUT_CODES=4001,4002
+VITE_SERVICE_MODAL_LOGOUT_CODES=4003
+VITE_SERVICE_EXPIRED_TOKEN_CODES=4010
+```
+
 ## TODO
 
 - [x] 使用 Redis 优化响应速度

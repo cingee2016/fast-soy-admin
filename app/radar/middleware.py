@@ -57,11 +57,26 @@ class RadarMiddleware:
 
             x_request_id = uuid4().hex
 
+        # Extract client IP
+        client_ip = None
+        client_info = scope.get("client")
+        if client_info:
+            client_ip = client_info[0]
+        # Prefer X-Forwarded-For / X-Real-IP from headers
+        for key_bytes, val_bytes in scope.get("headers", []):
+            key = key_bytes.decode("latin-1", errors="replace").lower()
+            if key == "x-forwarded-for":
+                client_ip = val_bytes.decode("latin-1", errors="replace").split(",")[0].strip()
+                break
+            if key == "x-real-ip":
+                client_ip = val_bytes.decode("latin-1", errors="replace").strip()
+
         radar_ctx = RadarRequestContext(
             x_request_id=x_request_id,
             start_mono=time.monotonic(),
             method=scope.get("method", ""),
             path=scope.get("path", ""),
+            client_ip=client_ip,
             query_params=scope.get("query_string", b"").decode("latin-1") or None,
             request_headers=_serialize_headers(scope.get("headers", [])),
         )

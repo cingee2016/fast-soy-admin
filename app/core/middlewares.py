@@ -1,11 +1,9 @@
-import re
 import sys
 from datetime import datetime
 from io import StringIO
 from uuid import uuid4
 
 import pretty_errors
-from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -88,15 +86,33 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
                 self.buffer.write("\n")
             self.buffer.write(pretty_errors.RESET_COLOR)
 
-    @staticmethod
-    def _remove_ansi_codes(text: str) -> str:
-        return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", text)
-
     def __init__(self, app, **pretty_errors_config):
         super().__init__(app)
         self.error_buffer = StringIO()
         pretty_errors.configure(**pretty_errors_config)
         pretty_errors.exception_writer = self._ExceptionWriter(self.error_buffer)
+        # Hide framework dispatch layers (noisy, no diagnostic value)
+        # Keeps: project code + third-party library internals (e.g. tortoise, pydantic)
+        self._setup_blacklist()
+
+    @staticmethod
+    def _setup_blacklist():
+        """Blacklist framework dispatch layers that add noise to tracebacks."""
+        import os
+
+        site_pkg = next((p for p in sys.path if "site-packages" in p), "")
+        stdlib = os.path.dirname(os.__file__)
+
+        paths = [
+            os.path.join(site_pkg, "starlette"),
+            os.path.join(site_pkg, "uvicorn"),
+            os.path.join(site_pkg, "anyio"),
+            os.path.join(site_pkg, "fastapi"),
+            os.path.join(stdlib, "asyncio"),
+            str(APP_SETTINGS.PROJECT_ROOT / "radar" / "middleware.py"),
+            str(APP_SETTINGS.PROJECT_ROOT / "core" / "middlewares.py"),
+        ]
+        pretty_errors.blacklist(*[p for p in paths if os.path.isdir(p)])
 
     async def dispatch(self, request: Request, call_next):
         self.error_buffer.seek(0)
@@ -107,24 +123,20 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             pretty_errors.excepthook(*sys.exc_info())
             output = self.error_buffer.getvalue()
-            logger.bind(x_request_id=CTX_X_REQUEST_ID.get()).error(output)
 
             msg = f"服务器内部错误, path: {request.url.path}, query: {dict(request.query_params)}"
-            details = f"{msg}\n{self._remove_ansi_codes(output)}"
 
+            # Write colored output to error log file (preserve ANSI colors)
             error_dir = APP_SETTINGS.LOGS_ROOT / "error"
             error_dir.mkdir(parents=True, exist_ok=True)
             error_file = error_dir / f"{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}.log"
-            sink_id = logger.add(
-                error_file,
-                format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[x_request_id]} | {module}.{function}:{line} | {message}",
-                level="ERROR",
-                encoding="utf-8",
-            )
-            logger.bind(x_request_id=CTX_X_REQUEST_ID.get()).error(details)
-            logger.remove(sink_id)
+            error_file.write_text(f"{msg}\n{output}", encoding="utf-8")
 
-            if not APP_SETTINGS.DEBUG:
-                details = None
+            # Print colored traceback directly to stderr (preserves ANSI colors)
+            sys.stderr.write(f"{msg}\n{output}\n")
+            sys.stderr.flush()
+
+            # Return colored output in debug mode for frontend rendering
+            details: str | None = f"{msg}\n{output}" if APP_SETTINGS.DEBUG else None
 
             return await BaseHandle(request, exc, Exception, "5001", f"服务器内部错误: {exc.__class__.__name__}", 200, details=details)

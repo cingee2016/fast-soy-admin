@@ -9,6 +9,7 @@ class RadarRequestContext:
     start_mono: float = field(default_factory=time.monotonic)
     method: str = ""
     path: str = ""
+    client_ip: str | None = None
     query_params: str | None = None
     request_headers: dict | None = None
     request_body: str | None = None

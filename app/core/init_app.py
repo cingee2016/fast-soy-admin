@@ -88,8 +88,12 @@ async def modify_db():
     except Exception:
         ...
 
-    await command.migrate()
-    await command.upgrade(run_in_transaction=True)
+    try:
+        changed = await command.migrate()
+        if changed:
+            await command.upgrade(run_in_transaction=True)
+    except Exception:
+        ...
 
 
 async def init_menus():
@@ -998,7 +1002,7 @@ async def init_menus():
             status_type=StatusType.enable,
             parent_id=radar_menu.id,
             menu_type=MenuType.menu,
-            menu_name="监控概览",
+            menu_name="仪表板",
             route_name="manage_radar_overview",
             route_path="/manage/radar/overview",
             component="view.manage_radar_overview",
@@ -1044,6 +1048,19 @@ async def init_menus():
             order=4,
             i18n_key="route.manage_radar_exceptions",
             icon="mdi:bug-outline",
+            icon_type=IconType.iconify,
+        ),
+        Menu(
+            status_type=StatusType.enable,
+            parent_id=radar_menu.id,
+            menu_type=MenuType.menu,
+            menu_name="系统监控",
+            route_name="manage_radar_monitor",
+            route_path="/manage/radar/monitor",
+            component="view.manage_radar_monitor",
+            order=5,
+            i18n_key="route.manage_radar_monitor",
+            icon="mdi:monitor-dashboard",
             icon_type=IconType.iconify,
         ),
     ]

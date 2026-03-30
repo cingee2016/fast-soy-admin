@@ -38,6 +38,9 @@ def create_app() -> FastAPI:
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
     _app.include_router(health_router)
+    from app.monitor import monitor_router
+
+    _app.include_router(monitor_router)
     if APP_SETTINGS.RADAR_ENABLED:
         from app.radar import setup_radar
 
@@ -53,6 +56,7 @@ async def lifespan(_app: FastAPI):
     try:
         await modify_db()
         await init_menus()
+        await _ensure_monitor_menu()
         await refresh_api_list()
         await init_users()
         if APP_SETTINGS.RADAR_ENABLED:
@@ -70,6 +74,33 @@ async def lifespan(_app: FastAPI):
         runtime = (end_time - start_time).total_seconds() / 60
         log.info(f"App {_app.title} runtime: {runtime} min")  # noqa
         await close_redis(_app.state.redis)
+
+
+async def _ensure_monitor_menu():
+    """Insert manage_radar_monitor menu if missing (for existing databases)."""
+    from app.models.system.admin import Menu
+    from app.models.system.utils import IconType, MenuType, StatusType
+
+    if await Menu.filter(route_name="manage_radar_monitor").exists():
+        return
+    radar_parent = await Menu.filter(route_name="manage_radar").first()
+    if not radar_parent:
+        return
+    await Menu.create(
+        status_type=StatusType.enable,
+        parent_id=radar_parent.id,
+        menu_type=MenuType.menu,
+        menu_name="系统监控",
+        route_name="manage_radar_monitor",
+        route_path="/manage/radar/monitor",
+        component="view.manage_radar_monitor",
+        order=5,
+        i18n_key="route.manage_radar_monitor",
+        icon="mdi:monitor-dashboard",
+        icon_type=IconType.iconify,
+    )
+    # Also update overview menu name
+    await Menu.filter(route_name="manage_radar_overview").update(menu_name="仪表板")
 
 
 app = create_app()
