@@ -1,12 +1,14 @@
 {
   "files.autoSave": "afterDelay",
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.wordWrap": "on",
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.fontVariations": false,
   "claudeCode.allowDangerouslySkipPermissions": true,
   "claudeCode.environmentVariables": [],
   "claudeCode.initialPermissionMode": "bypassPermissions",
-  "editor.fontVariations": false,
-  "editor.formatOnSave": true,
+
   "github.copilot.chat.commitMessageGeneration.instructions": [
     {
       "text": "使用英文编写 commit message。格式：`type(scope): 摘要`。type 包括 feat、fix、refactor、docs。scope 为模块名如 fastapi、ws、nonebot、shared_lib。摘要简洁描述改动原因，不超过 50 字。如有必要，在正文中补充细节。"
