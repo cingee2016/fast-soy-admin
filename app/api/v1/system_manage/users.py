@@ -2,7 +2,8 @@ from fastapi import APIRouter
 from tortoise.expressions import Q
 
 from app.controllers.user import user_controller
-from app.schemas.base import CommonIds, Success, SuccessExtra
+from app.core.code import Code
+from app.schemas.base import CommonIds, Fail, Success, SuccessExtra
 from app.schemas.users import UserCreate, UserSearch, UserUpdate
 
 router = APIRouter()
@@ -49,14 +50,14 @@ async def get_user(user_id: int):
 @router.post("/users", summary="创建用户")
 async def _(user_in: UserCreate):
     if not user_in.user_email:
-        return Success(code="4090", msg="This email is invalid.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="This email is invalid.")
 
     user_obj = await user_controller.get_by_email(user_in.user_email)
     if user_obj:
-        return Success(code="4090", msg="The user with this email already exists in the system.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user with this email already exists in the system.")
 
     if not user_in.by_user_role_code_list:
-        return Success(code="4090", msg="The user must have at least one role that exists.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user must have at least one role that exists.")
 
     new_user = await user_controller.create(obj_in=user_in)
     await user_controller.update_roles_by_code(new_user, user_in.by_user_role_code_list)
@@ -68,7 +69,7 @@ async def _(user_in: UserCreate):
 async def _(user_id: int, user_in: UserUpdate):
     user = await user_controller.update(user_id=user_id, obj_in=user_in)
     if not user_in.by_user_role_code_list:
-        return Success(code="4090", msg="The user must have at least one role that exists.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user must have at least one role that exists.")
 
     await user_controller.update_roles_by_code(user, user_in.by_user_role_code_list)
 

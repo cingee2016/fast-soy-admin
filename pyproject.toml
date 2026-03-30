@@ -10,6 +10,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.121.2",
     "fastapi-cache2[redis]>=0.2.2",
+    "fastapi-guard>=5.0.0",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
     "orjson>=3.11.7",

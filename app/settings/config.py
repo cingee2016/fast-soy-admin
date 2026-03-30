@@ -42,6 +42,13 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://redis:6379/0"  # "redis://:password@233.233.233.233:33333/0"
 
+    # fastapi-guard
+    GUARD_ENABLED: bool = True
+    GUARD_RATE_LIMIT: int = 100
+    GUARD_RATE_LIMIT_WINDOW: int = 60
+    GUARD_AUTO_BAN_THRESHOLD: int = 10
+    GUARD_AUTO_BAN_DURATION: int = 21600
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

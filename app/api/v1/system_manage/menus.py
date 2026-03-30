@@ -2,9 +2,10 @@ from fastapi import APIRouter, Query
 from tortoise.functions import Count
 
 from app.controllers.menu import menu_controller
+from app.core.code import Code
 from app.models.system import IconType, Menu
 from app.schemas.admin import MenuCreate, MenuUpdate
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Fail, Success, SuccessExtra
 
 router = APIRouter()
 
@@ -62,7 +63,7 @@ async def get_menu(menu_id: int):
 async def _(menu_in: MenuCreate):
     is_exist = await menu_controller.model.exists(route_path=menu_in.route_path)
     if is_exist:
-        return Success(code="4090", msg=f"The menu with this route_path {menu_in.route_path} already exists in the system.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg=f"The menu with this route_path {menu_in.route_path} already exists in the system.")
 
     if menu_in.active_menu:
         menu_in.active_menu = await menu_controller.get(menu_name=menu_in.active_menu)

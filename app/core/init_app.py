@@ -26,6 +26,53 @@ from app.models.system import Api, Button, IconType, Menu, MenuType, Role, Statu
 from app.settings import APP_SETTINGS
 
 
+async def _guard_response_modifier(response):
+    """Rewrite guard error responses to the project's unified JSON format."""
+    import orjson
+    from starlette.responses import Response
+
+    from app.core.code import Code
+
+    status = response.status_code
+    if status < 400:
+        return response
+    if status == 429:
+        code, msg = Code.RATE_LIMITED, "请求过于频繁，请稍后再试"
+    elif status == 403 and b"banned" in (response.body or b"").lower():
+        code, msg = Code.IP_BANNED, "IP已被封禁，请稍后再试"
+    elif status == 403:
+        code, msg = Code.ACCESS_DENIED, "访问被拒绝"
+    else:
+        code, msg = Code.ACCESS_DENIED, "请求被安全策略拦截"
+    body = orjson.dumps({"code": code, "msg": msg, "data": None})
+    response._response = Response(content=body, status_code=200, media_type="application/json")
+    return response
+
+
+def _make_guard_config():
+    """Create fastapi-guard SecurityConfig from app settings."""
+    from guard import SecurityConfig
+
+    return SecurityConfig(
+        rate_limit=APP_SETTINGS.GUARD_RATE_LIMIT,
+        rate_limit_window=APP_SETTINGS.GUARD_RATE_LIMIT_WINDOW,
+        auto_ban_threshold=APP_SETTINGS.GUARD_AUTO_BAN_THRESHOLD,
+        auto_ban_duration=APP_SETTINGS.GUARD_AUTO_BAN_DURATION,
+        enable_redis=True,
+        redis_url=APP_SETTINGS.REDIS_URL,
+        enable_cors=False,  # CORS already handled by CORSMiddleware
+        enforce_https=False,
+        security_headers=None,  # Let nginx handle security headers
+        custom_log_file=str(APP_SETTINGS.LOGS_ROOT / "guard.log"),
+        custom_response_modifier=_guard_response_modifier,
+        exclude_paths=["/docs", "/redoc", "/openapi.json", "/favicon.ico", "/static"],
+        endpoint_rate_limits={
+            "/api/v1/auth/login": (5, 60),  # 5 requests per 60 seconds
+            "/api/v1/auth/refresh-token": (10, 60),  # 10 requests per 60 seconds
+        },
+    )
+
+
 def make_middlewares():
     middleware = [
         Middleware(
@@ -49,6 +96,11 @@ def make_middlewares():
         Middleware(BackGroundTaskMiddleware),
         Middleware(RequestIDMiddleware),
     ]
+    if APP_SETTINGS.GUARD_ENABLED:
+        from guard.middleware import SecurityMiddleware
+
+        middleware.append(Middleware(SecurityMiddleware, config=_make_guard_config()))
+
     if APP_SETTINGS.RADAR_ENABLED:
         from app.radar.middleware import RadarMiddleware
 

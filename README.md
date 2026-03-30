@@ -143,28 +143,73 @@ cd web && pnpm build
 
 ## 业务响应码
 
-所有接口统一返回格式 `{"code": "xxxx", "msg": "...", "data": ...}`，业务码定义如下（源码位于 `app/core/code.py`）：
+所有接口统一返回格式 `{"code": "xxxx", "msg": "...", "data": ...}`，业务码按分段设计（源码位于 `app/core/code.py`）：
+
+### 0000 — 成功
 
 | 码值 | 常量名 | 说明 | 前端行为 |
 | ---- | ------ | ---- | -------- |
 | `0000` | `SUCCESS` | 请求成功 | 正常处理 |
-| `4000` | `FAIL` | 通用业务失败 | 显示错误消息 |
-| `4001` | `INVALID_TOKEN` | Token 无效 / 缺失 / 解码失败 | 跳转登录页 |
-| `4002` | `INVALID_SESSION` | Token 类型错误 / 用户不存在 | 跳转登录页 |
-| `4003` | `ACCOUNT_DISABLED` | 账号已被禁用 | 弹窗确认后登出 |
-| `4010` | `TOKEN_EXPIRED` | Token 已过期 | 自动刷新 Token 并重试 |
-| `4031` | `API_DISABLED` | API 接口已停用 | 显示错误消息 |
-| `4032` | `PERMISSION_DENIED` | RBAC 权限不足 | 显示错误消息 |
-| `4090` | `DUPLICATE_RESOURCE` | 资源重复（用户名、角色编码等） | 显示错误消息 |
-| `4220` | `VALIDATION_ERROR` | 请求参数校验失败 | 显示错误消息 |
 
-前端环境变量对应关系（`.env`）：
+### 1xxx — 系统内部错误
+
+由框架异常处理器自动捕获，前端自动弹出错误消息。
+
+| 码值 | 常量名 | 说明 |
+| ---- | ------ | ---- |
+| `1000` | `INTERNAL_ERROR` | 未捕获的内部异常 |
+| `1100` | `INTEGRITY_ERROR` | 数据库约束冲突（唯一键、外键等） |
+| `1101` | `NOT_FOUND` | 数据记录不存在 |
+| `1200` | `REQUEST_VALIDATION` | 请求参数校验失败 |
+| `1201` | `RESPONSE_VALIDATION` | 响应序列化失败 |
+
+### 2xxx — 业务逻辑错误
+
+按 `21xx` / `22xx` / `23xx` / `24xx` 分类，每类预留 100 个码位。
+
+**21xx — 认证（Authentication）**
+
+| 码值 | 常量名 | 说明 | 前端行为 |
+| ---- | ------ | ---- | -------- |
+| `2100` | `INVALID_TOKEN` | Token 无效 / 缺失 / 解码失败 | 跳转登录页 |
+| `2101` | `INVALID_SESSION` | Token 类型错误 / 用户不存在 | 跳转登录页 |
+| `2102` | `ACCOUNT_DISABLED` | 账号已被禁用 | 弹窗确认后登出 |
+| `2103` | `TOKEN_EXPIRED` | Token 已过期 | 自动刷新 Token 并重试 |
+
+**22xx — 授权（Authorization）**
+
+| 码值 | 常量名 | 说明 | 前端行为 |
+| ---- | ------ | ---- | -------- |
+| `2200` | `API_DISABLED` | API 接口已停用 | 显示错误消息 |
+| `2201` | `PERMISSION_DENIED` | RBAC 权限不足 | 显示错误消息 |
+
+**23xx — 资源冲突（Resource）**
+
+| 码值 | 常量名 | 说明 | 前端行为 |
+| ---- | ------ | ---- | -------- |
+| `2300` | `DUPLICATE_RESOURCE` | 资源重复（用户名、角色编码等） | 显示错误消息 |
+
+**24xx — 通用业务失败**
+
+| 码值 | 常量名 | 说明 | 前端行为 |
+| ---- | ------ | ---- | -------- |
+| `2400` | `FAIL` | 通用业务失败 | 显示错误消息 |
+
+### 3xxx — 内部保留
+
+预留给未来框架扩展，当前未使用。
+
+### 4000-9999 — 用户自定义
+
+由业务层自行定义，框架不占用。前端 **不会** 自动弹出错误消息，需由调用方自行处理。
+
+### 前端环境变量
 
 ```
 VITE_SERVICE_SUCCESS_CODE=0000
-VITE_SERVICE_LOGOUT_CODES=4001,4002
-VITE_SERVICE_MODAL_LOGOUT_CODES=4003
-VITE_SERVICE_EXPIRED_TOKEN_CODES=4010
+VITE_SERVICE_LOGOUT_CODES=2100,2101
+VITE_SERVICE_MODAL_LOGOUT_CODES=2102
+VITE_SERVICE_EXPIRED_TOKEN_CODES=2103
 ```
 
 ## TODO

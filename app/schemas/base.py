@@ -25,7 +25,7 @@ class Success(Custom):
 class Fail(Custom):
     def __init__(
         self,
-        code: str | int = "4000",
+        code: str | int = "2400",
         msg: str = "OK",
         data: Any = None,
         **kwargs,

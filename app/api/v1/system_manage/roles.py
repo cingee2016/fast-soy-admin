@@ -3,9 +3,10 @@ from tortoise.expressions import Q
 
 from app.controllers import role_controller
 from app.controllers.menu import menu_controller
+from app.core.code import Code
 from app.models.system import Api, Button, Role
 from app.schemas.admin import RoleCreate, RoleUpdate, RoleUpdateAuthrization
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Fail, Success, SuccessExtra
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ async def get_role(role_id: int):
 async def _(role_in: RoleCreate):
     role = await role_controller.model.exists(role_code=role_in.role_code)
     if role:
-        return Success(code="4090", msg="The role with this code already exists in the system.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The role with this code already exists in the system.")
 
     new_user = await role_controller.create(obj_in=role_in)
     return Success(msg="Created Successfully", data={"created_id": new_user.id})

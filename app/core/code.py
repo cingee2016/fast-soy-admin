@@ -1,38 +1,65 @@
 """
-Response codes aligned with frontend .env configuration.
-All business codes are in the 4000-5000 range.
+Categorized business response codes.
+
+Code ranges:
+  0000        — Success
+  1000-1999   — System internal errors (exception captures)
+  2000-2999   — Business logic errors (auth, permission, resource, etc.)
+  3000-3999   — Internal reserved
+  4000-9999   — User business custom (framework does NOT use)
 
 Frontend .env mapping:
   VITE_SERVICE_SUCCESS_CODE=0000
-  VITE_SERVICE_LOGOUT_CODES=4001,4002
-  VITE_SERVICE_MODAL_LOGOUT_CODES=4003
-  VITE_SERVICE_EXPIRED_TOKEN_CODES=4010
+  VITE_SERVICE_LOGOUT_CODES=2100,2101
+  VITE_SERVICE_MODAL_LOGOUT_CODES=2102
+  VITE_SERVICE_EXPIRED_TOKEN_CODES=2103
 """
 
 
 class Code:
-    """Four-digit response codes (4000-5000) for the entire application."""
+    """Categorized response codes for the entire application."""
 
-    # ---- success ----
+    # ---- 0000 Success ----
     SUCCESS = "0000"
 
-    # ---- generic failure (no special frontend behavior) ----
-    FAIL = "4000"
+    # ==== 1xxx System Internal Errors ====
 
-    # ---- logout codes (frontend redirects to login page) ----
-    INVALID_TOKEN = "4001"  # token decode error / generic token failure / missing token
-    INVALID_SESSION = "4002"  # wrong token type / user not found
+    # 10xx — Server errors
+    INTERNAL_ERROR = "1000"  # generic / unhandled exception
 
-    # ---- modal logout codes (frontend shows confirmation modal) ----
-    ACCOUNT_DISABLED = "4003"  # user has been disabled (while already logged in)
+    # 11xx — Database errors
+    INTEGRITY_ERROR = "1100"  # constraint violation (unique, FK, etc.)
+    NOT_FOUND = "1101"  # record does not exist
 
-    # ---- expired token codes (frontend auto-refreshes and retries) ----
-    TOKEN_EXPIRED = "4010"  # access/refresh token expired
+    # 12xx — Validation errors
+    REQUEST_VALIDATION = "1200"  # request params / body validation failed
+    RESPONSE_VALIDATION = "1201"  # response serialization failed
 
-    # ---- permission codes (frontend shows error message, no logout) ----
-    API_DISABLED = "4031"  # API endpoint has been disabled
-    PERMISSION_DENIED = "4032"  # RBAC permission denied
+    # ==== 2xxx Business Logic Errors ====
 
-    # ---- business codes ----
-    DUPLICATE_RESOURCE = "4090"  # duplicate resource (e.g., username, role code)
-    VALIDATION_ERROR = "4220"  # request validation error
+    # 21xx — Authentication
+    INVALID_TOKEN = "2100"  # token missing / decode error / invalid
+    INVALID_SESSION = "2101"  # wrong token type / user not found
+    ACCOUNT_DISABLED = "2102"  # user account has been disabled
+    TOKEN_EXPIRED = "2103"  # access / refresh token expired
+
+    # 22xx — Authorization
+    API_DISABLED = "2200"  # API endpoint has been disabled
+    PERMISSION_DENIED = "2201"  # RBAC permission denied
+
+    # 23xx — Resource conflicts
+    DUPLICATE_RESOURCE = "2300"  # duplicate resource (username, role code, etc.)
+
+    # 24xx — General business failure
+    FAIL = "2400"  # generic business logic failure
+
+    # 25xx — Rate limiting / security
+    RATE_LIMITED = "2500"  # too many requests
+    IP_BANNED = "2501"  # IP temporarily banned
+    ACCESS_DENIED = "2502"  # blocked by security guard
+
+    # ==== 3xxx Internal Reserved ====
+    # (not used yet, reserved for future framework extensions)
+
+    # ==== 4000-9999 User Business Custom ====
+    # (framework does NOT use — available for project-specific business codes)

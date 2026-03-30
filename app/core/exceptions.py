@@ -48,11 +48,15 @@ async def BaseHandle(req: Request, exc: Exception, handle_exc, code: int | str, 
 
 
 async def DoesNotExistHandle(req: Request, exc: Exception) -> JSONResponse:
-    return await BaseHandle(req, exc, DoesNotExist, 404, f"Object has not found, exc: {exc}, path: {req.path_params}, query: {req.query_params}", 404)
+    from app.core.code import Code
+
+    return await BaseHandle(req, exc, DoesNotExist, Code.NOT_FOUND, f"Object has not found, exc: {exc}, path: {req.path_params}, query: {req.query_params}", 200)
 
 
 async def IntegrityHandle(req: Request, exc: Exception) -> JSONResponse:
-    return await BaseHandle(req, exc, IntegrityError, 500, f"IntegrityError，{exc}, path: {req.path_params}, query: {req.query_params}", 500)
+    from app.core.code import Code
+
+    return await BaseHandle(req, exc, IntegrityError, Code.INTEGRITY_ERROR, f"IntegrityError，{exc}, path: {req.path_params}, query: {req.query_params}", 200)
 
 
 async def HttpExcHandle(req: Request, exc: HTTPException) -> JSONResponse:
@@ -60,8 +64,12 @@ async def HttpExcHandle(req: Request, exc: HTTPException) -> JSONResponse:
 
 
 async def RequestValidationHandle(req: Request, exc: RequestValidationError) -> JSONResponse:
-    return await BaseHandle(req, exc, RequestValidationError, 422, "RequestValidationError", detail=exc.errors())
+    from app.core.code import Code
+
+    return await BaseHandle(req, exc, RequestValidationError, Code.REQUEST_VALIDATION, "RequestValidationError", 200, detail=exc.errors())
 
 
 async def ResponseValidationHandle(req: Request, exc: ResponseValidationError) -> JSONResponse:
-    return await BaseHandle(req, exc, ResponseValidationError, 422, "ResponseValidationError", detail=exc.errors())
+    from app.core.code import Code
+
+    return await BaseHandle(req, exc, ResponseValidationError, Code.RESPONSE_VALIDATION, "ResponseValidationError", 200, detail=exc.errors())
