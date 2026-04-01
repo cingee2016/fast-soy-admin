@@ -1,30 +1,35 @@
-from fastapi import APIRouter, Request
+from fastapi import Request
 from tortoise.expressions import Q
 
 from app.controllers.user import user_controller
 from app.core.code import Code
+from app.core.router import CRUDRouter
 from app.models.system import User
 from app.schemas.base import CommonIds, Fail, Success, SuccessExtra
 from app.schemas.users import UserCreate, UserSearch, UserUpdate
 
-router = APIRouter()
+# 标准 CRUD 路由：get, delete
+# list/create/update/batch_delete 需要自定义逻辑
+crud = CRUDRouter(
+    prefix="/users",
+    controller=user_controller,
+    summary_prefix="用户",
+    exclude_fields=["password"],
+    enable_routes={"get", "delete"},
+)
+router = crud.router
+
+
+# ---- 自定义 list（需要 role 关联查询） ----
 
 
 @router.post("/users/all/", summary="查看用户列表")
 async def _(obj_in: UserSearch):
-    q = Q()
-    if obj_in.user_name:
-        q &= Q(user_name__contains=obj_in.user_name)
-    if obj_in.user_gender:
-        q &= Q(user_gender=obj_in.user_gender)
-    if obj_in.nick_name:
-        q &= Q(nick_name__contains=obj_in.nick_name)
-    if obj_in.user_phone:
-        q &= Q(user_phone__contains=obj_in.user_phone)
-    if obj_in.user_email:
-        q &= Q(user_email__contains=obj_in.user_email)
-    if obj_in.status_type:
-        q &= Q(status_type=obj_in.status_type)
+    q = user_controller.build_search(
+        obj_in,
+        contains_fields=["user_name", "nick_name", "user_phone", "user_email"],
+        exact_fields=["user_gender", "status_type"],
+    )
     if obj_in.by_user_role_code_list:
         q &= Q(by_user_roles__role_code__in=obj_in.by_user_role_code_list)
 
@@ -41,28 +46,7 @@ async def _(obj_in: UserSearch):
     return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
 
-@router.post("/users/batch-offline", summary="批量用户下线")
-async def batch_offline(obj_in: CommonIds, request: Request):
-    """按用户ID批量下线"""
-    for user_id in obj_in.ids:
-        await _incr_token_version(request, int(user_id))
-    return Success(msg="操作成功")
-
-
-@router.post("/users/offline-by-role", summary="按角色下线用户")
-async def offline_by_role(role_codes: list[str], request: Request):
-    """按角色编码批量下线所有关联用户"""
-    users = await User.filter(by_user_roles__role_code__in=role_codes).distinct()
-    for user in users:
-        await _incr_token_version(request, user.id)
-    return Success(msg="操作成功", data={"offlineCount": len(users)})
-
-
-@router.get("/users/{user_id}", summary="查看用户")
-async def get_user(user_id: int):
-    user_obj = await user_controller.get(id=user_id)
-
-    return Success(data=await user_obj.to_dict(exclude_fields=["password"]))
+# ---- 自定义 create/update（密码哈希、角色关联） ----
 
 
 @router.post("/users", summary="创建用户")
@@ -91,29 +75,22 @@ async def _(user_id: int, user_in: UserUpdate, request: Request):
 
     await user_controller.update_roles_by_code(user, user_in.by_user_role_code_list)
 
-    # 修改密码后递增 token_version，使已签发的 token 失效
     if user_in.password:
         await _incr_token_version(request, user_id)
 
     return Success(msg="Updated Successfully", data={"updated_id": user_id})
 
 
-@router.delete("/users/{user_id}", summary="删除用户")
-async def _(user_id: int):
-    await user_controller.remove(id=user_id)
-
-    return Success(msg="Deleted Successfully", data={"deleted_id": user_id})
+# ---- 自定义批量删除（使用 CRUDBase.batch_remove） ----
 
 
 @router.delete("/users", summary="批量删除用户")
 async def _(obj_in: CommonIds):
-    deleted_ids = []
-    for user_id in obj_in.ids:
-        user_obj = await user_controller.get(id=int(user_id))
-        await user_obj.delete()
-        deleted_ids.append(int(user_id))
+    deleted_count = await user_controller.batch_remove(obj_in.ids)
+    return Success(msg="Deleted Successfully", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
 
-    return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
+
+# ---- 自定义扩展接口：用户下线 ----
 
 
 async def _incr_token_version(request: Request, user_id: int) -> None:
@@ -123,6 +100,23 @@ async def _incr_token_version(request: Request, user_id: int) -> None:
     await user.save(update_fields=["token_version"])
     redis = request.app.state.redis
     await redis.set(f"token_version:{user_id}", user.token_version)
+
+
+@router.post("/users/batch-offline", summary="批量用户下线")
+async def batch_offline(obj_in: CommonIds, request: Request):
+    """按用户ID批量下线"""
+    for user_id in obj_in.ids:
+        await _incr_token_version(request, int(user_id))
+    return Success(msg="操作成功")
+
+
+@router.post("/users/offline-by-role", summary="按角色下线用户")
+async def offline_by_role(role_codes: list[str], request: Request):
+    """按角色编码批量下线所有关联用户"""
+    users = await User.filter(by_user_roles__role_code__in=role_codes).distinct()
+    for user in users:
+        await _incr_token_version(request, user.id)
+    return Success(msg="操作成功", data={"offlineCount": len(users)})
 
 
 @router.post("/users/{user_id}/offline", summary="用户下线")

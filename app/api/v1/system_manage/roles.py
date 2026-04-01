@@ -1,14 +1,53 @@
-from fastapi import APIRouter, Query
+from fastapi import Query, Request
 from tortoise.expressions import Q
 
 from app.controllers import role_controller
 from app.controllers.menu import menu_controller
+from app.core.cache import load_role_permissions
 from app.core.code import Code
+from app.core.router import CRUDRouter, SearchFieldConfig
 from app.models.system import Api, Button, Role
 from app.schemas.admin import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 from app.schemas.base import Fail, Success, SuccessExtra
 
-router = APIRouter()
+# 标准 CRUD 路由：get, delete, batch_delete
+crud = CRUDRouter(
+    prefix="/roles",
+    controller=role_controller,
+    create_schema=RoleCreate,
+    update_schema=RoleUpdate,
+    search_fields=SearchFieldConfig(
+        contains_fields=["role_name", "role_code", "status"],
+    ),
+    summary_prefix="角色",
+    list_order=["id"],
+    enable_routes={"get", "delete", "batch_delete"},
+)
+router = crud.router
+
+
+# ---- 覆盖默认的 create/update（需要额外校验） ----
+
+
+@router.post("/roles", summary="创建角色")
+async def _(role_in: RoleCreate, request: Request):
+    if await role_controller.exists(role_code=role_in.role_code):
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The role with this code already exists in the system.")
+
+    new_role = await role_controller.create(obj_in=role_in)
+    # 新角色写入 Redis
+    await load_role_permissions(request.app.state.redis, role_code=new_role.role_code)
+    return Success(msg="Created Successfully", data={"created_id": new_role.id})
+
+
+@router.patch("/roles/{role_id}", summary="更新角色")
+async def _(role_id: int, role_in: RoleUpdate, request: Request):
+    role_obj = await role_controller.update(id=role_id, obj_in=role_in)
+    await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
+    return Success(msg="Updated Successfully", data={"updated_id": role_id})
+
+
+# ---- 覆盖默认的 list（需要搜索参数） ----
 
 
 @router.get("/roles", summary="查看角色列表")
@@ -28,49 +67,12 @@ async def _(
         q &= Q(status__contains=status)
 
     total, role_objs = await role_controller.list(page=current, page_size=size, search=q, order=["id"])
-    records = [await role_obj.to_dict() for role_obj in role_objs]  # exclude_fields=["role_desc"]
+    records = [await role_obj.to_dict() for role_obj in role_objs]
     data = {"records": records}
     return SuccessExtra(data=data, total=total, current=current, size=size)
 
 
-@router.get("/roles/{role_id}", summary="查看角色")
-async def get_role(role_id: int):
-    role_obj: Role = await role_controller.get(id=role_id)
-    data = await role_obj.to_dict()
-    return Success(data=data)
-
-
-@router.post("/roles", summary="创建角色")
-async def _(role_in: RoleCreate):
-    role = await role_controller.model.exists(role_code=role_in.role_code)
-    if role:
-        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The role with this code already exists in the system.")
-
-    new_user = await role_controller.create(obj_in=role_in)
-    return Success(msg="Created Successfully", data={"created_id": new_user.id})
-
-
-@router.patch("/roles/{role_id}", summary="更新角色")
-async def _(role_id: int, role_in: RoleUpdate):
-    await role_controller.update(id=role_id, obj_in=role_in)
-    return Success(msg="Updated Successfully", data={"updated_id": role_id})
-
-
-@router.delete("/roles/{role_id}", summary="删除角色")
-async def _(role_id: int):
-    await role_controller.remove(id=role_id)
-    return Success(msg="Deleted Successfully", data={"deleted_id": role_id})
-
-
-@router.delete("/roles", summary="批量删除角色")
-async def _(ids: str = Query(..., description="角色ID列表, 用逗号隔开")):
-    role_ids = ids.split(",")
-    deleted_ids = []
-    for role_id in role_ids:
-        role_obj = await role_controller.get(id=int(role_id))
-        await role_obj.delete()
-        deleted_ids.append(int(role_id))
-    return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
+# ---- 自定义扩展接口：角色菜单/按钮/API 管理 ----
 
 
 @router.get("/roles/{role_id}/menus", summary="查看角色菜单")
@@ -85,7 +87,7 @@ async def _(role_id: int):
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
-async def _(role_id: int, role_in: RoleUpdateAuthrization):
+async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     if role_in.by_role_home_id:
         role_obj = await role_controller.update(id=role_id, obj_in=dict(by_role_home_id=role_in.by_role_home_id))
         if role_in.by_role_menu_ids:
@@ -94,13 +96,16 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
                 return Success(msg="获取角色菜单对象失败", code=2000)
 
             await role_obj.by_role_menus.clear()
-            while len(menu_objs) > 0:  # 递归添加子父菜单
+            while len(menu_objs) > 0:
                 menu_obj = menu_objs.pop()
                 await role_obj.by_role_menus.add(menu_obj)
-                if menu_obj.parent_id != 0:  # 是否为子菜单
-                    menu_objs.append(await menu_controller.get(id=menu_obj.parent_id))  # 添加子菜单的父菜单
+                if menu_obj.parent_id != 0:
+                    menu_objs.append(await menu_controller.get(id=menu_obj.parent_id))
         else:
-            await role_obj.by_role_menus.clear()  # 去除所有角色菜单
+            await role_obj.by_role_menus.clear()
+
+        # 角色菜单变动，刷新 Redis
+        await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
 
     return Success(msg="Updated Successfully", data={"by_role_menu_ids": role_in.by_role_menu_ids, "by_role_home_id": role_in.by_role_home_id})
 
@@ -118,7 +123,7 @@ async def _(role_id: int):
 
 
 @router.patch("/roles/{role_id}/buttons", summary="更新角色按钮")
-async def _(role_id: int, role_in: RoleUpdateAuthrization):
+async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
     if role_in.by_role_button_ids is not None:
         await role_obj.by_role_buttons.clear()
@@ -126,6 +131,8 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
             button_obj = await Button.get(id=button_id)
             await role_obj.by_role_buttons.add(button_obj)
 
+    # 角色按钮变动，刷新 Redis
+    await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
     return Success(msg="Updated Successfully", data={"by_role_button_ids": role_in.by_role_button_ids})
 
 
@@ -142,7 +149,7 @@ async def _(role_id: int):
 
 
 @router.patch("/roles/{role_id}/apis", summary="更新角色API")
-async def _(role_id: int, role_in: RoleUpdateAuthrization):
+async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
     if role_in.by_role_api_ids is not None:
         await role_obj.by_role_apis.clear()
@@ -150,4 +157,6 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization):
             api_obj = await Api.get(id=api_id)
             await role_obj.by_role_apis.add(api_obj)
 
+    # 角色 API 变动，刷新 Redis
+    await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
     return Success(msg="Updated Successfully", data={"by_role_api_ids": role_in.by_role_api_ids})

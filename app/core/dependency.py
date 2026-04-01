@@ -4,6 +4,7 @@ import jwt
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
+from app.core.cache import get_role_apis
 from app.core.code import Code
 from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
 from app.core.exceptions import (
@@ -74,12 +75,18 @@ class PermissionControl:
 
         method = request.method.lower()
         path = request.url.path
+        redis = request.app.state.redis
 
-        apis = [await role.by_role_apis for role in current_user.by_user_roles]
-        permission_apis = list(set((api.api_method.value, api.api_path, api.status_type) for api in sum(apis, [])))
+        # 从 Redis 汇总所有角色的 API 权限
+        permission_apis: set[tuple[str, str, str]] = set()
+        for role_code in user_roles_codes:
+            apis = await get_role_apis(redis, role_code)
+            for api in apis:
+                permission_apis.add((api["method"], api["path"], api["status"]))
+
         for api_method, api_path, api_status in permission_apis:
-            if api_method == method and check_url(api_path, request.url.path):  # API权限检测通过
-                if api_status == StatusType.disable:
+            if api_method == method and check_url(api_path, path):
+                if api_status == StatusType.disable.value:
                     raise HTTPException(code=Code.API_DISABLED, msg=f"The API has been disabled, method: {method} path: {path}")
                 return
 

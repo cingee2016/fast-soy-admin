@@ -1,23 +1,29 @@
-from fastapi import APIRouter, Query
+from fastapi import Query
 from tortoise.functions import Count
 
 from app.controllers.menu import menu_controller
 from app.core.code import Code
+from app.core.router import CRUDRouter
 from app.models.system import IconType, Menu
 from app.schemas.admin import MenuCreate, MenuUpdate
 from app.schemas.base import Fail, Success, SuccessExtra
 
-router = APIRouter()
+# 标准 CRUD 路由：get, delete, batch_delete
+# list/create/update 需要自定义逻辑（树结构、按钮关联等）
+crud = CRUDRouter(
+    prefix="/menus",
+    controller=menu_controller,
+    summary_prefix="菜单",
+    enable_routes={"get", "delete", "batch_delete"},
+)
+router = crud.router
+
+
+# ---- 自定义 list（返回树结构） ----
 
 
 async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = False) -> list[dict]:
-    """
-    递归生成菜单树
-    :param menus:
-    :param parent_id:
-    :param simple: 是否简化返回数据
-    :return:
-    """
+    """递归生成菜单树"""
     tree = []
     for menu in menus:
         if menu.parent_id == parent_id:
@@ -39,7 +45,6 @@ async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = 
 @router.get("/menus", summary="查看用户菜单")
 async def _(current: int = Query(1, description="页码"), size: int = Query(100, description="每页数量")):
     total, menus = await menu_controller.list(page=current, page_size=size, order=["id"])
-    # 递归生成菜单
     menu_tree = await build_menu_tree(menus, simple=False)
     data = {"records": menu_tree}
     return SuccessExtra(data=data, total=total, current=current, size=size)
@@ -48,20 +53,16 @@ async def _(current: int = Query(1, description="页码"), size: int = Query(100
 @router.get("/menus/tree/", summary="查看菜单树")
 async def _():
     menus = await Menu.filter(constant=False)
-    # 递归生成菜单
     menu_tree = await build_menu_tree(menus, simple=True)
     return Success(data=menu_tree)
 
 
-@router.get("/menus/{menu_id}", summary="查看菜单")
-async def get_menu(menu_id: int):
-    menu_obj: Menu = await menu_controller.get(id=menu_id)
-    return Success(data=await menu_obj.to_dict())
+# ---- 自定义 create/update（按钮关联、active_menu 处理） ----
 
 
 @router.post("/menus", summary="创建菜单")
 async def _(menu_in: MenuCreate):
-    is_exist = await menu_controller.model.exists(route_path=menu_in.route_path)
+    is_exist = await menu_controller.exists(route_path=menu_in.route_path)
     if is_exist:
         return Fail(code=Code.DUPLICATE_RESOURCE, msg=f"The menu with this route_path {menu_in.route_path} already exists in the system.")
 
@@ -82,36 +83,18 @@ async def _(menu_id: int, menu_in: MenuUpdate):
     return Success(msg="Updated Successfully", data={"updated_id": menu_id})
 
 
-@router.delete("/menus/{menu_id}", summary="删除菜单")
-async def _(menu_id: int):
-    await menu_controller.remove(id=menu_id)
-    return Success(msg="Deleted Successfully", data={"deleted_id": menu_id})
-
-
-@router.delete("/menus", summary="批量删除菜单")
-async def _(ids: str = Query(description="菜单ID列表, 用逗号隔开")):
-    menu_ids = ids.split(",")
-    for menu_id in menu_ids:
-        menu_obj = await Menu.get(id=int(menu_id))
-        await menu_obj.delete()
-    return Success(msg="Deleted Successfully", data={"deleted_ids": menu_ids})
+# ---- 自定义扩展接口 ----
 
 
 @router.get("/menus/pages/", summary="查看一级菜单")
 async def _():
     menus = await Menu.filter(parent_id=0, constant=False)
     data = [{"key": menu.menu_name, "value": menu.id} for menu in menus]
-
     return Success(data=data)
 
 
 async def build_menu_button_tree(menus: list[Menu], parent_id: int = 0) -> list[dict]:
-    """
-    递归生成菜单按钮树
-    :param menus:
-    :param parent_id:
-    :return:
-    """
+    """递归生成菜单按钮树"""
     tree = []
     for menu in menus:
         if menu.parent_id == parent_id:
