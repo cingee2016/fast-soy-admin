@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi_cache import JsonCoder
 from fastapi_cache.decorator import cache
 
@@ -20,19 +20,14 @@ router = APIRouter()
 
 
 @router.post("/login", summary="登录")
-async def _(credentials: CredentialsSchema):
+async def _(credentials: CredentialsSchema, request: Request):
     user_obj: User | None = await user_controller.authenticate(credentials)  # 账号验证, 失败则触发异常返回请求错误
-    # user_role_code_list = await user_obj.by_user_roles.values_list("role_code", flat=True)
-    # all_login_role_codes = ["R_SUPER", "R_ADMIN", "R_USER"]
-    # for user_role_code in user_role_code_list:
-    #     if user_role_code in all_login_role_codes:
-    #         break
-    # else:
-    #     log.info(f"用户越权登录, 用户名: {user_obj.user_name}")
-    #     return Fail(msg="This user has no permission to login.")
 
     await user_controller.update_last_login(user_obj.id)
-    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"}, iat=datetime.now(UTC), exp=datetime.now(UTC))
+
+    redis = request.app.state.redis
+    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
+    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}, iat=datetime.now(UTC), exp=datetime.now(UTC))
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_payload = payload.model_copy(deep=True)
@@ -48,7 +43,7 @@ async def _(credentials: CredentialsSchema):
 
 
 @router.post("/refresh-token", summary="刷新认证")
-async def _(jwt_token: JWTOut):
+async def _(jwt_token: JWTOut, request: Request):
     if not jwt_token.refresh_token:
         return Fail(code=Code.INVALID_TOKEN, msg="The refreshToken is not valid.")
     status, code, data = check_token(jwt_token.refresh_token)
@@ -65,8 +60,16 @@ async def _(jwt_token: JWTOut):
         radar_log("刷新令牌失败: 账号已禁用", level="WARNING", data={"userId": user_id})
         return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
+    # 校验 refreshToken 中的 tokenVersion
+    redis = request.app.state.redis
+    token_version_in_jwt = data["data"].get("tokenVersion", 0)
+    current_version = int(await redis.get(f"token_version:{user_id}") or 0)
+    if token_version_in_jwt < current_version:
+        return Fail(code=Code.INVALID_TOKEN, msg="Token已失效，请重新登录")
+
     await user_controller.update_last_login(user_id)
-    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken"}, iat=datetime.now(UTC), exp=datetime.now(UTC))
+    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
+    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}, iat=datetime.now(UTC), exp=datetime.now(UTC))
 
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)

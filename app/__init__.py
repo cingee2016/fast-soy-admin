@@ -59,6 +59,7 @@ async def lifespan(_app: FastAPI):
         await _ensure_monitor_menu()
         await refresh_api_list()
         await init_users()
+        await _load_token_versions(_app.state.redis)
         if APP_SETTINGS.RADAR_ENABLED:
             from app.radar import startup_radar
 
@@ -74,6 +75,18 @@ async def lifespan(_app: FastAPI):
         runtime = (end_time - start_time).total_seconds() / 60
         log.info(f"App {_app.title} runtime: {runtime} min")  # noqa
         await close_redis(_app.state.redis)
+
+
+async def _load_token_versions(redis):
+    """启动时将数据库中所有用户的 token_version 加载到 Redis"""
+    from app.models.system.admin import User
+
+    users = await User.all().values_list("id", "token_version")
+    pipe = redis.pipeline()
+    for user_id, token_version in users:
+        pipe.set(f"token_version:{user_id}", token_version)
+    await pipe.execute()
+    log.info(f"Loaded token_version for {len(users)} users into Redis")
 
 
 async def _ensure_monitor_menu():

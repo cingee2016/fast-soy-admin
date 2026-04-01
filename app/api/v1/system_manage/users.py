@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from tortoise.expressions import Q
 
 from app.controllers.user import user_controller
 from app.core.code import Code
+from app.models.system import User
 from app.schemas.base import CommonIds, Fail, Success, SuccessExtra
 from app.schemas.users import UserCreate, UserSearch, UserUpdate
 
@@ -40,6 +41,23 @@ async def _(obj_in: UserSearch):
     return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
 
+@router.post("/users/batch-offline", summary="批量用户下线")
+async def batch_offline(obj_in: CommonIds, request: Request):
+    """按用户ID批量下线"""
+    for user_id in obj_in.ids:
+        await _incr_token_version(request, int(user_id))
+    return Success(msg="操作成功")
+
+
+@router.post("/users/offline-by-role", summary="按角色下线用户")
+async def offline_by_role(role_codes: list[str], request: Request):
+    """按角色编码批量下线所有关联用户"""
+    users = await User.filter(by_user_roles__role_code__in=role_codes).distinct()
+    for user in users:
+        await _incr_token_version(request, user.id)
+    return Success(msg="操作成功", data={"offlineCount": len(users)})
+
+
 @router.get("/users/{user_id}", summary="查看用户")
 async def get_user(user_id: int):
     user_obj = await user_controller.get(id=user_id)
@@ -66,12 +84,16 @@ async def _(user_in: UserCreate):
 
 
 @router.patch("/users/{user_id}", summary="更新用户")
-async def _(user_id: int, user_in: UserUpdate):
+async def _(user_id: int, user_in: UserUpdate, request: Request):
     user = await user_controller.update(user_id=user_id, obj_in=user_in)
     if not user_in.by_user_role_code_list:
         return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user must have at least one role that exists.")
 
     await user_controller.update_roles_by_code(user, user_in.by_user_role_code_list)
+
+    # 修改密码后递增 token_version，使已签发的 token 失效
+    if user_in.password:
+        await _incr_token_version(request, user_id)
 
     return Success(msg="Updated Successfully", data={"updated_id": user_id})
 
@@ -92,3 +114,19 @@ async def _(obj_in: CommonIds):
         deleted_ids.append(int(user_id))
 
     return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
+
+
+async def _incr_token_version(request: Request, user_id: int) -> None:
+    """递增用户 token_version（DB + Redis 双写）"""
+    user = await User.get(id=user_id)
+    user.token_version += 1
+    await user.save(update_fields=["token_version"])
+    redis = request.app.state.redis
+    await redis.set(f"token_version:{user_id}", user.token_version)
+
+
+@router.post("/users/{user_id}/offline", summary="用户下线")
+async def user_offline(user_id: int, request: Request):
+    """强制单个用户下线"""
+    await _incr_token_version(request, user_id)
+    return Success(msg="操作成功")

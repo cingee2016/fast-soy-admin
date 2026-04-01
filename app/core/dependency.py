@@ -33,7 +33,7 @@ def check_token(token: str) -> tuple[bool, str, Any]:
 
 class AuthControl:
     @classmethod
-    async def is_authed(cls, token: str = Depends(oauth2_schema)) -> User | None:
+    async def is_authed(cls, request: Request, token: str = Depends(oauth2_schema)) -> User | None:
         if not token:
             raise HTTPException(code=Code.INVALID_TOKEN, msg="Authentication failed, token does not exists in the request.")
         user_id = CTX_USER_ID.get()
@@ -46,6 +46,13 @@ class AuthControl:
                 raise HTTPException(code=Code.INVALID_SESSION, msg="The token is not an access token")
 
             user_id = decode_data["data"]["userId"]
+
+            # 校验 token 版本号
+            redis = request.app.state.redis
+            token_version_in_jwt = decode_data["data"].get("tokenVersion", 0)
+            current_version = int(await redis.get(f"token_version:{user_id}") or 0)
+            if token_version_in_jwt < current_version:
+                raise HTTPException(code=Code.INVALID_TOKEN, msg="Token已失效，请重新登录")
 
         user = await User.filter(id=user_id).first()
         if not user:

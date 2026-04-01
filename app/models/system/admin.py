@@ -13,6 +13,7 @@ class User(BaseModel, TimestampMixin):
     user_phone = fields.CharField(max_length=20, null=True, description="电话")
     last_login = fields.DatetimeField(null=True, description="最后登录时间")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    token_version = fields.IntField(default=0, description="令牌版本号，递增后使已签发token失效")
 
     by_user_roles: fields.ManyToManyRelation["Role"] = fields.ManyToManyField("app_system.Role", related_name="by_role_users")
 

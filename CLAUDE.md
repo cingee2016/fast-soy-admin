@@ -12,11 +12,11 @@ FastSoyAdmin is a full-stack admin template with a **FastAPI** backend (Python) 
 
 ```bash
 # Install dependencies (uses uv or pdm)
-uv sync                       # or: pdm install
+uv sync                        # or: pdm install
 # Run dev server (port 9999)
 python run.py
 # Lint & format
-ruff check app/               # lint
+ruff check app/                # lint
 ruff format app/               # format
 # Type check
 pyright app/
@@ -90,6 +90,7 @@ Vue3 + Vite + Naive UI + Elegant Router + Pinia
 After modifying code, run the corresponding checks before finishing:
 
 ### Backend
+
 ```bash
 ruff check app/               # lint
 ruff format app/               # format
@@ -98,6 +99,7 @@ pytest tests/ -v               # tests
 ```
 
 ### Frontend
+
 ```bash
 cd web
 pnpm lint                     # eslint
