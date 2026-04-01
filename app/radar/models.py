@@ -19,6 +19,7 @@ class RadarRequest(BaseModel):
     error_type = fields.CharField(max_length=200, null=True, description="异常类型")
     error_message = fields.TextField(null=True, description="异常消息")
     error_traceback = fields.TextField(null=True, description="异常堆栈")
+    resolved = fields.BooleanField(default=False, description="是否已处理")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
     class Meta:

@@ -83,15 +83,15 @@ async def query_requests(
     page: int = 1,
     page_size: int = 20,
     path_filter: str | None = None,
-    status_filter: int | None = None,
+    code_filter: str | None = None,
     min_duration: float | None = None,
     has_error: bool | None = None,
 ) -> tuple[int, list[dict]]:
     q = Q()
     if path_filter:
         q &= Q(path__contains=path_filter)
-    if status_filter is not None:
-        q &= Q(response_status=status_filter)
+    if code_filter is not None:
+        q &= Q(response_body__contains=f'"code":"{code_filter}"') | Q(response_body__contains=f'"code": "{code_filter}"')
     if min_duration is not None:
         q &= Q(duration_ms__gte=min_duration)
     if has_error is True:
@@ -102,7 +102,11 @@ async def query_requests(
     total = await RadarRequest.filter(q).count()
     offset = (page - 1) * page_size
     objs = await RadarRequest.filter(q).order_by("-id").offset(offset).limit(page_size)
-    records = [await obj.to_dict() for obj in objs]
+    records = []
+    for obj in objs:
+        d = await obj.to_dict()
+        d["businessCode"] = _extract_business_code(obj.response_body)
+        records.append(d)
     return total, records
 
 
@@ -183,15 +187,32 @@ async def query_all_queries(
     return total, records
 
 
-async def query_exceptions(page: int = 1, page_size: int = 20) -> tuple[int, list[dict]]:
+async def query_exceptions(
+    page: int = 1,
+    page_size: int = 20,
+    path_filter: str | None = None,
+    error_type: str | None = None,
+    resolved: bool | None = None,
+) -> tuple[int, list[dict]]:
     q = Q(error_type__not_isnull=True)
+    if path_filter:
+        q &= Q(path__contains=path_filter)
+    if error_type:
+        q &= Q(error_type__contains=error_type)
+    if resolved is not None:
+        q &= Q(resolved=resolved)
     total = await RadarRequest.filter(q).count()
     offset = (page - 1) * page_size
     objs = await RadarRequest.filter(q).order_by("-id").offset(offset).limit(page_size)
     records = []
     for obj in objs:
-        records.append(await obj.to_dict(include_fields=["x_request_id", "method", "path", "error_type", "error_message", "error_traceback", "duration_ms", "created_at"]))
+        records.append(await obj.to_dict(include_fields=["x_request_id", "method", "path", "error_type", "error_message", "error_traceback", "duration_ms", "resolved", "created_at"]))
     return total, records
+
+
+async def update_exception_resolved(x_request_id: str, resolved: bool) -> bool:
+    updated = await RadarRequest.filter(x_request_id=x_request_id, error_type__not_isnull=True).update(resolved=resolved)
+    return updated > 0
 
 
 async def query_user_logs(page: int = 1, page_size: int = 20, level: str | None = None) -> tuple[int, list[dict]]:
@@ -285,8 +306,8 @@ async def query_dashboard_stats(hours: int = 1) -> dict:
         "total_exceptions": exception_count,
         # Performance overview
         "success_rate": success_rate,
-        "error_count": error_count,
         "error_rate": error_rate,
+        "rps": round(req_count / (hours * 3600), 2) if req_count else 0,
         # Response time percentiles
         "p50": p50,
         "p95": p95,
@@ -298,6 +319,20 @@ async def query_dashboard_stats(hours: int = 1) -> dict:
         "response_time_trend": trend,
         "query_activity": query_activity,
     }
+
+
+def _extract_business_code(response_body: str | None) -> str | None:
+    """Extract business code from response body JSON."""
+    if not response_body:
+        return None
+    try:
+        import json
+
+        parsed = json.loads(response_body)
+        code = parsed.get("code")
+        return str(code) if code is not None else None
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        return None
 
 
 async def _build_code_distribution(base_q: Q) -> list[dict]:

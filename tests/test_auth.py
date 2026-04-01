@@ -3,10 +3,13 @@ from httpx import AsyncClient
 
 class TestLogin:
     async def test_login_success(self, client: AsyncClient, seed_data):
-        resp = await client.post("/api/v1/auth/login", json={
-            "userName": "Soybean",
-            "password": "123456",
-        })
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "userName": "Soybean",
+                "password": "123456",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
@@ -14,19 +17,25 @@ class TestLogin:
         assert "refreshToken" in data["data"]
 
     async def test_login_wrong_password(self, client: AsyncClient, seed_data):
-        resp = await client.post("/api/v1/auth/login", json={
-            "userName": "Soybean",
-            "password": "wrong_password",
-        })
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "userName": "Soybean",
+                "password": "wrong_password",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] != "0000"
 
     async def test_login_nonexistent_user(self, client: AsyncClient, seed_data):
-        resp = await client.post("/api/v1/auth/login", json={
-            "userName": "nonexistent_user_xyz",
-            "password": "123456",
-        })
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "userName": "nonexistent_user_xyz",
+                "password": "123456",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] != "0000"
@@ -34,16 +43,22 @@ class TestLogin:
 
 class TestRefreshToken:
     async def test_refresh_token_success(self, client: AsyncClient, seed_data):
-        login_resp = await client.post("/api/v1/auth/login", json={
-            "userName": "Soybean",
-            "password": "123456",
-        })
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "userName": "Soybean",
+                "password": "123456",
+            },
+        )
         tokens = login_resp.json()["data"]
 
-        resp = await client.post("/api/v1/auth/refresh-token", json={
-            "token": tokens["token"],
-            "refreshToken": tokens["refreshToken"],
-        })
+        resp = await client.post(
+            "/api/v1/auth/refresh-token",
+            json={
+                "token": tokens["token"],
+                "refreshToken": tokens["refreshToken"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
@@ -51,10 +66,13 @@ class TestRefreshToken:
         assert "refreshToken" in data["data"]
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
-        resp = await client.post("/api/v1/auth/refresh-token", json={
-            "token": "invalid_token",
-            "refreshToken": "invalid_token",
-        })
+        resp = await client.post(
+            "/api/v1/auth/refresh-token",
+            json={
+                "token": "invalid_token",
+                "refreshToken": "invalid_token",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] != "0000"

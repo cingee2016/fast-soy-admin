@@ -10,7 +10,7 @@ TEST_TORTOISE_ORM = {
     },
     "apps": {
         "app_system": {
-            "models": ["app.models.system", "aerich.models"],
+            "models": ["app.models.system", "app.radar.models", "aerich.models"],
             "default_connection": "conn_system",
         }
     },
@@ -43,6 +43,11 @@ def _create_test_app():
     )
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
+
+    from app.radar.api import router as radar_router
+
+    _app.include_router(radar_router)
+
     return _app
 
 
@@ -62,6 +67,7 @@ async def app():
 async def seed_data(app):
     """Seed roles and users for testing. Depends on app to ensure DB is initialized."""
     from tests.helpers import seed_roles, seed_super_admin
+
     await seed_roles()
     user = await seed_super_admin()
     return user

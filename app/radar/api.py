@@ -3,9 +3,15 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
 from app.radar import db
 from app.radar.config import RADAR_SETTINGS
+
+
+class ResolveBody(BaseModel):
+    resolved: bool
+
 
 router = APIRouter(prefix="/__radar/api", tags=["Radar"])
 
@@ -15,7 +21,7 @@ async def list_requests(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     path_filter: str | None = None,
-    status_filter: int | None = None,
+    code_filter: str | None = None,
     min_duration: float | None = None,
     has_error: bool | None = None,
 ):
@@ -23,7 +29,7 @@ async def list_requests(
         page=page,
         page_size=page_size,
         path_filter=path_filter,
-        status_filter=status_filter,
+        code_filter=code_filter,
         min_duration=min_duration,
         has_error=has_error,
     )
@@ -86,9 +92,26 @@ async def list_slow_queries(
 async def list_exceptions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    path_filter: str | None = None,
+    error_type: str | None = None,
+    resolved: bool | None = None,
 ):
-    total, rows = await db.query_exceptions(page=page, page_size=page_size)
+    total, rows = await db.query_exceptions(
+        page=page,
+        page_size=page_size,
+        path_filter=path_filter,
+        error_type=error_type,
+        resolved=resolved,
+    )
     return {"code": "0000", "msg": "OK", "data": {"total": total, "current": page, "size": page_size, "records": rows}}
+
+
+@router.put("/exceptions/{x_request_id}/resolve", summary="切换异常处理状态")
+async def resolve_exception(x_request_id: str, body: ResolveBody):
+    success = await db.update_exception_resolved(x_request_id, body.resolved)
+    if not success:
+        return {"code": "4004", "msg": "Exception not found", "data": None}
+    return {"code": "0000", "msg": "OK", "data": None}
 
 
 @router.get("/user-logs", summary="开发者手动日志")
@@ -107,7 +130,7 @@ async def get_stats(hours: int | None = Query(default=None, ge=1, le=720)):
     return {"code": "0000", "msg": "OK", "data": stats}
 
 
-@router.get("/dashboard", summary="仪表板统计")
+@router.get("/dashboard", summary="仪表盘统计")
 async def get_dashboard_stats(hours: int = Query(default=1, ge=1, le=720)):
     stats = await db.query_dashboard_stats(hours=hours)
     return {"code": "0000", "msg": "OK", "data": stats}
