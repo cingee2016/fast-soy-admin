@@ -12,34 +12,114 @@ from app.log import log
 from app.models.system import Button, Role, StatusType, User
 from app.radar.developer import radar_log
 from app.schemas.base import Fail, Success
-from app.schemas.login import CredentialsSchema, JWTOut, JWTPayload
+from app.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, JWTPayload, RegisterSchema
+from app.services.captcha import send_captcha, verify_captcha
 from app.settings import APP_SETTINGS
-from app.utils.security import create_access_token
+from app.utils.security import create_access_token, get_password_hash
 
 router = APIRouter()
 
 
-@router.post("/login", summary="登录")
-async def _(credentials: CredentialsSchema, request: Request):
-    user_obj: User | None = await user_controller.authenticate(credentials)  # 账号验证, 失败则触发异常返回请求错误
-
-    await user_controller.update_last_login(user_obj.id)
-
-    redis = request.app.state.redis
-    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
+def _build_tokens(user_obj: User, token_version: int) -> JWTOut:
+    """构建 access_token + refresh_token"""
     payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}, iat=datetime.now(UTC), exp=datetime.now(UTC))
+
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_payload = payload.model_copy(deep=True)
     refresh_token_payload.data["tokenType"] = "refreshToken"
     refresh_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_REFRESH_TOKEN_EXPIRE_MINUTES)
-    data = JWTOut(
+
+    return JWTOut(
         access_token=create_access_token(data=access_token_payload),
         refresh_token=create_access_token(data=refresh_token_payload),
     )
+
+
+@router.post("/login", summary="登录")
+async def _(credentials: CredentialsSchema, request: Request):
+    user_obj: User | None = await user_controller.authenticate(credentials)
+
+    await user_controller.update_last_login(user_obj.id)
+
+    redis = request.app.state.redis
+    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
+    data = _build_tokens(user_obj, token_version)
+
     log.info(f"用户登录成功, 用户名: {user_obj.user_name}")
     radar_log("用户登录成功", data={"userName": user_obj.user_name, "userId": user_obj.id})
     return Success(data=data.model_dump(by_alias=True))
+
+
+@router.post("/captcha", summary="获取验证码")
+async def _(captcha_in: CaptchaRequest, request: Request):
+    redis = request.app.state.redis
+    success = await send_captcha(redis, captcha_in.phone)
+    if not success:
+        return Fail(msg="验证码发送失败，请稍后重试")
+    return Success(msg="验证码已发送")
+
+
+@router.post("/code-login", summary="验证码登录")
+async def _(login_in: CodeLoginSchema, request: Request):
+    redis = request.app.state.redis
+
+    # 验证验证码
+    if not await verify_captcha(redis, login_in.phone, login_in.code):
+        return Fail(code=Code.FAIL, msg="验证码错误或已过期")
+
+    # 通过手机号查找用户
+    user_obj = await User.filter(user_phone=login_in.phone).first()
+    if not user_obj:
+        return Fail(code=Code.FAIL, msg="该手机号未注册")
+
+    if user_obj.status_type == StatusType.disable:
+        return Fail(code=Code.ACCOUNT_DISABLED, msg="该账号已被禁用")
+
+    await user_controller.update_last_login(user_obj.id)
+
+    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
+    data = _build_tokens(user_obj, token_version)
+
+    log.info(f"验证码登录成功, 手机号: {login_in.phone}")
+    radar_log("验证码登录成功", data={"phone": login_in.phone, "userId": user_obj.id})
+    return Success(data=data.model_dump(by_alias=True))
+
+
+@router.post("/register", summary="注册")
+async def _(register_in: RegisterSchema, request: Request):
+    redis = request.app.state.redis
+
+    # 验证验证码
+    if not await verify_captcha(redis, register_in.phone, register_in.code):
+        return Fail(code=Code.FAIL, msg="验证码错误或已过期")
+
+    # 检查手机号是否已注册
+    if await User.filter(user_phone=register_in.phone).exists():
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="该手机号已注册")
+
+    # 用户名：优先使用指定的，否则用手机号
+    user_name = register_in.user_name or register_in.phone
+    if await User.filter(user_name=user_name).exists():
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="该用户名已存在")
+
+    # 创建用户
+    from app.models.system import Role
+
+    default_role = await Role.filter(role_code="R_USER").first()
+    user_obj = await User.create(
+        user_name=user_name,
+        password=get_password_hash(register_in.password),
+        nick_name=user_name,
+        user_phone=register_in.phone,
+    )
+
+    if default_role:
+        await user_obj.by_user_roles.add(default_role)
+
+    log.info(f"用户注册成功, 手机号: {register_in.phone}, 用户名: {user_name}")
+    radar_log("用户注册成功", data={"phone": register_in.phone, "userName": user_name, "userId": user_obj.id})
+    return Success(msg="注册成功")
 
 
 @router.post("/refresh-token", summary="刷新认证")
@@ -60,7 +140,6 @@ async def _(jwt_token: JWTOut, request: Request):
         radar_log("刷新令牌失败: 账号已禁用", level="WARNING", data={"userId": user_id})
         return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
 
-    # 校验 refreshToken 中的 tokenVersion
     redis = request.app.state.redis
     token_version_in_jwt = data["data"].get("tokenVersion", 0)
     current_version = int(await redis.get(f"token_version:{user_id}") or 0)
@@ -69,18 +148,8 @@ async def _(jwt_token: JWTOut, request: Request):
 
     await user_controller.update_last_login(user_id)
     token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
-    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}, iat=datetime.now(UTC), exp=datetime.now(UTC))
+    data = _build_tokens(user_obj, token_version)
 
-    access_token_payload = payload.model_copy(deep=True)
-    access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_payload = payload.model_copy(deep=True)
-    refresh_token_payload.data["tokenType"] = "refreshToken"
-    refresh_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    data = JWTOut(
-        access_token=create_access_token(data=access_token_payload),
-        refresh_token=create_access_token(data=refresh_token_payload),
-    )
     radar_log("刷新令牌成功", data={"userId": user_obj.id})
     return Success(data=data.model_dump(by_alias=True))
 
@@ -102,11 +171,3 @@ async def _():
     data.update({"userId": user_id, "roles": user_role_codes, "buttons": user_role_button_codes})
     radar_log("获取用户信息", data={"userId": user_obj.id})
     return Success(data=data)
-
-
-@router.get("/error", summary="自定义后端错误")  # todo 使用限流器, 每秒最多一次
-async def _(code: str, msg: str):
-    if code == Code.TOKEN_EXPIRED:
-        return Fail(code=Code.TOKEN_EXPIRED, msg="accessToken已过期")
-
-    return Fail(code=code, msg=f"未知错误, code: {code} msg: {msg}")

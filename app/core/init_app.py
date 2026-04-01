@@ -1170,28 +1170,66 @@ async def init_users():
         for button_obj in await Button.all():
             await super_role_obj.by_role_buttons.add(button_obj)
 
-        # 管理员拥有 首页 关于 系统管理-API管理 系统管理-用户管理
+        # 管理员拥有 首页 关于 插件示例(全部) 多级菜单(全部) 系统管理-用户管理 系统管理-用户详情
         role_admin = await Role.create(role_name="管理员", role_code="R_ADMIN", role_desc="管理员", by_role_home=role_home_menu)
 
         role_admin_apis = [
-            ("post", "/api/v1/system-manage/logs/all/"),
-            ("post", "/api/v1/system-manage/apis/all/"),
             ("post", "/api/v1/system-manage/users/all/"),
+            ("get", "/api/v1/system-manage/users/{item_id}"),
             ("get", "/api/v1/system-manage/roles"),
-            ("post", "/api/v1/system-manage/users"),  # 新增用户
-            ("patch", "/api/v1/system-manage/users/{user_id}"),  # 修改用户
-            ("delete", "/api/v1/system-manage/users/{user_id}"),  # 删除用户
-            ("delete", "/api/v1/system-manage/users"),  # 批量删除用户
+            ("post", "/api/v1/system-manage/users"),
+            ("patch", "/api/v1/system-manage/users/{user_id}"),
+            ("delete", "/api/v1/system-manage/users/{user_id}"),
+            ("delete", "/api/v1/system-manage/users"),
         ]
-        role_admin_menus = ["home", "about", "function_toggle-auth", "manage_log", "manage_api", "manage_user"]
+        role_admin_menus = [
+            "home",
+            "about",
+            # 插件示例
+            "plugin",
+            "plugin_barcode",
+            "plugin_charts",
+            "plugin_charts_antv",
+            "plugin_charts_echarts",
+            "plugin_charts_vchart",
+            "plugin_copy",
+            "plugin_editor",
+            "plugin_editor_markdown",
+            "plugin_editor_quill",
+            "plugin_excel",
+            "plugin_gantt",
+            "plugin_gantt_dhtmlx",
+            "plugin_gantt_vtable",
+            "plugin_icon",
+            "plugin_map",
+            "plugin_pdf",
+            "plugin_pinyin",
+            "plugin_print",
+            "plugin_swiper",
+            "plugin_tables",
+            "plugin_tables_vtable",
+            "plugin_typeit",
+            "plugin_video",
+            # 多级菜单
+            "multi-menu",
+            "multi-menu_first",
+            "multi-menu_first_child",
+            "multi-menu_second",
+            "multi-menu_second_child",
+            "multi-menu_second_child_home",
+            # 系统管理-用户管理/详情
+            "manage",
+            "manage_user",
+            "manage_user-detail",
+        ]
         role_admin_buttons = ["B_CODE2", "B_CODE3"]
         await insert_role([role_admin], role_admin_apis, role_admin_menus, role_admin_buttons)
 
-        # 普通用户拥有 首页 关于 系统管理-API管理
+        # 普通用户拥有 首页 关于
         role_user = await Role.create(role_name="普通用户", role_code="R_USER", role_desc="普通用户", by_role_home=role_home_menu)
-        role_user_apis = [("post", "/api/v1/system-manage/logs/all/"), ("post", "/api/v1/system-manage/apis/all/")]
-        role_user_menus = ["home", "about", "function_toggle-auth", "manage_log", "manage_api"]
-        role_user_buttons = ["B_CODE3"]
+        role_user_apis: list[tuple[str, str]] = []
+        role_user_menus = ["home", "about"]
+        role_user_buttons: list[str] = []
         await insert_role([role_user], role_user_apis, role_user_menus, role_user_buttons)
 
     user = await user_controller.model.exists()

@@ -42,6 +42,9 @@ async def _(obj_in: ApiSearch):
         for tag in obj_in.tags:
             q &= Q(tags__contains=[tag])
 
+    # 排除系统自动注册的 API，只显示用户手动创建的
+    q &= Q(is_system=False)
+
     user_id = CTX_USER_ID.get()
     user_obj = await user_controller.get(id=user_id)
     await user_obj.fetch_related("by_user_roles")

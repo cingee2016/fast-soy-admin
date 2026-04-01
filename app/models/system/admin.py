@@ -60,6 +60,7 @@ class Api(BaseModel, TimestampMixin):
     summary = fields.CharField(max_length=500, null=True, description="请求简介")
     tags = fields.JSONField(max_length=500, null=True, description="API标签")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    is_system = fields.BooleanField(default=False, description="是否为系统自动注册的API")
 
     by_api_roles: fields.ReverseRelation["Role"]
 

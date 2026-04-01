@@ -36,4 +36,29 @@ class JWTPayload(BaseModel):
         populate_by_name = True
 
 
-__all__ = ["CredentialsSchema", "JWTOut", "JWTPayload"]
+class CaptchaRequest(BaseModel):
+    phone: Annotated[str, Field(title="手机号")]
+
+    class Config:
+        populate_by_name = True
+
+
+class CodeLoginSchema(BaseModel):
+    phone: Annotated[str, Field(title="手机号")]
+    code: Annotated[str, Field(title="验证码")]
+
+    class Config:
+        populate_by_name = True
+
+
+class RegisterSchema(BaseModel):
+    phone: Annotated[str, Field(title="手机号")]
+    code: Annotated[str, Field(title="验证码")]
+    password: Annotated[str, Field(title="密码")]
+    user_name: Annotated[str | None, Field(alias="userName", title="用户名")] = None
+
+    class Config:
+        populate_by_name = True
+
+
+__all__ = ["CredentialsSchema", "JWTOut", "JWTPayload", "CaptchaRequest", "CodeLoginSchema", "RegisterSchema"]

@@ -23,7 +23,7 @@ async def refresh_api_list():
         api_path = route.path_format
         summary = route.summary
         tags = list(route.tags)
-        await Api.update_or_create(api_path=api_path, api_method=api_method, defaults=dict(summary=summary, tags=tags))
+        await Api.update_or_create(api_path=api_path, api_method=api_method, defaults=dict(summary=summary, tags=tags, is_system=True))
 
 
 async def generate_tags_recursive_list():
