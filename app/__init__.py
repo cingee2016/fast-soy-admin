@@ -39,9 +39,6 @@ def create_app() -> FastAPI:
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
     _app.include_router(health_router)
-    from app.monitor import monitor_router
-
-    _app.include_router(monitor_router)
     if APP_SETTINGS.RADAR_ENABLED:
         from app.radar import setup_radar
 

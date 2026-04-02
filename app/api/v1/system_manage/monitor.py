@@ -7,9 +7,9 @@ from functools import partial
 
 from fastapi import APIRouter, Query
 
-from app.monitor.server_info import collector
+from app.services.monitor import collector
 
-router = APIRouter(prefix="/api/v1/monitor", tags=["Monitor"])
+router = APIRouter(prefix="/monitor")
 
 
 def _run_sync(fn, *args, **kwargs):  # type: ignore[no-untyped-def]
