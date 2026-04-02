@@ -9,6 +9,8 @@ class RadarRequest(BaseModel):
     method = fields.CharField(max_length=10, description="请求方法")
     path = fields.CharField(max_length=500, description="请求路径")
     client_ip = fields.CharField(max_length=45, null=True, description="客户端IP")
+    user_id = fields.IntField(null=True, description="操作人ID")
+    user_name = fields.CharField(max_length=255, null=True, description="操作人用户名")
     query_params = fields.TextField(null=True, description="查询参数")
     request_headers = fields.JSONField(null=True, description="请求头")
     request_body = fields.TextField(null=True, description="请求体")
@@ -22,7 +24,7 @@ class RadarRequest(BaseModel):
     resolved = fields.BooleanField(default=False, description="是否已处理")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "radar_requests"
         table_description = "Radar请求记录"
         indexes = [("x_request_id",), ("path",), ("created_at",)]
@@ -39,7 +41,7 @@ class RadarQuery(BaseModel):
     start_offset_ms = fields.FloatField(null=True, description="相对请求起始偏移(ms)")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "radar_queries"
         table_description = "Radar SQL查询记录"
         indexes = [("duration_ms",)]
@@ -55,6 +57,6 @@ class RadarUserLog(BaseModel):
     offset_ms = fields.FloatField(null=True, description="相对请求起始偏移(ms)")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "radar_user_logs"
         table_description = "Radar开发者手动日志"

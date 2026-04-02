@@ -48,13 +48,15 @@ class BaseModel(models.Model):
                     d[to_lower_camel_case(field)] = values
         return d
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         abstract = True
 
 
-class TimestampMixin:
-    create_time = fields.DatetimeField(auto_now_add=True)
-    update_time = fields.DatetimeField(auto_now=True)
+class AuditMixin:
+    created_by = fields.CharField(max_length=64, null=True, description="创建人")
+    created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
+    updated_by = fields.CharField(max_length=64, null=True, description="更新人")
+    updated_at = fields.DatetimeField(auto_now=True, description="更新时间")
 
 
 class EnumBase(Enum):
@@ -110,4 +112,4 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "StatusType", "GenderType", "MenuType", "IconType"]
+__all__ = ["BaseModel", "AuditMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "StatusType", "GenderType", "MenuType", "IconType"]

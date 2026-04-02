@@ -5,8 +5,9 @@ from app.controllers.menu import menu_controller
 from app.core.code import Code
 from app.core.router import CRUDRouter
 from app.models.system import IconType, Menu
+from app.radar.developer import radar_log
 from app.schemas.admin import MenuCreate, MenuUpdate
-from app.schemas.base import Fail, Success, SuccessExtra
+from app.schemas.base import CommonIds, Fail, Success, SuccessExtra
 
 # 标准 CRUD 路由：get, delete, batch_delete
 # list/create/update 需要自定义逻辑（树结构、按钮关联等）
@@ -14,7 +15,7 @@ crud = CRUDRouter(
     prefix="/menus",
     controller=menu_controller,
     summary_prefix="菜单",
-    enable_routes={"get", "delete", "batch_delete"},
+    enable_routes={"get"},
 )
 router = crud.router
 
@@ -72,6 +73,7 @@ async def _(menu_in: MenuCreate):
     new_menu = await menu_controller.create(obj_in=menu_in, exclude={"buttons"})
     if new_menu and menu_in.by_menu_buttons:
         await menu_controller.update_buttons_by_code(new_menu, menu_in.by_menu_buttons)
+    radar_log("创建菜单", data={"menuId": new_menu.id, "menuName": menu_in.menu_name, "routePath": menu_in.route_path})
     return Success(msg="Created Successfully", data={"created_id": new_menu.id})
 
 
@@ -80,7 +82,27 @@ async def _(menu_id: int, menu_in: MenuUpdate):
     menu_obj = await menu_controller.update(id=menu_id, obj_in=menu_in, exclude={"buttons"})
     if menu_obj and menu_in.by_menu_buttons:
         await menu_controller.update_buttons_by_code(menu_obj, menu_in.by_menu_buttons)
+    radar_log("编辑菜单", data={"menuId": menu_id, "menuName": menu_in.menu_name, "routePath": menu_in.route_path})
     return Success(msg="Updated Successfully", data={"updated_id": menu_id})
+
+
+# ---- 自定义删除（需要日志追踪） ----
+
+
+@router.delete("/menus/{menu_id}", summary="删除菜单")
+async def _(menu_id: int):
+    menu_obj = await menu_controller.get(id=menu_id)
+    radar_log("删除菜单", data={"menuId": menu_id, "menuName": menu_obj.menu_name, "routePath": menu_obj.route_path})
+    await menu_controller.remove(id=menu_id)
+    return Success(msg="Deleted Successfully", data={"deleted_id": menu_id})
+
+
+@router.delete("/menus", summary="批量删除菜单")
+async def _(obj_in: CommonIds):
+    menu_objs = await Menu.filter(id__in=obj_in.ids)
+    radar_log("批量删除菜单", data={"menuIds": obj_in.ids, "menuNames": [m.menu_name for m in menu_objs]})
+    deleted_count = await menu_controller.batch_remove(obj_in.ids)
+    return Success(msg="Deleted Successfully", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
 
 
 # ---- 自定义扩展接口 ----

@@ -10,7 +10,7 @@ TEST_TORTOISE_ORM = {
     },
     "apps": {
         "app_system": {
-            "models": ["app.models.system", "app.radar.models", "aerich.models"],
+            "models": ["app.models.system", "app.radar.models"],
             "default_connection": "conn_system",
         }
     },
@@ -20,7 +20,7 @@ TEST_TORTOISE_ORM = {
 
 
 def _create_test_app():
-    """Create a FastAPI app for testing, bypassing Redis and Aerich."""
+    """Create a FastAPI app for testing, bypassing Redis and migrations."""
     from app.settings import APP_SETTINGS
 
     APP_SETTINGS.TORTOISE_ORM = TEST_TORTOISE_ORM

@@ -30,7 +30,7 @@ async def init():
     for table in tables:
         table_name = table["name"]
         print("table_name", table_name)
-        if table_name != "aerich":
+        if table_name != "tortoise_migrations":
             # await conn.execute_query(f'DROP TABLE "{table_name}";')
             await conn.execute_query(f'delete from "{table_name}";')  # 清空数据
             await conn.execute_query(f'update sqlite_sequence SET seq = 0 where name = "{table_name}";')  # 自增长ID为0

@@ -3,6 +3,9 @@ from typing import Any, Generic, NewType, TypeVar
 from pydantic import BaseModel
 from tortoise.expressions import Q
 from tortoise.models import Model
+from tortoise.transactions import in_transaction
+
+from app.core.ctx import CTX_USER_ID
 
 Total = NewType("Total", int)
 ModelType = TypeVar("ModelType", bound=Model)
@@ -10,6 +13,11 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 _list = list  # 避免与 CRUDBase.list 方法名冲突
+
+
+def _get_current_user() -> str | None:
+    user_id = CTX_USER_ID.get(0)
+    return str(user_id) if user_id else None
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
@@ -60,6 +68,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             obj_dict = obj_in
         else:
             obj_dict = obj_in.model_dump(exclude_unset=True, exclude_none=True, exclude=exclude)
+        if "created_by" in self.model._meta.db_fields:
+            obj_dict.setdefault("created_by", _get_current_user())
         obj: ModelType = self.model(**obj_dict)
         await obj.save()
         return obj
@@ -80,10 +90,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             obj_dict = obj_in
         else:
             obj_dict = obj_in.model_dump(exclude_unset=True, exclude_none=True, exclude=exclude)
-        obj = await self.get(id=id)
-        obj = obj.update_from_dict(obj_dict)
-
-        await obj.save()
+        if "updated_by" in self.model._meta.db_fields:
+            obj_dict["updated_by"] = _get_current_user()
+        conn_name = self.model._meta.default_connection or "default"
+        async with in_transaction(conn_name):
+            obj = await self.get(id=id)
+            obj = obj.update_from_dict(obj_dict)
+            await obj.save()
         return obj
 
     async def batch_update(self, ids: _list[int], obj_in: UpdateSchemaType | dict[str, Any], exclude: set[str] | None = None) -> int:

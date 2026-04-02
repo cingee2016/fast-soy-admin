@@ -159,7 +159,7 @@ async def _(jwt_token: JWTOut, request: Request):
 async def _():
     user_id = CTX_USER_ID.get()
     user_obj: User = await user_controller.get(id=user_id)
-    data = await user_obj.to_dict(exclude_fields=["id", "password", "create_time", "update_time"])
+    data = await user_obj.to_dict(exclude_fields=["id", "password", "created_at", "updated_at", "created_by", "updated_by"])
 
     user_roles: list[Role] = await user_obj.by_user_roles
     user_role_codes = [user_role.role_code for user_role in user_roles]

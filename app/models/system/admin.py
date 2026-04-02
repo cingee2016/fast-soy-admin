@@ -1,9 +1,9 @@
 from tortoise import fields
 
-from .utils import BaseModel, GenderType, IconType, MenuType, MethodType, StatusType, TimestampMixin
+from .utils import AuditMixin, BaseModel, GenderType, IconType, MenuType, MethodType, StatusType
 
 
-class User(BaseModel, TimestampMixin):
+class User(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="用户id")
     user_name = fields.CharField(max_length=20, unique=True, description="用户名称")
     password = fields.CharField(max_length=128, description="密码")
@@ -17,7 +17,7 @@ class User(BaseModel, TimestampMixin):
 
     by_user_roles: fields.ManyToManyRelation["Role"] = fields.ManyToManyField("app_system.Role", related_name="by_role_users")
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "users"
         table_description = "用户表"
         indexes = [
@@ -30,7 +30,7 @@ class User(BaseModel, TimestampMixin):
         ]
 
 
-class Role(BaseModel, TimestampMixin):
+class Role(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="角色id")
     role_name = fields.CharField(max_length=20, unique=True, description="角色名称")
     role_code = fields.CharField(max_length=20, unique=True, description="角色编码")
@@ -43,7 +43,7 @@ class Role(BaseModel, TimestampMixin):
     by_role_buttons: fields.ManyToManyRelation["Button"] = fields.ManyToManyField("app_system.Button", related_name="by_button_roles")
     by_role_users: fields.ReverseRelation["User"]
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "roles"
         table_description = "角色表"
         indexes = [
@@ -53,7 +53,7 @@ class Role(BaseModel, TimestampMixin):
         ]
 
 
-class Api(BaseModel, TimestampMixin):
+class Api(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="API id")
     api_path = fields.CharField(max_length=500, description="API路径")
     api_method = fields.CharEnumField(MethodType, description="请求方法")
@@ -64,7 +64,7 @@ class Api(BaseModel, TimestampMixin):
 
     by_api_roles: fields.ReverseRelation["Role"]
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "apis"
         table_description = "API表"
         indexes = [
@@ -74,7 +74,7 @@ class Api(BaseModel, TimestampMixin):
         ]
 
 
-class Menu(BaseModel, TimestampMixin):
+class Menu(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="菜单id")
     menu_name = fields.CharField(max_length=100, description="菜单名称")
     menu_type = fields.CharEnumField(MenuType, description="菜单类型")
@@ -93,7 +93,7 @@ class Menu(BaseModel, TimestampMixin):
     multi_tab = fields.BooleanField(default=False, description="是否支持多页签")
     keep_alive = fields.BooleanField(default=False, description="是否缓存")
     hide_in_menu = fields.BooleanField(default=False, description="是否在菜单隐藏")
-    active_menu: fields.ForeignKeyRelation["Menu"] = fields.ForeignKeyField("app_system.Menu", related_name=None, null=True, description="隐藏的路由需要激活的菜单")
+    active_menu: fields.ForeignKeyNullableRelation["Menu"] = fields.ForeignKeyField(to="app_system.Menu", related_name=None, null=True, description="隐藏的路由需要激活的菜单")
     fixed_index_in_tab = fields.IntField(null=True, max_length=10, description="固定在页签的序号")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="菜单状态")
     redirect = fields.CharField(null=True, max_length=200, description="重定向路径")
@@ -103,12 +103,12 @@ class Menu(BaseModel, TimestampMixin):
     by_menu_buttons: fields.ManyToManyRelation["Button"] = fields.ManyToManyField("app_system.Button", related_name="by_button_menus")
     by_menu_roles: fields.ReverseRelation["Role"]
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "menus"
         table_description = "菜单表"
 
 
-class Button(BaseModel, TimestampMixin):
+class Button(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="按钮id")
     button_code = fields.CharField(max_length=200, description="按钮编码")
     button_desc = fields.CharField(max_length=200, description="按钮描述")
@@ -117,7 +117,7 @@ class Button(BaseModel, TimestampMixin):
     by_button_menus: fields.ReverseRelation["Menu"]
     by_button_roles: fields.ReverseRelation["Role"]
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         table = "buttons"
 
 

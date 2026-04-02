@@ -1,6 +1,5 @@
 import logging
 import sys
-import time
 from types import FrameType
 from typing import cast
 
@@ -10,31 +9,51 @@ from app.core.ctx import CTX_X_REQUEST_ID
 from app.settings import APP_SETTINGS
 
 
-def x_request_id_filter(record):
+def x_request_id_filter(record) -> bool:
     record["x_request_id"] = CTX_X_REQUEST_ID.get()
-    return record["x_request_id"]
+    return True
 
 
 class Logger:
     """输出日志到文件和控制台"""
 
+    LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} - {process.name} | {thread.name} | <red> {x_request_id} </red> | {module}.{function}:{line} - {level} -{message}"
+
     def __init__(self):
-        log_name = f"Fast_{time.strftime('%Y-%m-%d', time.localtime()).replace('-', '_')}.log"
-        log_path = APP_SETTINGS.LOGS_ROOT / log_name
         self.logger = logger
         self.logger.remove()
-        APP_SETTINGS.LOGS_ROOT.mkdir(parents=True, exist_ok=True)
+
+        for sub in ("info", "error", "uncaught"):
+            (APP_SETTINGS.LOGS_ROOT / sub).mkdir(parents=True, exist_ok=True)
+
         self.logger.add(sys.stdout)
+
+        # 普通日志（DEBUG/INFO/WARNING/SUCCESS）→ logs/info/，定期删除
         self.logger.add(
-            log_path,
-            format="{time:YYYY-MM-DD HH:mm:ss} - {process.name} | {thread.name} | <red> {x_request_id} </red> | {module}.{function}:{line} - {level} -{message}",
+            APP_SETTINGS.LOGS_ROOT / "info" / "info_{time:YYYY_MM_DD}.log",
+            format=self.LOG_FORMAT,
             encoding="utf-8",
-            retention="3 days",
+            level="DEBUG",
+            filter=lambda record: x_request_id_filter(record) and record["level"].no < 40,
+            retention=APP_SETTINGS.LOG_INFO_RETENTION,
             backtrace=True,
             diagnose=True,
             enqueue=True,
             rotation="00:00",
+        )
+
+        # 严重错误日志（ERROR/CRITICAL）→ logs/error/，永不删除
+        self.logger.add(
+            APP_SETTINGS.LOGS_ROOT / "error" / "error_{time:YYYY_MM_DD}.log",
+            format=self.LOG_FORMAT,
+            encoding="utf-8",
+            level="ERROR",
             filter=x_request_id_filter,
+            retention=None,
+            backtrace=True,
+            diagnose=True,
+            enqueue=True,
+            rotation="00:00",
         )
 
     @staticmethod

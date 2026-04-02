@@ -1,5 +1,4 @@
 import pretty_errors
-from aerich import Command
 from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -129,21 +128,10 @@ def register_routers(app: FastAPI, prefix: str = "/api"):
 
 
 async def modify_db():
-    command = Command(tortoise_config=APP_SETTINGS.TORTOISE_ORM, app="app_system")
-    try:
-        await command.init_db(safe=True)
-    except FileExistsError:
-        ...
+    from tortoise.migrations.api.migrate import migrate
 
     try:
-        await command.init()
-    except Exception:
-        ...
-
-    try:
-        changed = await command.migrate()
-        if changed:
-            await command.upgrade(run_in_transaction=True)
+        await migrate(config=APP_SETTINGS.TORTOISE_ORM, app_labels=["app_system"])
     except Exception:
         ...
 

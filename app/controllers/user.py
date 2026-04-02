@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from tortoise.transactions import in_transaction
+
 from app.core.code import Code
 from app.core.crud import CRUDBase
 from app.core.exceptions import HTTPException
@@ -69,11 +71,11 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if isinstance(role_id_list, str):
             role_id_list = [int(x) for x in role_id_list.split("|")]
 
-        await user.by_user_roles.clear()
-        user_role_objs = await Role.filter(id__in=role_id_list)
-
-        for user_role_obj in user_role_objs:
-            await user.by_user_roles.add(user_role_obj)
+        async with in_transaction("conn_system"):
+            await user.by_user_roles.clear()
+            user_role_objs = await Role.filter(id__in=role_id_list)
+            for user_role_obj in user_role_objs:
+                await user.by_user_roles.add(user_role_obj)
 
         return True
 
@@ -85,11 +87,11 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if isinstance(roles_code_list, str):
             roles_code_list = roles_code_list.split("|")
 
-        user_role_objs = await Role.filter(role_code__in=roles_code_list)
-        print("user_role_objs", user_role_objs)
-        await user.by_user_roles.clear()
-        for user_role_obj in user_role_objs:
-            await user.by_user_roles.add(user_role_obj)
+        async with in_transaction("conn_system"):
+            user_role_objs = await Role.filter(role_code__in=roles_code_list)
+            await user.by_user_roles.clear()
+            for user_role_obj in user_role_objs:
+                await user.by_user_roles.add(user_role_obj)
 
         return True
 

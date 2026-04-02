@@ -1,7 +1,18 @@
 from typing import Any
 
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.utils.tools import to_camel_case
+
+
+class SchemaBase(BaseModel):
+    """全局 Schema 基类：自动 snake_case → camelCase 别名"""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel_case,
+        populate_by_name=True,
+    )
 
 
 class Custom(JSONResponse):

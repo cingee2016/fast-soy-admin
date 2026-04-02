@@ -1,5 +1,6 @@
 from fastapi.routing import APIRoute
 from loguru import logger
+from tortoise.transactions import in_transaction
 
 from app.models.system import Api
 from app.radar.developer import radar_log
@@ -8,22 +9,27 @@ from app.radar.developer import radar_log
 async def refresh_api_list():
     from app import app
 
-    existing_apis = [(str(api.api_method.value), api.api_path) for api in await Api.all()]
-
     app_routes = [route for route in app.routes if isinstance(route, APIRoute)]
     app_routes_compared = [(list(route.methods)[0].lower(), route.path_format) for route in app_routes]
 
-    for api_method, api_path in set(existing_apis) - set(app_routes_compared):
-        logger.error(f"API Deleted {api_method} {api_path}")
-        radar_log("API已删除", level="WARNING", data={"method": api_method, "path": api_path})
-        await Api.filter(api_method=api_method, api_path=api_path).delete()
+    async with in_transaction("conn_system"):
+        existing_apis = [(str(api.api_method.value), api.api_path) for api in await Api.all()]
 
-    for route in app_routes:
-        api_method = list(route.methods)[0].lower()
-        api_path = route.path_format
-        summary = route.summary
-        tags = list(route.tags)
-        await Api.update_or_create(api_path=api_path, api_method=api_method, defaults=dict(summary=summary, tags=tags, is_system=True))
+        for api_method, api_path in set(existing_apis) - set(app_routes_compared):
+            logger.error(f"API Deleted {api_method} {api_path}")
+            radar_log("API已删除", level="WARNING", data={"method": api_method, "path": api_path})
+            await Api.filter(api_method=api_method, api_path=api_path).delete()
+
+        for route in app_routes:
+            api_method = list(route.methods)[0].lower()
+            api_path = route.path_format
+            summary = route.summary
+            tags = list(route.tags)
+            instance = await Api.filter(api_path=api_path, api_method=api_method).first()
+            if instance:
+                await Api.filter(id=instance.id).update(summary=summary, tags=tags, is_system=True)
+            else:
+                await Api.create(api_path=api_path, api_method=api_method, summary=summary, tags=tags, is_system=True)
 
 
 async def generate_tags_recursive_list():

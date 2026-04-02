@@ -12,6 +12,7 @@ from app.core.exceptions import (
 )
 from app.log import log
 from app.models.system import StatusType, User
+from app.radar.ctx import CTX_RADAR
 from app.radar.developer import radar_log
 from app.settings import APP_SETTINGS
 from app.utils.tools import check_url
@@ -59,6 +60,11 @@ class AuthControl:
         if not user:
             raise HTTPException(code=Code.INVALID_SESSION, msg=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
         CTX_USER_ID.set(int(user_id))
+        # 写入 radar 上下文，记录操作人信息
+        radar_ctx = CTX_RADAR.get()
+        if radar_ctx is not None:
+            radar_ctx.user_id = int(user_id)
+            radar_ctx.user_name = user.user_name
         return user
 
 

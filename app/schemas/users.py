@@ -1,58 +1,52 @@
-from typing import Annotated
-
-from pydantic import BaseModel, Field
+from pydantic import Field, model_validator
 
 from app.models.system import GenderType, StatusType
+from app.schemas.base import SchemaBase
 
 
-class UserBase(BaseModel):
-    user_name: Annotated[str | None, Field(alias="userName", title="用户名")] = None
-    password: Annotated[str | None, Field(title="密码")] = None
-
-    user_email: Annotated[str | None, Field(alias="userEmail", title="邮箱")] = None
-    user_gender: Annotated[GenderType | None, Field(alias="userGender", title="性别")] = None
-    nick_name: Annotated[str | None, Field(alias="nickName", title="昵称")] = None
-    user_phone: Annotated[str | None, Field(alias="userPhone", title="手机号")] = None
-    status_type: Annotated[StatusType | None, Field(alias="statusType", title="用户状态")] = None
-
-    by_user_role_code_list: Annotated[list[str] | None, Field(alias="byUserRoleCodeList", title="用户角色编码列表")] = None
-
-    class Config:
-        populate_by_name = True
+class UserBase(SchemaBase):
+    user_name: str | None = Field(None, title="用户名")
+    password: str | None = Field(None, title="密码")
+    user_email: str | None = Field(None, title="邮箱")
+    user_gender: GenderType | None = Field(None, title="性别")
+    nick_name: str | None = Field(None, title="昵称")
+    user_phone: str | None = Field(None, title="手机号")
+    status_type: StatusType | None = Field(None, title="用户状态")
+    by_user_role_code_list: list[str] | None = Field(None, title="用户角色编码列表")
 
 
 class UserSearch(UserBase):
-    current: Annotated[int | None, Field(description="页码")] = 1
-    size: Annotated[int | None, Field(description="每页数量")] = 10
+    current: int | None = Field(1, description="页码")
+    size: int | None = Field(10, description="每页数量")
 
 
-class UserCreate(UserBase): ...
+class UserCreate(UserBase):
+    @model_validator(mode="after")
+    def validate_create(self):
+        if not self.user_name:
+            raise ValueError("用户名不能为空")
+        if not self.password:
+            raise ValueError("密码不能为空")
+        if not self.nick_name:
+            self.nick_name = self.user_name
+        return self
 
 
-class UserUpdate(UserBase):
-    password: Annotated[str, Field(title="密码")]  # type: ignore
+class UserUpdate(UserBase): ...
 
 
-class UpdatePassword(BaseModel):
-    old_password: Annotated[str, Field(alias="oldPassword", title="旧密码")]
-    new_password: Annotated[str, Field(alias="newPassword", title="新密码")]
-
-    class Config:
-        allow_extra = True
-        populate_by_name = True
+class UpdatePassword(SchemaBase):
+    old_password: str = Field(title="旧密码")
+    new_password: str = Field(title="新密码")
 
 
-class UserRegister(BaseModel):
-    user_name: Annotated[str, Field(alias="userName", title="用户名")]
-    password: Annotated[str, Field(title="密码")]
-
-    user_email: Annotated[str | None, Field(alias="userEmail", title="邮箱")] = None
-    user_gender: Annotated[GenderType | None, Field(alias="userGender", title="性别")] = None
-    nick_name: Annotated[str | None, Field(alias="nickName", title="昵称")] = None
-    user_phone: Annotated[str | None, Field(alias="userPhone", title="手机号")] = None
-
-    class Config:
-        populate_by_name = True
+class UserRegister(SchemaBase):
+    user_name: str | None = Field(None, title="用户名")
+    password: str = Field(title="密码")
+    user_email: str | None = Field(None, title="邮箱")
+    user_gender: GenderType | None = Field(None, title="性别")
+    nick_name: str | None = Field(None, title="昵称")
+    user_phone: str | None = Field(None, title="手机号")
 
 
-__all__ = ["UserBase", "UserSearch", "UserCreate", "UserUpdate", "UpdatePassword"]
+__all__ = ["UserBase", "UserSearch", "UserCreate", "UserUpdate", "UpdatePassword", "UserRegister"]

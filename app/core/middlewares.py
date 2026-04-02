@@ -127,7 +127,7 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
             msg = f"服务器内部错误, path: {request.url.path}, query: {dict(request.query_params)}"
 
             # Write colored output to error log file (preserve ANSI colors)
-            error_dir = APP_SETTINGS.LOGS_ROOT / "error"
+            error_dir = APP_SETTINGS.LOGS_ROOT / "uncaught"
             error_dir.mkdir(parents=True, exist_ok=True)
             error_file = error_dir / f"{datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')}.log"
             error_file.write_text(f"{msg}\n{output}", encoding="utf-8")

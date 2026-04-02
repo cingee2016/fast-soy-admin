@@ -15,5 +15,9 @@
     }
   ],
   "python.terminal.activateEnvironment": false,
-  "github.copilot.chat.reviewSelection.instructions": []
+  "github.copilot.chat.reviewSelection.instructions": [],
+  "files.associations": {
+    "*.log": "ansi",
+    "*.log.*": "ansi"
+  }
 }

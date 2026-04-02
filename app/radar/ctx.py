@@ -10,6 +10,8 @@ class RadarRequestContext:
     method: str = ""
     path: str = ""
     client_ip: str | None = None
+    user_id: int | None = None
+    user_name: str | None = None
     query_params: str | None = None
     request_headers: dict | None = None
     request_body: str | None = None

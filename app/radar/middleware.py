@@ -44,13 +44,18 @@ class RadarMiddleware:
             return
 
         path = scope.get("path", "")
-        if any(path.startswith(exc) for exc in RADAR_SETTINGS.RADAR_EXCLUDE_PATHS):
-            await self.app(scope, receive, send)
-            return
 
-        await self._handle_http(scope, receive, send)
+        is_included = any(path.startswith(inc) for inc in RADAR_SETTINGS.RADAR_INCLUDE_PATHS)
+        is_excluded = any(path.startswith(exc) for exc in RADAR_SETTINGS.RADAR_EXCLUDE_PATHS)
 
-    async def _handle_http(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if is_excluded and not is_included:
+            # 被排除的路径仍然设置上下文，以便 radar_log 可用
+            # 请求结束后仅在有 user_logs 时才落库
+            await self._handle_http(scope, receive, send, flush_only_if_logged=True)
+        else:
+            await self._handle_http(scope, receive, send, flush_only_if_logged=False)
+
+    async def _handle_http(self, scope: Scope, receive: Receive, send: Send, *, flush_only_if_logged: bool = False) -> None:
         x_request_id = CTX_X_REQUEST_ID.get("")
         if not x_request_id:
             from uuid import uuid4
@@ -118,29 +123,33 @@ class RadarMiddleware:
             }
             raise
         finally:
-            # Finalize request body
-            if body_chunks:
-                raw_body = b"".join(body_chunks)
-                try:
-                    radar_ctx.request_body = _truncate_body(raw_body.decode("utf-8", errors="replace"), RADAR_SETTINGS.RADAR_MAX_BODY_SIZE)
-                except Exception:
-                    radar_ctx.request_body = f"[binary {len(raw_body)} bytes]"
+            # 被排除的路径：仅在有 radar_log 日志时才落库
+            should_flush = not flush_only_if_logged or bool(radar_ctx.user_logs)
 
-            # Finalize response
-            if response_headers_raw:
-                radar_ctx.response_headers = _serialize_headers(response_headers_raw)
+            if should_flush:
+                # Finalize request body
+                if body_chunks:
+                    raw_body = b"".join(body_chunks)
+                    try:
+                        radar_ctx.request_body = _truncate_body(raw_body.decode("utf-8", errors="replace"), RADAR_SETTINGS.RADAR_MAX_BODY_SIZE)
+                    except Exception:
+                        radar_ctx.request_body = f"[binary {len(raw_body)} bytes]"
 
-            if RADAR_SETTINGS.RADAR_CAPTURE_RESPONSE_BODY and response_body_chunks:
-                raw_resp = b"".join(response_body_chunks)
-                try:
-                    radar_ctx.response_body = _truncate_body(raw_resp.decode("utf-8", errors="replace"), RADAR_SETTINGS.RADAR_MAX_BODY_SIZE)
-                except Exception:
-                    radar_ctx.response_body = f"[binary {len(raw_resp)} bytes]"
+                # Finalize response
+                if response_headers_raw:
+                    radar_ctx.response_headers = _serialize_headers(response_headers_raw)
+
+                if RADAR_SETTINGS.RADAR_CAPTURE_RESPONSE_BODY and response_body_chunks:
+                    raw_resp = b"".join(response_body_chunks)
+                    try:
+                        radar_ctx.response_body = _truncate_body(raw_resp.decode("utf-8", errors="replace"), RADAR_SETTINGS.RADAR_MAX_BODY_SIZE)
+                    except Exception:
+                        radar_ctx.response_body = f"[binary {len(raw_resp)} bytes]"
+
+                # Flush to radar DB asynchronously
+                asyncio.create_task(_safe_flush(radar_ctx))
 
             CTX_RADAR.reset(token)
-
-            # Flush to radar DB asynchronously
-            asyncio.create_task(_safe_flush(radar_ctx))
 
 
 async def _safe_flush(ctx: RadarRequestContext) -> None:

@@ -1,4 +1,5 @@
 from loguru import logger
+from tortoise.transactions import in_transaction
 
 from app.core.crud import CRUDBase
 from app.models.system import Button, Menu
@@ -26,19 +27,23 @@ class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         if not buttons:
             return False
 
-        existing_buttons = [button.button_code for button in await menu.by_menu_buttons]
+        async with in_transaction("conn_system"):
+            existing_buttons = [button.button_code for button in await menu.by_menu_buttons]
+            menu_buttons = [button.button_code for button in buttons]
 
-        menu_buttons = [button.button_code for button in buttons]
+            for button_code in set(existing_buttons) - set(menu_buttons):
+                logger.error(f"Button Deleted {button_code}")
+                radar_log("按钮已删除", level="WARNING", data={"buttonCode": button_code})
+                await Button.filter(button_code=button_code).delete()
 
-        for button_code in set(existing_buttons) - set(menu_buttons):
-            logger.error(f"Button Deleted {button_code}")
-            radar_log("按钮已删除", level="WARNING", data={"buttonCode": button_code})
-            await Button.filter(button_code=button_code).delete()
-
-        await menu.by_menu_buttons.clear()
-        for button in buttons:
-            button_obj, _ = await Button.update_or_create(button_code=button.button_code, defaults=dict(button_desc=button.button_desc))
-            await menu.by_menu_buttons.add(button_obj)
+            await menu.by_menu_buttons.clear()
+            for button in buttons:
+                button_obj = await Button.filter(button_code=button.button_code).first()
+                if button_obj:
+                    await Button.filter(id=button_obj.id).update(button_desc=button.button_desc)
+                else:
+                    button_obj = await Button.create(button_code=button.button_code, button_desc=button.button_desc)
+                await menu.by_menu_buttons.add(button_obj)
 
         return True
 

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 def tortoise_orm_factory() -> dict[str, Any]:
     return {
         "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3"}}},
-        "apps": {"app_system": {"models": ["app.models.system", "app.radar.models", "aerich.models"], "default_connection": "conn_system"}},
+        "apps": {"app_system": {"models": ["app.models.system", "app.radar.models"], "default_connection": "conn_system", "migrations": "migrations.app_system"}},
         "use_tz": False,
         "timezone": "Asia/Shanghai",
     }
@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 
     REDIS_URL: str = "redis://redis:6379/0"  # "redis://:password@233.233.233.233:33333/0"
+
+    # logs - 普通日志保留时间, 支持: seconds/minutes/hours/days/weeks/months/years (如 "30 days", "1 months", "2 weeks")
+    LOG_INFO_RETENTION: str = "30 days"
 
     # fastapi-guard
     GUARD_ENABLED: bool = True
