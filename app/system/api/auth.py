@@ -7,7 +7,7 @@ from fastapi_cache.decorator import cache
 from app.core.base_schema import Fail, Success
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
-from app.core.ctx import CTX_USER_ID
+from app.core.ctx import CTX_BUTTON_CODES, CTX_ROLE_CODES, CTX_USER_ID
 from app.core.dependency import DependAuth, check_token
 from app.core.log import log
 from app.system.controllers import user_controller
@@ -159,13 +159,9 @@ async def _():
     user_obj: User = await user_controller.get(id=user_id)
     data = await user_obj.to_dict(exclude_fields=["id", "password", "created_at", "updated_at", "created_by", "updated_by"])
 
-    user_roles: list[Role] = await user_obj.by_user_roles
-    user_role_codes = [user_role.role_code for user_role in user_roles]
+    role_codes = CTX_ROLE_CODES.get()
+    button_codes = [b.button_code for b in await Button.all()] if "R_SUPER" in role_codes else CTX_BUTTON_CODES.get()
 
-    user_role_button_codes = [b.button_code for b in await Button.all()] if "R_SUPER" in user_role_codes else [b.button_code for user_role in user_roles for b in await user_role.by_role_buttons]
-
-    user_role_button_codes = list(set(user_role_button_codes))
-
-    data.update({"userId": user_id, "roles": user_role_codes, "buttons": user_role_button_codes})
+    data.update({"userId": user_id, "roles": role_codes, "buttons": button_codes})
     radar_log("获取用户信息", data={"userId": user_obj.id})
     return Success(data=data)

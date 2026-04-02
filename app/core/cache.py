@@ -78,10 +78,10 @@ async def load_role_permissions(redis: Redis, role_code: str | None = None) -> N
         apis = [{"method": api.api_method.value, "path": api.api_path, "status": api.status_type.value} for api in role.by_role_apis]
         pipe.set(f"role:{code}:apis", json.dumps(apis))
 
-        # 按钮 ID 列表
+        # 按钮 code 列表
         await role.fetch_related("by_role_buttons")
-        button_ids = [b.id for b in role.by_role_buttons]
-        pipe.set(f"role:{code}:buttons", json.dumps(button_ids))
+        button_codes = [b.button_code for b in role.by_role_buttons]
+        pipe.set(f"role:{code}:buttons", json.dumps(button_codes))
 
     await pipe.execute()
     count = len(roles)
@@ -107,12 +107,55 @@ async def get_role_apis(redis: Redis, role_code: str) -> list[dict]:
     return []
 
 
-async def get_role_button_ids(redis: Redis, role_code: str) -> list[int]:
-    """从 Redis 获取角色按钮 ID 列表"""
+async def get_role_button_codes(redis: Redis, role_code: str) -> list[str]:
+    """从 Redis 获取角色按钮 code 列表"""
     data = await redis.get(f"role:{role_code}:buttons")
     if data:
         return json.loads(data)
     return []
+
+
+# ===================== 用户角色映射 =====================
+
+
+async def load_user_roles(redis: Redis) -> None:
+    """启动时将所有用户的角色编码加载到 Redis: user:{user_id}:roles → [role_code, ...]"""
+    from app.system.models.admin import User
+
+    users = await User.all().prefetch_related("by_user_roles")
+    pipe = redis.pipeline()
+    for user in users:
+        role_codes = [r.role_code for r in user.by_user_roles]
+        pipe.set(f"user:{user.id}:roles", json.dumps(role_codes))
+    await pipe.execute()
+    log.info(f"Loaded role mappings for {len(users)} users into Redis")
+
+
+async def get_user_role_codes(redis: Redis, user_id: int) -> list[str]:
+    """从 Redis 获取用户的角色 code 列表"""
+    data = await redis.get(f"user:{user_id}:roles")
+    if data:
+        return json.loads(data)
+    return []
+
+
+async def get_user_button_codes(redis: Redis, user_id: int) -> list[str]:
+    """从 Redis 汇总用户所有角色的按钮 code 列表"""
+    role_codes = await get_user_role_codes(redis, user_id)
+    button_codes: set[str] = set()
+    for role_code in role_codes:
+        codes = await get_role_button_codes(redis, role_code)
+        button_codes.update(codes)
+    return list(button_codes)
+
+
+async def refresh_user_roles(redis: Redis, user_id: int) -> None:
+    """刷新单个用户的角色缓存（用户角色变更时调用）"""
+    from app.system.models.admin import User
+
+    user = await User.get(id=user_id).prefetch_related("by_user_roles")
+    role_codes = [r.role_code for r in user.by_user_roles]
+    await redis.set(f"user:{user.id}:roles", json.dumps(role_codes))
 
 
 # ===================== Token 版本号 =====================
@@ -138,6 +181,7 @@ async def refresh_all_cache(redis: Redis) -> None:
     await clear_fastapi_cache(redis)
     await load_constant_routes(redis)
     await load_role_permissions(redis)
+    await load_user_roles(redis)
     await load_token_versions(redis)
 
 

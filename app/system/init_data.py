@@ -976,156 +976,82 @@ async def init_menus():
     await Menu.bulk_create(radar_children)
 
 
-async def insert_role(children_role: list[Role], role_apis: list[tuple[str, str]] = None, role_menus: list[str] = None, role_buttons: list[str] = None):
-    if role_apis is None:
-        role_apis = []
-    if role_menus is None:
-        role_menus = []
-    if role_buttons is None:
-        role_buttons = []
+async def _assign_role_permissions(
+    role: Role,
+    *,
+    apis: list[tuple[str, str]] | None = None,
+    menus: list[str] | None = None,
+    buttons: list[str] | None = None,
+):
+    """为角色分配 API、菜单、按钮权限"""
+    for api_method, api_path in apis or []:
+        try:
+            await role.by_role_apis.add(await Api.get(api_method=api_method, api_path=api_path))
+        except DoesNotExist:
+            print("不存在API", api_method, api_path)
 
-    on_conflict = ("role_code",)
-    update_fields = ("role_name", "role_desc")
+    for route_name in menus or []:
+        try:
+            await role.by_role_menus.add(await Menu.get(route_name=route_name))
+        except (DoesNotExist, MultipleObjectsReturned):
+            print("菜单异常", route_name)
 
-    await Role.bulk_create(children_role, on_conflict=on_conflict, update_fields=update_fields)
+    for button_code in buttons or []:
+        try:
+            await role.by_role_buttons.add(await Button.get(button_code=button_code))
+        except DoesNotExist:
+            print("不存在按钮", button_code)
 
-    for role_zs in children_role:
-        role_obj = await Role.get(role_code=role_zs.role_code)
-        for api_method, api_path in role_apis:
-            try:
-                api_obj: Api = await Api.get(api_method=api_method, api_path=api_path)
-                await role_obj.by_role_apis.add(api_obj)
-            except DoesNotExist:
-                print("不存在API", api_method, api_path)
-                return False
+    await role.save()
 
-        for route_name in role_menus:
-            try:
-                menu_obj: Menu = await Menu.get(route_name=route_name)
-                await role_obj.by_role_menus.add(menu_obj)
-            except MultipleObjectsReturned:
-                print("多个菜单", route_name)
-                return False
 
-        for button_code in role_buttons:
-            button_obj: Button = await Button.get(button_code=button_code)
-            await role_obj.by_role_buttons.add(button_obj)
-
-        await role_obj.save()
-    return True
+async def _create_user(role_code: str, **kwargs) -> User:
+    """创建用户并关联角色"""
+    role = await role_controller.get_by_code(role_code)
+    user = await user_controller.create(UserCreate(**kwargs))
+    if role:
+        await user.by_user_roles.add(role)
+    return user
 
 
 async def init_users():
-    role_exist = await role_controller.model.exists()
-    if not role_exist:
+    if not await role_controller.model.exists():
         role_home_menu = await Menu.get(route_name="home")
-        # 超级管理员拥有所有菜单 所有按钮
-        super_role_obj = await Role.create(role_name="超级管理员", role_code="R_SUPER", role_desc="超级管理员", by_role_home=role_home_menu)
-        role_super_menu_objs = await Menu.filter(constant=False)  # 过滤常量路由(公共路由)
-        for menu_obj in role_super_menu_objs:
-            await super_role_obj.by_role_menus.add(menu_obj)
+
+        # 超级管理员: 所有菜单 + 所有按钮
+        super_role = await Role.create(role_name="超级管理员", role_code="R_SUPER", role_desc="超级管理员", by_role_home=role_home_menu)
+        for menu_obj in await Menu.filter(constant=False):
+            await super_role.by_role_menus.add(menu_obj)
         for button_obj in await Button.all():
-            await super_role_obj.by_role_buttons.add(button_obj)
+            await super_role.by_role_buttons.add(button_obj)
 
-        # 管理员拥有 首页 关于 插件示例(全部) 多级菜单(全部) 系统管理-用户管理 系统管理-用户详情
+        # 管理员: 首页 + 用户管理(查看/创建/编辑, 无删除, 不可更改角色) + 日志管理 + 关于
         role_admin = await Role.create(role_name="管理员", role_code="R_ADMIN", role_desc="管理员", by_role_home=role_home_menu)
+        await _assign_role_permissions(
+            role_admin,
+            apis=[
+                ("post", "/api/v1/users/all/"),
+                ("get", "/api/v1/users/{item_id}"),
+                ("post", "/api/v1/users"),
+                ("patch", "/api/v1/users/{user_id}"),
+            ],
+            menus=[
+                "home",
+                "about",
+                "manage",
+                "manage_user",
+                "manage_user-detail",
+                "manage_log",
+            ],
+            buttons=["B_CODE2", "B_CODE3"],
+        )
 
-        role_admin_apis = [
-            ("post", "/api/v1/system-manage/users/all/"),
-            ("get", "/api/v1/system-manage/users/{item_id}"),
-            ("get", "/api/v1/system-manage/roles"),
-            ("post", "/api/v1/system-manage/users"),
-            ("patch", "/api/v1/system-manage/users/{user_id}"),
-            ("delete", "/api/v1/system-manage/users/{user_id}"),
-            ("delete", "/api/v1/system-manage/users"),
-        ]
-        role_admin_menus = [
-            "home",
-            "about",
-            # 插件示例
-            "plugin",
-            "plugin_barcode",
-            "plugin_charts",
-            "plugin_charts_antv",
-            "plugin_charts_echarts",
-            "plugin_charts_vchart",
-            "plugin_copy",
-            "plugin_editor",
-            "plugin_editor_markdown",
-            "plugin_editor_quill",
-            "plugin_excel",
-            "plugin_gantt",
-            "plugin_gantt_dhtmlx",
-            "plugin_gantt_vtable",
-            "plugin_icon",
-            "plugin_map",
-            "plugin_pdf",
-            "plugin_pinyin",
-            "plugin_print",
-            "plugin_swiper",
-            "plugin_tables",
-            "plugin_tables_vtable",
-            "plugin_typeit",
-            "plugin_video",
-            # 多级菜单
-            "multi-menu",
-            "multi-menu_first",
-            "multi-menu_first_child",
-            "multi-menu_second",
-            "multi-menu_second_child",
-            "multi-menu_second_child_home",
-            # 系统管理-用户管理/详情
-            "manage",
-            "manage_user",
-            "manage_user-detail",
-        ]
-        role_admin_buttons = ["B_CODE2", "B_CODE3"]
-        await insert_role([role_admin], role_admin_apis, role_admin_menus, role_admin_buttons)
-
-        # 普通用户拥有 首页 关于
+        # 普通用户: 首页 + 关于
         role_user = await Role.create(role_name="普通用户", role_code="R_USER", role_desc="普通用户", by_role_home=role_home_menu)
-        role_user_apis: list[tuple[str, str]] = []
-        role_user_menus = ["home", "about"]
-        role_user_buttons: list[str] = []
-        await insert_role([role_user], role_user_apis, role_user_menus, role_user_buttons)
+        await _assign_role_permissions(role_user, menus=["home", "about"])
 
-    user = await user_controller.model.exists()
-    if not user:
-        super_role_obj: Role | None = await role_controller.get_by_code("R_SUPER")
-        user_super_obj: User = await user_controller.create(
-            UserCreate(
-                userName="Soybean",  # type: ignore
-                userEmail="admin@admin.com",  # type: ignore
-                password="123456",
-            )
-        )
-        await user_super_obj.by_user_roles.add(super_role_obj)
-
-        user_super_obj: User = await user_controller.create(
-            UserCreate(
-                userName="Super",  # type: ignore
-                userEmail="admin1@admin.com",  # type: ignore
-                password="123456",
-            )
-        )
-        await user_super_obj.by_user_roles.add(super_role_obj)
-
-        admin_role_obj: Role | None = await role_controller.get_by_code("R_ADMIN")
-        user_admin_obj = await user_controller.create(
-            UserCreate(
-                userName="Admin",  # type: ignore
-                userEmail="admin2@admin.com",  # type: ignore
-                password="123456",
-            )
-        )
-        await user_admin_obj.by_user_roles.add(admin_role_obj)
-
-        user_role_obj: Role | None = await role_controller.get_by_code("R_USER")
-        user_user_obj = await user_controller.create(
-            UserCreate(
-                userName="User",  # type: ignore
-                userEmail="user@user.com",  # type: ignore
-                password="123456",
-            )
-        )
-        await user_user_obj.by_user_roles.add(user_role_obj)
+    if not await user_controller.model.exists():
+        await _create_user("R_SUPER", userName="Soybean", userEmail="admin@admin.com", password="123456")  # type: ignore
+        await _create_user("R_SUPER", userName="Super", userEmail="admin1@admin.com", password="123456")  # type: ignore
+        await _create_user("R_ADMIN", userName="Admin", userEmail="admin2@admin.com", password="123456")  # type: ignore
+        await _create_user("R_USER", userName="User", userEmail="user@user.com", password="123456")  # type: ignore

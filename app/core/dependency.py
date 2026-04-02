@@ -4,10 +4,10 @@ import jwt
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.cache import get_role_apis
+from app.core.cache import get_role_apis, get_user_button_codes, get_user_role_codes
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
-from app.core.ctx import CTX_USER_ID, CTX_X_REQUEST_ID
+from app.core.ctx import CTX_BUTTON_CODES, CTX_ROLE_CODES, CTX_USER, CTX_USER_ID, CTX_X_REQUEST_ID
 from app.core.exceptions import (
     HTTPException,
 )
@@ -59,11 +59,22 @@ class AuthControl:
         user = await User.filter(id=user_id).first()
         if not user:
             raise HTTPException(code=Code.INVALID_SESSION, msg=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
-        CTX_USER_ID.set(int(user_id))
+
+        uid = int(user_id)
+        CTX_USER_ID.set(uid)
+        CTX_USER.set(user)
+
+        # 从 Redis 加载角色和按钮权限到上下文
+        redis = request.app.state.redis
+        role_codes = await get_user_role_codes(redis, uid)
+        CTX_ROLE_CODES.set(role_codes)
+        button_codes = await get_user_button_codes(redis, uid)
+        CTX_BUTTON_CODES.set(button_codes)
+
         # 写入 radar 上下文，记录操作人信息
         radar_ctx = CTX_RADAR.get()
         if radar_ctx is not None:
-            radar_ctx.user_id = int(user_id)
+            radar_ctx.user_id = uid
             radar_ctx.user_name = user.user_name
         return user
 
@@ -71,12 +82,11 @@ class AuthControl:
 class PermissionControl:
     @classmethod
     async def has_permission(cls, request: Request, current_user: User = Depends(AuthControl.is_authed)) -> None:
-        await current_user.fetch_related("by_user_roles")
-        user_roles_codes: list[str] = [r.role_code for r in current_user.by_user_roles]
-        if "R_SUPER" in user_roles_codes:  # 超级管理员
+        role_codes = CTX_ROLE_CODES.get()
+        if "R_SUPER" in role_codes:
             return
 
-        if not current_user.by_user_roles:
+        if not role_codes:
             raise HTTPException(code=Code.PERMISSION_DENIED, msg="The user is not bound to a role")
 
         method = request.method.lower()
@@ -85,7 +95,7 @@ class PermissionControl:
 
         # 从 Redis 汇总所有角色的 API 权限
         permission_apis: set[tuple[str, str, str]] = set()
-        for role_code in user_roles_codes:
+        for role_code in role_codes:
             apis = await get_role_apis(redis, role_code)
             for api in apis:
                 permission_apis.add((api["method"], api["path"], api["status"]))
