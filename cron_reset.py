@@ -1,11 +1,11 @@
 import time
 
-from app import refresh_api_list
 from app.core.exceptions import SettingNotFound
-from app.core.init_app import init_menus, init_users
+from app.system.api.utils import refresh_api_list
+from app.system.init_data import init_menus, init_users
 
 try:
-    from app.settings import APP_SETTINGS
+    from app.core.config import APP_SETTINGS
 except ImportError:
     raise SettingNotFound("Can not import settings")
 

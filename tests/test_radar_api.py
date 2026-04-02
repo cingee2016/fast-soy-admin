@@ -3,7 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
-from app.radar.models import RadarQuery, RadarRequest, RadarUserLog
+from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
 
 @pytest.fixture(scope="session")

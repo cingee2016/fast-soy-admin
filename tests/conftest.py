@@ -10,7 +10,7 @@ TEST_TORTOISE_ORM = {
     },
     "apps": {
         "app_system": {
-            "models": ["app.models.system", "app.radar.models"],
+            "models": ["app.system.models", "app.system.radar.models"],
             "default_connection": "conn_system",
         }
     },
@@ -21,7 +21,7 @@ TEST_TORTOISE_ORM = {
 
 def _create_test_app():
     """Create a FastAPI app for testing, bypassing Redis and migrations."""
-    from app.settings import APP_SETTINGS
+    from app.core.config import APP_SETTINGS
 
     APP_SETTINGS.TORTOISE_ORM = TEST_TORTOISE_ORM
 
@@ -44,7 +44,7 @@ def _create_test_app():
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
 
-    from app.radar.api import router as radar_router
+    from app.system.radar.api import router as radar_router
 
     _app.include_router(radar_router)
 
@@ -87,9 +87,9 @@ async def auth_client(app, seed_data):
     """Client with valid JWT Authorization header (super admin)."""
     from datetime import UTC, datetime, timedelta
 
-    from app.schemas.login import JWTPayload
-    from app.settings import APP_SETTINGS
-    from app.utils.security import create_access_token
+    from app.core.config import APP_SETTINGS
+    from app.system.schemas.login import JWTPayload
+    from app.system.security import create_access_token
 
     user = seed_data
     payload = JWTPayload(

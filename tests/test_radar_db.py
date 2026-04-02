@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.radar.db import (
+from app.system.radar.db import (
     _extract_business_code,
     _percentile,
     query_all_queries,
@@ -14,7 +14,7 @@ from app.radar.db import (
     query_user_logs,
     update_exception_resolved,
 )
-from app.radar.models import RadarQuery, RadarRequest, RadarUserLog
+from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
 
 @pytest.fixture(scope="session")

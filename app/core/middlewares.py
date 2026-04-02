@@ -9,9 +9,9 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.bgtask import BgTasks
+from app.core.config import APP_SETTINGS
 from app.core.ctx import CTX_X_REQUEST_ID
 from app.core.exceptions import BaseHandle
-from app.settings import APP_SETTINGS
 
 
 class SimpleBaseMiddleware:

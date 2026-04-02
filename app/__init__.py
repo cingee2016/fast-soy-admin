@@ -6,24 +6,22 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from starlette.staticfiles import StaticFiles
 
-from app.api.health import router as health_router
-from app.api.v1.utils import refresh_api_list
 from app.core.cache import refresh_all_cache
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
-    init_menus,
-    init_users,
     make_middlewares,
     modify_db,
     register_db,
     register_exceptions,
     register_routers,
 )
+from app.core.log import log
 from app.core.redis import close_redis, init_redis
-from app.log import log
+from app.system.api.utils import refresh_api_list
+from app.system.init_data import init_menus, init_users
 
 try:
-    from app.settings import APP_SETTINGS
+    from app.core.config import APP_SETTINGS
 except ImportError:
     raise SettingNotFound("Can not import settings")
 
@@ -38,9 +36,16 @@ def create_app() -> FastAPI:
     register_db(_app)
     register_exceptions(_app)
     register_routers(_app, prefix="/api")
-    _app.include_router(health_router)
+
+    # Auto-discover and register business routes
+    from app.core.autodiscover import discover_business_routers
+
+    business_router = discover_business_routers()
+    if business_router.routes:
+        _app.include_router(business_router, prefix="/api/v1/business")
+
     if APP_SETTINGS.RADAR_ENABLED:
-        from app.radar import setup_radar
+        from app.system.radar import setup_radar
 
         setup_radar(_app)
     return _app
@@ -60,14 +65,14 @@ async def lifespan(_app: FastAPI):
         # 启动时刷新所有缓存：清除 fastapi-cache2 + 常量路由 + 角色权限 + token 版本号
         await refresh_all_cache(_app.state.redis)
         if APP_SETTINGS.RADAR_ENABLED:
-            from app.radar import startup_radar
+            from app.system.radar import startup_radar
 
             await startup_radar()
         yield
 
     finally:
         if APP_SETTINGS.RADAR_ENABLED:
-            from app.radar import shutdown_radar
+            from app.system.radar import shutdown_radar
 
             await shutdown_radar()
         end_time = datetime.now()
@@ -78,8 +83,8 @@ async def lifespan(_app: FastAPI):
 
 async def _ensure_monitor_menu():
     """Insert manage_radar_monitor menu if missing (for existing databases)."""
-    from app.models.system.admin import Menu
-    from app.models.system.utils import IconType, MenuType, StatusType
+    from app.core.base_model import IconType, MenuType, StatusType
+    from app.system.models.admin import Menu
 
     if await Menu.filter(route_name="manage_radar_monitor").exists():
         return

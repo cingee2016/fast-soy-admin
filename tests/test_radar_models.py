@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.radar.models import RadarQuery, RadarRequest, RadarUserLog
+from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
 
 def _uid() -> str:

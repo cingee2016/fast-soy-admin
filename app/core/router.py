@@ -5,8 +5,8 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
+from app.core.base_schema import CommonIds, Success, SuccessExtra
 from app.core.crud import CRUDBase
-from app.schemas.base import CommonIds, Success, SuccessExtra
 
 
 @dataclass

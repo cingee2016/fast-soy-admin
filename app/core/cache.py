@@ -13,14 +13,14 @@ import json
 
 from redis.asyncio import Redis
 
-from app.log import log
+from app.core.log import log
 
 # ===================== 常量路由 =====================
 
 
 async def load_constant_routes(redis: Redis) -> None:
     """从数据库加载常量路由到 Redis"""
-    from app.models.system.admin import Menu
+    from app.system.models.admin import Menu
 
     menu_objs = await Menu.filter(constant=True, hide_in_menu=True)
     routes = []
@@ -57,7 +57,7 @@ async def load_role_permissions(redis: Redis, role_code: str | None = None) -> N
         redis: Redis 实例
         role_code: 指定角色编码，为 None 时加载所有角色
     """
-    from app.models.system.admin import Role
+    from app.system.models.admin import Role
 
     if role_code:
         roles = await Role.filter(role_code=role_code)
@@ -120,7 +120,7 @@ async def get_role_button_ids(redis: Redis, role_code: str) -> list[int]:
 
 async def load_token_versions(redis: Redis) -> None:
     """启动时将数据库中所有用户的 token_version 加载到 Redis"""
-    from app.models.system.admin import User
+    from app.system.models.admin import User
 
     users = await User.all().values_list("id", "token_version")
     pipe = redis.pipeline()

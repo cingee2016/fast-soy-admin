@@ -1,12 +1,12 @@
 import random
 
-from app.controllers import role_controller, user_controller
 from app.core.exceptions import SettingNotFound
-from app.models.system import Role, StatusType
-from app.schemas.users import UserCreate
+from app.system.controllers import role_controller, user_controller
+from app.system.models import Role, StatusType
+from app.system.schemas.users import UserCreate
 
 try:
-    from app.settings import APP_SETTINGS
+    from app.core.config import APP_SETTINGS
 except ImportError:
     raise SettingNotFound("Can not import settings")
 

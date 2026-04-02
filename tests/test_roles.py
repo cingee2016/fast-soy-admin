@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from app.models.system import Menu
+from app.system.models import Menu
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ class TestRoleCRUD:
         assert data["code"] == "4090"
 
     async def test_get_role(self, auth_client: AsyncClient, seed_data):
-        from app.controllers import role_controller
+        from app.system.controllers import role_controller
 
         role = await role_controller.get_by_code("R_SUPER")
         resp = await auth_client.get(f"/api/v1/system-manage/roles/{role.id}")

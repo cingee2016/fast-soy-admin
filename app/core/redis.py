@@ -4,7 +4,7 @@ from fastapi import Depends, Request
 from redis import asyncio as aioredis
 from redis.asyncio import Redis
 
-from app.settings import APP_SETTINGS
+from app.core.config import APP_SETTINGS
 
 
 async def init_redis() -> Redis:

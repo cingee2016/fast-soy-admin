@@ -1,7 +1,6 @@
-from app.controllers import role_controller
-from app.controllers.user import user_controller
-from app.models.system import Menu, MenuType, Role, StatusType, User
-from app.schemas.users import UserCreate
+from app.system.controllers import role_controller, user_controller
+from app.system.models import Menu, MenuType, Role, StatusType, User
+from app.system.schemas.users import UserCreate
 
 
 async def _ensure_home_menu() -> Menu:

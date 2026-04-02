@@ -1,10 +1,10 @@
 import random
 
 from app.core.exceptions import SettingNotFound
-from app.models.system import Menu, Role
+from app.system.models import Menu, Role
 
 try:
-    from app.settings import APP_SETTINGS
+    from app.core.config import APP_SETTINGS
 except ImportError:
     raise SettingNotFound("Can not import settings")
 
