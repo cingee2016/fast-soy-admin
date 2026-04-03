@@ -64,7 +64,7 @@ class AuthControl:
         CTX_USER_ID.set(uid)
         CTX_USER.set(user)
 
-        # 从 Redis 加载角色和按钮权限到上下文
+        # 从 Redis 加载角色、按钮权限、首页路由到上下文
         redis = request.app.state.redis
         role_codes = await get_user_role_codes(redis, uid)
         CTX_ROLE_CODES.set(role_codes)

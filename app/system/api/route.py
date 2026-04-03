@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Request
 
 from app.core.base_schema import Success
-from app.core.cache import get_constant_routes, get_role_menu_ids
-from app.core.ctx import CTX_USER_ID
+from app.core.cache import get_constant_routes, get_role_menu_ids, get_user_role_home
+from app.core.ctx import CTX_ROLE_CODES, CTX_USER_ID
 from app.core.dependency import DependAuth
 from app.system.controllers import menu_controller
-from app.system.models import IconType, Menu, Role, User
+from app.system.models import IconType, Menu
 
 router = APIRouter()
 
@@ -74,27 +74,17 @@ async def _(request: Request):
     - 普通用户从 Redis 读取角色菜单 ID，再构建路由树
     """
     redis = request.app.state.redis
-    user_id = CTX_USER_ID.get()
-    user_obj = await User.get(id=user_id).prefetch_related("by_user_roles")
-    user_roles: list[Role] = await user_obj.by_user_roles
-
-    is_super = False
-    role_home: str = "home"
-    for user_role in user_roles:
-        if user_role.role_code == "R_SUPER":
-            is_super = True
-
-        role_home_obj = await user_role.by_role_home.first()
-        if role_home_obj:
-            role_home = role_home_obj.route_name
+    role_codes = CTX_ROLE_CODES.get()
+    role_home = await get_user_role_home(redis, CTX_USER_ID.get())
+    is_super = "R_SUPER" in role_codes
 
     if is_super:
         role_routes: list[Menu] = await Menu.filter(constant=False)
     else:
         # 从 Redis 汇总所有角色的菜单 ID
         all_menu_ids: set[int] = set()
-        for user_role in user_roles:
-            menu_ids = await get_role_menu_ids(redis, user_role.role_code)
+        for role_code in role_codes:
+            menu_ids = await get_role_menu_ids(redis, role_code)
             all_menu_ids.update(menu_ids)
 
         if all_menu_ids:

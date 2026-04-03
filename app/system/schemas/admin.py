@@ -18,9 +18,14 @@ class RoleBase(SchemaBase):
     status_type: StatusType | None = Field(None, title="角色状态")
 
 
+class RoleSearch(RoleBase):
+    current: int | None = Field(1, title="页码")
+    size: int | None = Field(10, title="每页数量")
+
+
 class RoleCreate(RoleBase):
-    role_name: str = Field(title="角色名称")
-    role_code: str = Field(title="角色编码")
+    role_name: str = Field(title="角色名称")  # pyright: ignore[reportIncompatibleVariableOverride]
+    role_code: str = Field(title="角色编码")  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class RoleUpdate(RoleBase): ...
@@ -52,8 +57,8 @@ class ApiSearch(BaseApi):
 
 
 class ApiCreate(BaseApi):
-    api_path: str = Field(title="请求路径", description="/api/v1/auth/login")
-    api_method: str = Field(title="请求方法", description="GET")
+    api_path: str = Field(title="请求路径", description="/api/v1/auth/login")  # pyright: ignore[reportIncompatibleVariableOverride]
+    api_method: str = Field(title="请求方法", description="GET")  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class ApiUpdate(BaseApi): ...
@@ -101,10 +106,10 @@ class MenuBase(SchemaBase):
 
 
 class MenuCreate(MenuBase):
-    menu_name: str = Field(max_length=200, title="菜单名称")
-    menu_type: MenuType = Field(max_length=200, title="菜单类型")
-    route_name: str = Field(max_length=200, title="路由名称")
-    route_path: str = Field(max_length=200, title="路由路径")
+    menu_name: str = Field(max_length=200, title="菜单名称")  # pyright: ignore[reportIncompatibleVariableOverride]
+    menu_type: MenuType = Field(max_length=200, title="菜单类型")  # pyright: ignore[reportIncompatibleVariableOverride]
+    route_name: str = Field(max_length=200, title="路由名称")  # pyright: ignore[reportIncompatibleVariableOverride]
+    route_path: str = Field(max_length=200, title="路由路径")  
 
 
 class MenuUpdate(MenuBase): ...
@@ -112,6 +117,7 @@ class MenuUpdate(MenuBase): ...
 
 __all__ = [
     "RoleBase",
+    "RoleSearch",
     "RoleCreate",
     "RoleUpdate",
     "RoleUpdateAuthrization",

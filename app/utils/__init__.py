@@ -9,10 +9,11 @@ business code can import from a single, stable location:
 Instead of reaching into internal modules like app.core.* or app.system.*.
 """
 
-# ---- ORM base classes ----
+# ---- ORM base classes & enums ----
 from app.core.base_model import AuditMixin as AuditMixin
 from app.core.base_model import BaseModel as BaseModel
 from app.core.base_model import IntEnum as IntEnum
+from app.core.base_model import StatusType as StatusType
 from app.core.base_model import StrEnum as StrEnum
 
 # ---- Schema base classes ----
@@ -29,7 +30,12 @@ from app.core.config import APP_SETTINGS as APP_SETTINGS
 # ---- CRUD ----
 from app.core.crud import CRUDBase as CRUDBase
 
-# ---- Auth dependencies ----
+# ---- Context & Auth ----
+from app.core.ctx import CTX_USER_ID as CTX_USER_ID
+from app.core.ctx import get_current_user as get_current_user
+from app.core.ctx import has_button_code as has_button_code
+from app.core.ctx import has_role_code as has_role_code
+from app.core.ctx import is_super_admin as is_super_admin
 from app.core.dependency import DependAuth as DependAuth
 from app.core.dependency import DependPermission as DependPermission
 
@@ -54,3 +60,11 @@ from app.system.radar.developer import radar_log as radar_log
 from app.system.security import create_access_token as create_access_token
 from app.system.security import get_password_hash as get_password_hash
 from app.system.security import verify_password as verify_password
+
+# ---- Init data helpers (for business modules) ----
+from app.utils.init_helper import ensure_menu as ensure_menu
+from app.utils.init_helper import ensure_role as ensure_role
+
+# ---- User management ----
+from app.utils.user import CreateUserResult as CreateUserResult
+from app.utils.user import create_system_user as create_system_user

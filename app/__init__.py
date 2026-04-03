@@ -61,6 +61,11 @@ async def lifespan(_app: FastAPI):
         await init_menus()
         await refresh_api_list()
         await init_users()
+        # 业务模块初始化数据（菜单、按钮、角色）— 在 API 注册之后、缓存刷新之前
+        from app.core.autodiscover import discover_business_init_data
+
+        for init_fn in discover_business_init_data():
+            await init_fn()
         # 启动时刷新所有缓存：清除 fastapi-cache2 + 常量路由 + 角色权限 + token 版本号
         await refresh_all_cache(_app.state.redis)
         if APP_SETTINGS.RADAR_ENABLED:

@@ -5,7 +5,6 @@ from app.core.dependency import DependPermission
 from .apis import router as api_router
 from .auth import router as auth_router
 from .menus import router as menu_router
-from .monitor import router as monitor_router
 from .roles import router as role_router
 from .route import router as route_router
 from .users import router as user_router
@@ -16,6 +15,5 @@ system_router.include_router(auth_router, prefix="/auth", tags=["权限认证"])
 system_router.include_router(route_router, prefix="/route", tags=["路由管理"])
 system_router.include_router(api_router, tags=["API管理"], dependencies=[DependPermission])
 system_router.include_router(menu_router, tags=["菜单管理"], dependencies=[DependPermission])
-system_router.include_router(monitor_router, tags=["系统监控"], dependencies=[DependPermission])
 system_router.include_router(role_router, tags=["角色管理"], dependencies=[DependPermission])
 system_router.include_router(user_router, tags=["用户管理"], dependencies=[DependPermission])

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from functools import partial
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.system.radar import db
 from app.system.radar.config import RADAR_SETTINGS
+from app.system.services.monitor import collector
 
 
 class ResolveBody(BaseModel):
@@ -140,3 +143,30 @@ async def get_dashboard_stats(hours: int = Query(default=1, ge=1, le=720)):
 async def purge_data(retention_hours: int = Query(default=24, ge=1)):
     deleted = await db.purge_old_data(retention_hours=retention_hours)
     return {"code": "0000", "msg": "OK", "data": {"deleted_count": deleted}}
+
+
+# ===================== 系统监控 =====================
+
+
+@router.get("/monitor/overview", summary="系统监控概览")
+async def get_monitor_overview():
+    data = await asyncio.to_thread(partial(collector.get_overview))
+    return {"code": "0000", "msg": "OK", "data": data}
+
+
+@router.get("/monitor/realtime", summary="实时监控数据")
+async def get_monitor_realtime():
+    data = await asyncio.to_thread(partial(collector.get_realtime))
+    return {"code": "0000", "msg": "OK", "data": data}
+
+
+@router.get("/monitor/basic-info", summary="基本信息")
+async def get_monitor_basic_info():
+    data = await asyncio.to_thread(partial(collector.get_basic_info))
+    return {"code": "0000", "msg": "OK", "data": data}
+
+
+@router.get("/monitor/processes", summary="Top进程")
+async def get_monitor_processes(limit: int = Query(default=10, ge=1, le=50)):
+    data = await asyncio.to_thread(partial(collector.get_top_processes, limit))
+    return {"code": "0000", "msg": "OK", "data": data}

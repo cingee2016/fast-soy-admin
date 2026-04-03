@@ -14,6 +14,7 @@ class User(BaseModel, AuditMixin):
     last_login = fields.DatetimeField(null=True, description="最后登录时间")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
     token_version = fields.IntField(default=0, description="令牌版本号，递增后使已签发token失效")
+    must_change_password = fields.BooleanField(default=False, description="首次登录需修改密码")
 
     by_user_roles: fields.ManyToManyRelation["Role"] = fields.ManyToManyField("app_system.Role", related_name="by_role_users")
 

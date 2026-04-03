@@ -14,7 +14,8 @@ from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
 from app.system.radar.developer import radar_log
 from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, JWTPayload, RegisterSchema
-from app.system.security import create_access_token, get_password_hash
+from app.system.schemas.users import UpdatePassword
+from app.system.security import create_access_token, get_password_hash, verify_password
 from app.system.services.captcha import send_captcha, verify_captcha
 
 router = APIRouter()
@@ -48,7 +49,9 @@ async def _(credentials: CredentialsSchema, request: Request):
 
     log.info(f"用户登录成功, 用户名: {user_obj.user_name}")
     radar_log("用户登录成功", data={"userName": user_obj.user_name, "userId": user_obj.id})
-    return Success(data=data.model_dump(by_alias=True))
+    result = data.model_dump(by_alias=True)
+    result["mustChangePassword"] = user_obj.must_change_password
+    return Success(data=result)
 
 
 @router.post("/captcha", summary="获取验证码")
@@ -165,3 +168,23 @@ async def _():
     data.update({"userId": user_id, "roles": role_codes, "buttons": button_codes})
     radar_log("获取用户信息", data={"userId": user_obj.id})
     return Success(data=data)
+
+
+@router.patch("/password", summary="修改密码", dependencies=[DependAuth])
+async def _(body: UpdatePassword, request: Request):
+    user_id = CTX_USER_ID.get()
+    user_obj = await user_controller.get(id=user_id)
+
+    if not verify_password(body.old_password, user_obj.password):
+        return Fail(code=Code.FAIL, msg="原密码错误")
+
+    await User.filter(id=user_id).update(password=get_password_hash(body.new_password), must_change_password=False)
+
+    # 递增 token_version 使旧 token 失效，强制重新登录
+    user_obj.token_version += 1
+    await user_obj.save(update_fields=["token_version"])
+    redis = request.app.state.redis
+    await redis.set(f"token_version:{user_id}", user_obj.token_version)
+
+    radar_log("修改密码", data={"userId": user_id})
+    return Success(msg="密码修改成功，请重新登录")

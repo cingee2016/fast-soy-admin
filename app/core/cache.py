@@ -1,12 +1,14 @@
 """
-Redis 缓存服务：常量路由、角色权限（菜单/API/按钮）的读写。
+Redis 缓存服务：常量路由、角色权限（菜单/API/按钮）、用户角色映射的读写。
 
 Key 设计:
     constant_routes              — 常量路由 JSON
     role:{role_code}:menus       — 角色菜单 ID JSON 列表
     role:{role_code}:apis        — 角色 API JSON 列表 [{method, path, status}]
-    role:{role_code}:buttons     — 角色按钮 ID JSON 列表
-    token_version:{user_id}      — 用户 token 版本号（已有）
+    role:{role_code}:buttons     — 角色按钮 code JSON 列表
+    user:{user_id}:roles         — 用户角色 code JSON 列表
+    user:{user_id}:role_home     — 用户首页路由名 (取最近创建角色的首页)
+    token_version:{user_id}      — 用户 token 版本号
 """
 
 import json
@@ -119,14 +121,23 @@ async def get_role_button_codes(redis: Redis, role_code: str) -> list[str]:
 
 
 async def load_user_roles(redis: Redis) -> None:
-    """启动时将所有用户的角色编码加载到 Redis: user:{user_id}:roles → [role_code, ...]"""
-    from app.system.models.admin import User
+    """启动时将所有用户的角色编码和首页路由加载到 Redis"""
+    from app.system.models.admin import Role, User
+
+    # 预加载所有角色的首页路由
+    roles = await Role.all().select_related("by_role_home")
+    role_home_map = {r.id: r.by_role_home.route_name for r in roles}
 
     users = await User.all().prefetch_related("by_user_roles")
     pipe = redis.pipeline()
     for user in users:
-        role_codes = [r.role_code for r in user.by_user_roles]
+        # 按创建时间倒序，最近创建的角色优先
+        user_roles = sorted(user.by_user_roles, key=lambda r: r.created_at, reverse=True)
+        role_codes = [r.role_code for r in user_roles]
         pipe.set(f"user:{user.id}:roles", json.dumps(role_codes))
+        # role_home: 取最近创建角色的首页，默认 "home"
+        role_home = next((role_home_map[r.id] for r in user_roles if r.id in role_home_map), "home")
+        pipe.set(f"user:{user.id}:role_home", role_home)
     await pipe.execute()
     log.info(f"Loaded role mappings for {len(users)} users into Redis")
 
@@ -137,6 +148,14 @@ async def get_user_role_codes(redis: Redis, user_id: int) -> list[str]:
     if data:
         return json.loads(data)
     return []
+
+
+async def get_user_role_home(redis: Redis, user_id: int) -> str:
+    """从 Redis 获取用户首页路由名"""
+    data = await redis.get(f"user:{user_id}:role_home")
+    if data:
+        return data if isinstance(data, str) else data.decode()
+    return "home"
 
 
 async def get_user_button_codes(redis: Redis, user_id: int) -> list[str]:
@@ -150,12 +169,21 @@ async def get_user_button_codes(redis: Redis, user_id: int) -> list[str]:
 
 
 async def refresh_user_roles(redis: Redis, user_id: int) -> None:
-    """刷新单个用户的角色缓存（用户角色变更时调用）"""
+    """刷新单个用户的角色和首页缓存（用户角色变更时调用）"""
     from app.system.models.admin import User
 
     user = await User.get(id=user_id).prefetch_related("by_user_roles")
-    role_codes = [r.role_code for r in user.by_user_roles]
+    user_roles = sorted(user.by_user_roles, key=lambda r: r.created_at, reverse=True)
+    role_codes = [r.role_code for r in user_roles]
     await redis.set(f"user:{user.id}:roles", json.dumps(role_codes))
+    # role_home: 取最近创建角色的首页
+    role_home = "home"
+    for role in user_roles:
+        home_menu = await role.by_role_home  # type: ignore[misc]
+        if home_menu:
+            role_home = home_menu.route_name
+            break
+    await redis.set(f"user:{user.id}:role_home", role_home)
 
 
 # ===================== Token 版本号 =====================

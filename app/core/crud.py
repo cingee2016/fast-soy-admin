@@ -37,7 +37,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return await self.model.filter(search).count()
 
     async def list(
-        self, page: int | None, page_size: int | None, search: Q = Q(), order: _list[str] | None = None, fields: _list[str] | None = None, last_id: int | None = None, count_by_pk_field: bool = False
+        self,
+        page: int | None,
+        page_size: int | None,
+        search: Q = Q(),
+        order: _list[str] | None = None,
+        fields: _list[str] | None = None,
+        last_id: int | None = None,
+        count_by_pk_field: bool = False,
+        select_related: _list[str] | None = None,
+        prefetch_related: _list[str] | None = None,
     ) -> tuple[Total, _list[ModelType]]:
         order = order or []
         page = page or 1
@@ -50,6 +59,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if fields:
             query = query.only(*fields)
 
+        if select_related:
+            query = query.select_related(*select_related)
+
         if count_by_pk_field:
             total = await query.values_list(self.model._meta.pk_attr, flat=True)
             total = len(set(total))
@@ -57,9 +69,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             total = await query.count()
 
         if last_id:
-            result = await query.order_by(*order).limit(page_size)
+            query = query.order_by(*order).limit(page_size)
         else:
-            result = await query.offset((page - 1) * page_size).limit(page_size).order_by(*order)
+            query = query.offset((page - 1) * page_size).limit(page_size).order_by(*order)
+
+        if prefetch_related:
+            query = query.prefetch_related(*prefetch_related)
+
+        result = await query
 
         return Total(total), result
 

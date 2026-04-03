@@ -1,10 +1,10 @@
 from tortoise.expressions import Q
 
 from app.core.base_schema import CommonIds, Success, SuccessExtra
-from app.core.ctx import CTX_USER_ID
+from app.core.ctx import CTX_ROLE_CODES
 from app.core.router import CRUDRouter, SearchFieldConfig
 from app.system.api.utils import generate_tags_recursive_list, refresh_api_list
-from app.system.controllers import api_controller, user_controller
+from app.system.controllers import api_controller
 from app.system.models import Api, Role
 from app.system.radar.developer import radar_log
 from app.system.schemas.admin import ApiCreate, ApiSearch, ApiUpdate
@@ -45,30 +45,23 @@ async def _(obj_in: ApiSearch):
     # 排除系统自动注册的 API，只显示用户手动创建的
     q &= Q(is_system=False)
 
-    user_id = CTX_USER_ID.get()
-    user_obj = await user_controller.get(id=user_id)
-    await user_obj.fetch_related("by_user_roles")
-    user_role_objs: list[Role] = await user_obj.by_user_roles
-    user_role_codes = [role_obj.role_code for role_obj in user_role_objs]
-    if "R_SUPER" in user_role_codes:
+    role_codes = CTX_ROLE_CODES.get()
+    if "R_SUPER" in role_codes:
         total, api_objs = await api_controller.list(page=obj_in.current, page_size=obj_in.size, search=q, order=["tags", "id"])
     else:
-        api_objs: list[Api] = []
-        for role_obj in user_role_objs:
-            await role_obj.fetch_related("by_role_apis")
-            api_objs.extend([api_obj for api_obj in await role_obj.by_role_apis.filter(q)])
+        # 非超管：只返回角色关联的 API
+        role_objs = await Role.filter(role_code__in=role_codes).prefetch_related("by_role_apis")
+        all_apis: list[Api] = []
+        for role_obj in role_objs:
+            all_apis.extend([api_obj for api_obj in await role_obj.by_role_apis.filter(q)])
 
-        unique_apis = list(set(api_objs))
-        sorted_menus = sorted(unique_apis, key=lambda x: x.id)
+        unique_apis = sorted(set(all_apis), key=lambda x: x.id)
         start = ((obj_in.current or 1) - 1) * (obj_in.size or 10)
         end = start + (obj_in.size or 10)
-        api_objs = sorted_menus[start:end]
-        total = len(sorted_menus)
+        api_objs = unique_apis[start:end]
+        total = len(unique_apis)
 
-    records = []
-    for obj in api_objs:
-        data = await obj.to_dict(exclude_fields=["created_at", "updated_at"])
-        records.append(data)
+    records = [await obj.to_dict(exclude_fields=["created_at", "updated_at"]) for obj in api_objs]
     data = {"records": records}
     return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
