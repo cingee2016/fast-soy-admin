@@ -1,29 +1,7 @@
 """
-业务模块初始化数据的公共 API — 声明式创建/更新菜单/按钮/角色。
+系统初始化辅助服务。
 
-所有函数幂等：根据唯一键 get_or_update，声明即真实状态。
-
-Usage (in app/business/hr/init_data.py):
-
-    async def init():
-        await ensure_menu(
-            menu_name="HR管理", route_name="hr", route_path="/hr",
-            icon="mdi:account-group", order=8,
-            children=[
-                dict(menu_name="员工管理", route_name="hr_employee",
-                     route_path="/hr/employee", component="view.hr_employee", order=1),
-            ],
-            buttons=[
-                dict(button_code="B_HR_CREATE", button_desc="创建员工"),
-            ],
-        )
-
-        await ensure_role(
-            role_name="部门主管", role_code="R_DEPT_MGR",
-            menus=["hr", "hr_employee"],
-            buttons=["B_HR_CREATE"],
-            apis=[("post", "/api/v1/business/hr/employees")],
-        )
+这里承载菜单、角色、种子用户等 system 领域的初始化编排逻辑。
 """
 
 from __future__ import annotations
@@ -63,7 +41,6 @@ async def ensure_menu(
     from app.core.base_model import IconType, MenuType
     from app.system.models.admin import Button, Menu
 
-    # 确定 parent_id
     if parent_route is None:
         parent_id = 0
     else:
@@ -73,7 +50,6 @@ async def ensure_menu(
             return
         parent_id = parent.id
 
-    # 推断菜单类型
     if menu_type is not None:
         resolved_type = MenuType(menu_type)
     else:
@@ -81,12 +57,10 @@ async def ensure_menu(
     if parent_id == 0 and component is None and not extra.get("constant"):
         component = "layout.base"
 
-    # 解析 active_menu (route_name -> Menu 实例)
     if "active_menu" in extra and isinstance(extra["active_menu"], str):
         active = await Menu.filter(route_name=extra["active_menu"]).first()
         extra["active_menu"] = active
 
-    # get_or_update
     defaults = {
         "parent_id": parent_id,
         "menu_type": resolved_type,
@@ -109,7 +83,6 @@ async def ensure_menu(
     else:
         log.info(f"ensure_menu: updated '{route_name}'")
 
-    # 同步按钮（None=不动，[]=清空，[...]=替换）
     if buttons is not None:
         await main_menu.by_menu_buttons.clear()
         for btn in buttons:
@@ -119,11 +92,14 @@ async def ensure_menu(
             )
             await main_menu.by_menu_buttons.add(btn_obj)
 
-    # 递归处理子菜单
     for child in children or []:
         child_buttons = child.get("buttons")
         child_children = child.get("children")
-        child_extra = {k: v for k, v in child.items() if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")}
+        child_extra = {
+            k: v
+            for k, v in child.items()
+            if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")
+        }
         await ensure_menu(
             parent_route=route_name,
             menu_name=child["menu_name"],
@@ -173,7 +149,6 @@ async def ensure_role(
         },
     )
 
-    # 同步菜单
     if menus is not None:
         await role.by_role_menus.clear()
         for rn in menus:
@@ -181,7 +156,6 @@ async def ensure_role(
             if menu:
                 await role.by_role_menus.add(menu)
 
-    # 同步按钮
     if buttons is not None:
         await role.by_role_buttons.clear()
         for code in buttons:
@@ -189,7 +163,6 @@ async def ensure_role(
             if btn:
                 await role.by_role_buttons.add(btn)
 
-    # 同步 API
     if apis is not None:
         await role.by_role_apis.clear()
         for method, path in apis:
@@ -220,8 +193,8 @@ async def ensure_user(
     - 已存在时同步基础资料和角色
     - 默认不重置密码，避免每次启动覆盖已有账号密码
     """
-    from app.system.controllers.user import user_controller
     from app.core.base_model import GenderType
+    from app.system.controllers.user import user_controller
     from app.system.models import User
     from app.system.security import get_password_hash
 

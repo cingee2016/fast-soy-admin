@@ -1,5 +1,5 @@
 from app.system.models import Button, Menu, Role
-from app.utils.init_helper import ensure_menu, ensure_role, ensure_user
+from app.system.services import ensure_menu, ensure_role, ensure_user
 
 SYSTEM_ROLE_SEEDS = [
     {

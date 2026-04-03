@@ -65,11 +65,3 @@ from app.system.radar.developer import radar_log as radar_log
 from app.system.security import create_access_token as create_access_token
 from app.system.security import get_password_hash as get_password_hash
 from app.system.security import verify_password as verify_password
-
-# ---- Init data helpers (for business modules) ----
-from app.utils.init_helper import ensure_menu as ensure_menu
-from app.utils.init_helper import ensure_role as ensure_role
-
-# ---- User management ----
-from app.system.services import CreateUserResult as CreateUserResult
-from app.system.services import create_system_user as create_system_user

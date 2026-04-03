@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.models import Department, Employee, Skill
-from app.utils.init_helper import ensure_menu, ensure_role, ensure_user
+from app.system.services import ensure_menu, ensure_role, ensure_user
 
 HR_MENU_CHILDREN = [
     {

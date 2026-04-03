@@ -9,7 +9,8 @@ from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.controllers import employee_controller, skill_controller
 from app.business.hr.models import Department, Employee
 from app.business.hr.schemas import EmployeeCreate, EmployeeSearch, EmployeeUpdate
-from app.utils import Fail, Success, create_system_user, has_button_code, is_super_admin, radar_log
+from app.system.services import create_system_user
+from app.utils import Fail, Success, has_button_code, is_super_admin, radar_log
 
 
 async def generate_employee_no() -> str:

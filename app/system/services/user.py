@@ -1,8 +1,7 @@
 """
 系统用户服务。
 
-这里放置 system 领域自己的用户编排逻辑；
-业务模块如需复用，统一通过 ``app.utils`` 暴露的公共 API 访问。
+这里放置 system 领域自己的用户编排逻辑。
 """
 
 from __future__ import annotations
