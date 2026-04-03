@@ -63,3 +63,7 @@ executionEnvironments = [
 
 typeCheckingMode = "standard"
 disableBytesTypePromotions = true
+
+
+[tool.tortoise]
+tortoise_orm = "app.core.config.TORTOISE_ORM"

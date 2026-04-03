@@ -9,8 +9,8 @@ from starlette.staticfiles import StaticFiles
 from app.core.cache import refresh_all_cache
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
+    ensure_system_tables,
     make_middlewares,
-    modify_db,
     register_db,
     register_exceptions,
     register_routers,
@@ -57,7 +57,7 @@ async def lifespan(_app: FastAPI):
     _app.state.redis = await init_redis()
     FastAPICache.init(RedisBackend(_app.state.redis), prefix="fastapi-cache")
     try:
-        await modify_db()
+        await ensure_system_tables()
         await init_menus()
         await refresh_api_list()
         await init_users()

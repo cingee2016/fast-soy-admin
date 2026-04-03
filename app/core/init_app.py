@@ -30,6 +30,8 @@ async def _guard_response_modifier(response):
     status = response.status_code
     if status < 400:
         return response
+    if status == 404:
+        return response  # let normal 404 pass through, don't mask as security block
     if status == 429:
         code, msg = Code.RATE_LIMITED, "请求过于频繁，请稍后再试"
     elif status == 403 and b"banned" in (response.body or b"").lower():
@@ -126,16 +128,74 @@ def register_routers(app: FastAPI, prefix: str = "/api"):
     app.include_router(health_router)
 
 
-async def modify_db():
+def _ensure_migrations_dir():
+    """确保 migrations 包目录存在，等价于 `tortoise init`。"""
+    from tortoise.cli.cli import _ensure_migrations_package
+
+    for app_label, app_config in APP_SETTINGS.TORTOISE_ORM.get("apps", {}).items():
+        try:
+            _ensure_migrations_package(app_label, app_config)
+        except Exception:
+            pass
+
+
+def _has_migration_files(app_label: str) -> bool:
+    """检查指定 app 是否已有迁移文件。"""
+    from tortoise.migrations.writer import migrations_module_path
+
+    migrations_module = APP_SETTINGS.TORTOISE_ORM.get("apps", {}).get(app_label, {}).get("migrations")
+    if not migrations_module:
+        return False
+    try:
+        path = migrations_module_path(migrations_module)
+    except Exception:
+        return False
+    return any(f.suffix == ".py" and f.stem not in ("__init__",) for f in path.iterdir())
+
+
+async def _auto_makemigrations(app_label: str):
+    """为系统 app 自动生成迁移文件（等价于 tortoise makemigrations）。"""
+    from tortoise import Tortoise
+    from tortoise.migrations.autodetector import MigrationAutodetector
+
+    from app.core.log import log
+
+    apps_config = {app_label: APP_SETTINGS.TORTOISE_ORM["apps"][app_label]}
+    autodetector = MigrationAutodetector(Tortoise.apps, apps_config)
+    writers = await autodetector.changes()
+    for writer in writers:
+        path = writer.write()
+        log.info(f"Auto-generated migration: {writer.app_label}.{writer.name} -> {path}")
+
+
+async def ensure_system_tables():
+    """确保系统表存在（幂等）。
+
+    完整流程（等价于 tortoise init + makemigrations + migrate）：
+    0. 确保迁移目录存在
+    1. 若无迁移文件，自动生成（仅系统 app）
+    2. 执行迁移
+    业务模块不自动迁移，需开发者手动执行 tortoise makemigrations && tortoise migrate。
+    """
     from tortoise.migrations.api.migrate import migrate
 
+    from app.core.log import log
+
+    # 0) 确保迁移目录存在（等价于 tortoise init）
+    _ensure_migrations_dir()
+
+    # 1) 若系统 app 无迁移文件，自动生成（等价于 tortoise makemigrations）
+    if not _has_migration_files("app_system"):
+        log.info("No migration files found for app_system, auto-generating...")
+        await _auto_makemigrations("app_system")
+
+    # 2) 执行迁移（等价于 tortoise migrate）
     try:
         await migrate(config=APP_SETTINGS.TORTOISE_ORM, app_labels=["app_system"])
-    except Exception:
-        ...
+    except Exception as e:
+        log.warning(f"tortoise migrate skipped: {e}")
 
-    # migrate() → Tortoise.init() → close_connections() clears _global_context.
-    # Restore it so request handlers (running in separate tasks) can find the context.
+    # migrate() → Tortoise.init() → close_connections() 会清除 _global_context，需要恢复
     from tortoise.context import _global_context, get_current_context, set_global_context
 
     if _global_context is None:

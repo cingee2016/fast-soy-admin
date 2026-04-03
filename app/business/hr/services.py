@@ -161,7 +161,10 @@ async def edit_subordinate_skills(mgr: Employee, emp_id: int, skill_ids: list[in
 
 async def get_department_stats():
     """部门统计"""
-    departments = await Department.all().select_related("manager")
+    departments = await Department.all()
+    # 批量查询主管姓名
+    mgr_ids = [dept.manager_id for dept in departments if dept.manager_id]
+    mgr_map = {emp.id: emp.name for emp in await Employee.filter(id__in=mgr_ids)} if mgr_ids else {}
     stats = []
     for dept in departments:
         emp_count = await Employee.filter(department_id=dept.id).count()
@@ -169,7 +172,7 @@ async def get_department_stats():
             "id": dept.id,
             "name": dept.name,
             "code": dept.code,
-            "managerName": dept.manager.name if dept.manager else None,
+            "managerName": mgr_map.get(dept.manager_id) if dept.manager_id else None,
             "employeeCount": emp_count,
         })
     return stats

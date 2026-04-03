@@ -1,5 +1,3 @@
-from tortoise.exceptions import OperationalError
-
 from app.system.controllers import role_controller
 from app.system.controllers.user import UserCreate, user_controller
 from app.system.models import Button, Menu, Role, User
@@ -7,11 +5,7 @@ from app.utils.init_helper import ensure_menu, ensure_role
 
 
 async def init_menus():
-    try:
-        if await Menu.exists():
-            return
-    except OperationalError:
-        # 表尚未创建（全新数据库），跳过初始化
+    if await Menu.exists():
         return
 
     # ---- 常量路由（不受权限控制） ----

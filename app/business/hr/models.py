@@ -19,10 +19,8 @@ class Department(BaseModel, AuditMixin):
     description = fields.CharField(max_length=500, null=True, blank=True, description="部门描述")
     status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
 
-    # 部门主管 → Employee (创建员工后再指定)
-    manager: fields.ForeignKeyNullableRelation["Employee"] = fields.ForeignKeyField(
-        "app_system.Employee", null=True, on_delete=fields.SET_NULL, related_name="managed_departments", description="部门主管"
-    )
+    # 部门主管 → Employee (用 IntField 避免循环 FK)
+    manager_id = fields.IntField(null=True, description="部门主管员工ID")
 
     class Meta:
         table = "biz_department"

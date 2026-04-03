@@ -112,7 +112,7 @@ class Menu(BaseModel, AuditMixin):
 
 class Button(BaseModel, AuditMixin):
     id = fields.IntField(pk=True, description="按钮id")
-    button_code = fields.CharField(max_length=200, description="按钮编码")
+    button_code = fields.CharField(max_length=200, description="按钮编码", db_index=True)
     button_desc = fields.CharField(max_length=200, description="按钮描述")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
 
