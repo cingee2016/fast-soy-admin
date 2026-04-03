@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
@@ -147,13 +147,28 @@ class CRUDRouter:
                 return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
 
         else:
+            schema = self.list_schema
 
             @self.router.get(f"/{self._resource}", summary=f"查看{self.summary_prefix}列表")
             async def list_items_get(
+                request: Request,
                 current: int = Query(1, description="页码"),
                 size: int = Query(10, description="每页数量"),
             ):
-                total, objs = await controller.list(page=current, page_size=size, search=Q(), order=list_order)
+                if schema:
+                    params = {k: v for k, v in request.query_params.items() if v != ""}
+                    obj_in = schema.model_validate(params)
+                    q = controller.build_search(
+                        obj_in,
+                        contains_fields=search_fields.contains_fields,
+                        icontains_fields=search_fields.icontains_fields,
+                        exact_fields=search_fields.exact_fields,
+                        iexact_fields=search_fields.iexact_fields,
+                        in_fields=search_fields.in_fields,
+                    )
+                else:
+                    q = Q()
+                total, objs = await controller.list(page=current, page_size=size, search=q, order=list_order)
                 records = [await to_record(obj) for obj in objs]
                 data = {"records": records}
                 return SuccessExtra(data=data, total=total, current=current, size=size)
@@ -177,7 +192,7 @@ class CRUDRouter:
         @self.router.post(f"/{self._resource}", summary=f"创建{self.summary_prefix}")
         async def create_item(obj_in: schema):  # type: ignore[valid-type]
             new_obj = await controller.create(obj_in=obj_in)
-            return Success(msg="Created Successfully", data={"created_id": new_obj.id})
+            return Success(msg="创建成功", data={"created_id": new_obj.id})
 
     def _add_update_route(self):
         if not self.update_schema:
@@ -189,7 +204,7 @@ class CRUDRouter:
         @self.router.patch(f"/{self._resource}/{{item_id}}", summary=f"更新{self.summary_prefix}")
         async def update_item(item_id: int, obj_in: schema):  # type: ignore[valid-type]
             await controller.update(id=item_id, obj_in=obj_in)
-            return Success(msg="Updated Successfully", data={"updated_id": item_id})
+            return Success(msg="更新成功", data={"updated_id": item_id})
 
     def _add_delete_route(self):
         controller = self.controller
@@ -197,7 +212,7 @@ class CRUDRouter:
         @self.router.delete(f"/{self._resource}/{{item_id}}", summary=f"删除{self.summary_prefix}")
         async def delete_item(item_id: int):
             await controller.remove(id=item_id)
-            return Success(msg="Deleted Successfully", data={"deleted_id": item_id})
+            return Success(msg="删除成功", data={"deleted_id": item_id})
 
     def _add_batch_delete_route(self):
         controller = self.controller
@@ -207,7 +222,7 @@ class CRUDRouter:
             @self.router.delete(f"/{self._resource}", summary=f"批量删除{self.summary_prefix}")
             async def batch_delete_by_body(obj_in: CommonIds):
                 deleted_count = await controller.batch_remove(obj_in.ids)
-                return Success(msg="Deleted Successfully", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
+                return Success(msg="删除成功", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
 
         else:
 
@@ -215,4 +230,4 @@ class CRUDRouter:
             async def batch_delete_by_query(ids: str = Query(..., description="ID列表, 用逗号隔开")):
                 id_list = [int(i) for i in ids.split(",")]
                 deleted_count = await controller.batch_remove(id_list)
-                return Success(msg="Deleted Successfully", data={"deleted_count": deleted_count, "deleted_ids": id_list})
+                return Success(msg="删除成功", data={"deleted_count": deleted_count, "deleted_ids": id_list})

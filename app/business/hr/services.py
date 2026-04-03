@@ -114,7 +114,7 @@ async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
             for sid in emp_in.skill_ids:
                 await emp.skills.add(await skill_controller.get(id=sid))
     radar_log("编辑员工", data={"employeeId": emp_id})
-    return Success(msg="Updated Successfully", data={"updated_id": emp_id})
+    return Success(msg="更新成功", data={"updated_id": emp_id})
 
 
 async def update_employee_skills(emp: Employee, skill_ids: list[int], *, log_label: str = "编辑技能", extra_log: dict[str, object] | None = None):

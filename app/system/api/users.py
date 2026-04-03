@@ -53,27 +53,23 @@ async def _(obj_in: UserSearch):
 
 @router.post("/users", summary="创建用户")
 async def _(user_in: UserCreate):
-    if not user_in.user_email:
-        return Fail(code=Code.DUPLICATE_RESOURCE, msg="This email is invalid.")
+    assert user_in.user_email is not None  # guaranteed by schema validator
+    assert user_in.by_user_role_code_list is not None  # guaranteed by schema validator
 
     user_obj = await user_controller.get_by_email(user_in.user_email)
     if user_obj:
-        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user with this email already exists in the system.")
-
-    if not user_in.by_user_role_code_list:
-        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user must have at least one role that exists.")
+        return Fail(code=Code.DUPLICATE_RESOURCE, msg="该邮箱已被注册")
 
     async with in_transaction("conn_system"):
         new_user = await user_controller.create(obj_in=user_in)
         await user_controller.update_roles_by_code(new_user, user_in.by_user_role_code_list)
 
-    return Success(msg="Created Successfully", data={"created_id": new_user.id})
+    return Success(msg="创建成功", data={"created_id": new_user.id})
 
 
 @router.patch("/users/{user_id}", summary="更新用户")
 async def _(user_id: int, user_in: UserUpdate, request: Request):
-    if not user_in.by_user_role_code_list:
-        return Fail(code=Code.DUPLICATE_RESOURCE, msg="The user must have at least one role that exists.")
+    assert user_in.by_user_role_code_list is not None  # guaranteed by schema validator
 
     async with in_transaction("conn_system"):
         user = await user_controller.update(user_id=user_id, obj_in=user_in)
@@ -82,7 +78,7 @@ async def _(user_id: int, user_in: UserUpdate, request: Request):
     if user_in.password:
         await _incr_token_version(request, user_id)
 
-    return Success(msg="Updated Successfully", data={"updated_id": user_id})
+    return Success(msg="更新成功", data={"updated_id": user_id})
 
 
 # ---- 自定义扩展接口：用户下线 ----

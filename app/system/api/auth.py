@@ -127,7 +127,7 @@ async def _(register_in: RegisterSchema, request: Request):
 @router.post("/refresh-token", summary="刷新认证")
 async def _(jwt_token: JWTOut, request: Request):
     if not jwt_token.refresh_token:
-        return Fail(code=Code.INVALID_TOKEN, msg="The refreshToken is not valid.")
+        return Fail(code=Code.INVALID_TOKEN, msg="刷新令牌无效")
     status, code, data = check_token(jwt_token.refresh_token)
     if not status:
         return Fail(code=code, msg=data)
@@ -136,11 +136,11 @@ async def _(jwt_token: JWTOut, request: Request):
     user_obj = await user_controller.get(id=user_id)
 
     if data["data"]["tokenType"] != "refreshToken":
-        return Fail(code=Code.INVALID_SESSION, msg="The token is not an refresh token.")
+        return Fail(code=Code.INVALID_SESSION, msg="该令牌不是刷新令牌")
 
     if user_obj.status_type == StatusType.disable:
         radar_log("刷新令牌失败: 账号已禁用", level="WARNING", data={"userId": user_id})
-        return Fail(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
+        return Fail(code=Code.ACCOUNT_DISABLED, msg="该用户已被禁用")
 
     redis = request.app.state.redis
     token_version_in_jwt = data["data"].get("tokenVersion", 0)

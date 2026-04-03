@@ -1,9 +1,11 @@
 # pyright: reportIncompatibleVariableOverride=false
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.core.base_schema import SchemaBase
+from app.core.code import Code
+from app.core.exceptions import SchemaValidationError
 from app.system.models import IconType, MenuType, StatusType
 
 # ============================================================
@@ -27,6 +29,14 @@ class RoleSearch(RoleBase):
 class RoleCreate(RoleBase):
     role_name: str = Field(title="角色名称")
     role_code: str = Field(title="角色编码")
+
+    @model_validator(mode="after")
+    def validate_create(self):
+        if not self.role_name.strip():
+            raise SchemaValidationError(code=Code.FAIL, msg="角色名称不能为空")
+        if not self.role_code.strip():
+            raise SchemaValidationError(code=Code.FAIL, msg="角色编码不能为空")
+        return self
 
 
 class RoleUpdate(RoleBase): ...
@@ -111,6 +121,14 @@ class MenuCreate(MenuBase):
     menu_type: MenuType = Field(max_length=200, title="菜单类型")
     route_name: str = Field(max_length=200, title="路由名称")
     route_path: str = Field(max_length=200, title="路由路径")
+
+    @model_validator(mode="after")
+    def validate_create(self):
+        if not self.route_name.strip():
+            raise SchemaValidationError(code=Code.FAIL, msg="路由名称不能为空")
+        if not self.route_path.strip():
+            raise SchemaValidationError(code=Code.FAIL, msg="路由路径不能为空")
+        return self
 
 
 class MenuUpdate(MenuBase): ...

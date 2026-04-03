@@ -4,7 +4,7 @@ from tortoise.transactions import in_transaction
 
 from app.core.code import Code
 from app.core.crud import CRUDBase
-from app.core.exceptions import HTTPException
+from app.core.exceptions import BizError
 from app.system.models import Role, StatusType, User
 from app.system.radar.developer import radar_log
 from app.system.schemas.login import CredentialsSchema
@@ -49,17 +49,17 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
 
         if not user:
             radar_log("用户登录失败: 用户名不存在", level="WARNING", data={"userName": credentials.user_name})
-            raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
+            raise BizError(code=Code.FAIL, msg="用户名或密码错误")
 
         verified = verify_password(credentials.password or "", user.password or "")
 
         if not verified:
             radar_log("用户登录失败: 密码错误", level="WARNING", data={"userName": user.user_name, "userId": user.id})
-            raise HTTPException(code=Code.FAIL, msg="Incorrect username or password!")
+            raise BizError(code=Code.FAIL, msg="用户名或密码错误")
 
         if user.status_type == StatusType.disable:
             radar_log("用户登录失败: 账号已禁用", level="ERROR", data={"userName": user.user_name, "userId": user.id})
-            raise HTTPException(code=Code.ACCOUNT_DISABLED, msg="This user has been disabled.")
+            raise BizError(code=Code.ACCOUNT_DISABLED, msg="该用户已被禁用")
 
         return user
 

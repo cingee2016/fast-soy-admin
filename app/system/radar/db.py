@@ -107,7 +107,9 @@ async def query_requests(
     records = []
     for obj in objs:
         d = await obj.to_dict()
-        d["businessCode"] = _extract_business_code(obj.response_body)
+        biz_code, biz_msg = _extract_business_code_and_msg(obj.response_body)
+        d["businessCode"] = biz_code
+        d["businessMsg"] = biz_msg
         records.append(d)
     return total, records
 
@@ -118,6 +120,9 @@ async def query_request_detail(x_request_id: str) -> dict | None:
         return None
 
     result = await req.to_dict()
+    biz_code, biz_msg = _extract_business_code_and_msg(req.response_body)
+    result["businessCode"] = biz_code
+    result["businessMsg"] = biz_msg
 
     query_objs = await RadarQuery.filter(request=req).order_by("start_offset_ms")
     result["queries"] = [await q.to_dict() for q in query_objs]
@@ -323,18 +328,19 @@ async def query_dashboard_stats(hours: int = 1) -> dict:
     }
 
 
-def _extract_business_code(response_body: str | None) -> str | None:
-    """Extract business code from response body JSON."""
+def _extract_business_code_and_msg(response_body: str | None) -> tuple[str | None, str | None]:
+    """Extract business code and msg from response body JSON."""
     if not response_body:
-        return None
+        return None, None
     try:
         import json
 
         parsed = json.loads(response_body)
         code = parsed.get("code")
-        return str(code) if code is not None else None
+        msg = parsed.get("msg")
+        return (str(code) if code is not None else None), (str(msg) if msg is not None else None)
     except (json.JSONDecodeError, AttributeError, TypeError):
-        return None
+        return None, None
 
 
 async def _build_code_distribution(base_q: Q) -> list[dict]:

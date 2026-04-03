@@ -136,7 +136,13 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
             sys.stderr.write(f"{msg}\n{output}\n")
             sys.stderr.flush()
 
-            # Return colored output in debug mode for frontend rendering
-            details: str | None = f"{msg}\n{output}" if APP_SETTINGS.DEBUG else None
+            # Return plain-text output in debug mode (strip ANSI escape codes)
+            if APP_SETTINGS.DEBUG:
+                import re
+
+                ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+                details: str | None = ansi_escape.sub("", f"{msg}\n{output}")
+            else:
+                details: str | None = None
 
             return await BaseHandle(request, exc, Exception, "5001", f"服务器内部错误: {exc.__class__.__name__}", 200, details=details)

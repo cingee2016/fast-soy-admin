@@ -6,10 +6,10 @@ from tortoise.contrib.fastapi import register_tortoise
 
 from app.core.config import APP_SETTINGS
 from app.core.exceptions import (
+    BizError,
+    BizErrorHandle,
     DoesNotExist,
     DoesNotExistHandle,
-    HTTPException,
-    HttpExcHandle,
     IntegrityError,
     IntegrityHandle,
     RequestValidationError,
@@ -30,8 +30,8 @@ async def _guard_response_modifier(response):
     status = response.status_code
     if status < 400:
         return response
-    if status == 404:
-        return response  # let normal 404 pass through, don't mask as security block
+    if status in (404, 405):
+        return response  # let normal routing errors pass through, don't mask as security block
     if status == 429:
         code, msg = Code.RATE_LIMITED, "请求过于频繁，请稍后再试"
     elif status == 403 and b"banned" in (response.body or b"").lower():
@@ -114,7 +114,7 @@ def register_db(app: FastAPI):
 
 def register_exceptions(app: FastAPI):
     app.add_exception_handler(DoesNotExist, DoesNotExistHandle)
-    app.add_exception_handler(HTTPException, HttpExcHandle)  # type: ignore
+    app.add_exception_handler(BizError, BizErrorHandle)  # type: ignore
     app.add_exception_handler(IntegrityError, IntegrityHandle)
     app.add_exception_handler(RequestValidationError, RequestValidationHandle)  # type: ignore
     app.add_exception_handler(ResponseValidationError, ResponseValidationHandle)  # type: ignore

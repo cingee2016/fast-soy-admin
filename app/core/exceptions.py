@@ -1,5 +1,3 @@
-import http
-
 import orjson
 from fastapi.exceptions import (
     RequestValidationError,
@@ -16,10 +14,13 @@ class SettingNotFound(Exception):
     pass
 
 
-class HTTPException(Exception):
-    def __init__(self, code: int | str, msg: str | None = None) -> None:
-        if msg is None:
-            msg = http.HTTPStatus(int(code)).phrase
+class BizError(Exception):
+    """Base business error — usable in any layer (service, controller, schema, API).
+
+    Caught by a single global handler that returns Fail(code=..., msg=...).
+    """
+
+    def __init__(self, code: int | str, msg: str) -> None:
         self.code = code
         self.msg = msg
 
@@ -29,6 +30,17 @@ class HTTPException(Exception):
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         return f"{class_name}(code={self.code!r}, msg={self.msg!r})"
+
+
+class SchemaValidationError(BizError):
+    """Raised in Pydantic schema validators.
+
+    Not a ValueError, so Pydantic won't catch it — propagates directly to the BizError handler.
+    """
+
+
+# legacy alias
+HTTPException = BizError
 
 
 async def BaseHandle(req: Request, exc: Exception, handle_exc, code: int | str, msg: str | dict, status_code: int = 500, **kwargs) -> JSONResponse:
@@ -62,8 +74,8 @@ async def IntegrityHandle(req: Request, exc: Exception) -> JSONResponse:
     return await BaseHandle(req, exc, IntegrityError, Code.INTEGRITY_ERROR, f"IntegrityError，{exc}, path: {req.path_params}, query: {req.query_params}", 200)
 
 
-async def HttpExcHandle(req: Request, exc: HTTPException) -> JSONResponse:
-    return await BaseHandle(req, exc, HTTPException, exc.code, exc.msg, 200)
+async def BizErrorHandle(req: Request, exc: BizError) -> JSONResponse:
+    return await BaseHandle(req, exc, BizError, exc.code, exc.msg, 200)
 
 
 async def RequestValidationHandle(req: Request, exc: RequestValidationError) -> JSONResponse:

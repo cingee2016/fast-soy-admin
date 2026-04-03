@@ -75,7 +75,7 @@ async def _(api_in: ApiCreate):
         api_in.tags = api_in.tags.split("|")
     new_api = await api_controller.create(obj_in=api_in)
     radar_log("创建API", data={"apiId": new_api.id, "apiPath": api_in.api_path, "summary": api_in.summary})
-    return Success(msg="Created Successfully", data={"created_id": new_api.id})
+    return Success(msg="创建成功", data={"created_id": new_api.id})
 
 
 @router.patch("/apis/{api_id}", summary="更新API")
@@ -84,7 +84,7 @@ async def _(api_id: int, api_in: ApiUpdate):
         api_in.tags = api_in.tags.split("|")
     await api_controller.update(id=api_id, obj_in=api_in)
     radar_log("编辑API", data={"apiId": api_id, "apiPath": api_in.api_path, "summary": api_in.summary})
-    return Success(msg="Update Successfully", data={"updated_id": api_id})
+    return Success(msg="更新成功", data={"updated_id": api_id})
 
 
 # ---- 自定义删除（需要日志追踪） ----
@@ -95,7 +95,7 @@ async def _(api_id: int):
     api_obj = await api_controller.get(id=api_id)
     radar_log("删除API", data={"apiId": api_id, "apiPath": api_obj.api_path, "summary": api_obj.summary})
     await api_controller.remove(id=api_id)
-    return Success(msg="Deleted Successfully", data={"deleted_id": api_id})
+    return Success(msg="删除成功", data={"deleted_id": api_id})
 
 
 @router.delete("/apis", summary="批量删除API")
@@ -103,7 +103,7 @@ async def _(obj_in: CommonIds):
     api_objs = await Api.filter(id__in=obj_in.ids)
     radar_log("批量删除API", data={"apiIds": obj_in.ids, "apiPaths": [a.api_path for a in api_objs]})
     deleted_count = await api_controller.batch_remove(obj_in.ids)
-    return Success(msg="Deleted Successfully", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
+    return Success(msg="删除成功", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
 
 
 # ---- 自定义扩展接口 ----

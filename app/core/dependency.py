@@ -8,9 +8,7 @@ from app.core.cache import get_role_apis, get_user_button_codes, get_user_role_c
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
 from app.core.ctx import CTX_BUTTON_CODES, CTX_IMPERSONATOR_ID, CTX_ROLE_CODES, CTX_USER, CTX_USER_ID, CTX_X_REQUEST_ID
-from app.core.exceptions import (
-    HTTPException,
-)
+from app.core.exceptions import BizError
 from app.core.log import log
 from app.core.tools import check_url
 from app.system.models import StatusType, User
@@ -37,15 +35,15 @@ class AuthControl:
     @classmethod
     async def is_authed(cls, request: Request, token: str = Depends(oauth2_schema)) -> User | None:
         if not token:
-            raise HTTPException(code=Code.INVALID_TOKEN, msg="Authentication failed, token does not exists in the request.")
+            raise BizError(code=Code.INVALID_TOKEN, msg="认证失败，请求中不存在令牌")
         user_id = CTX_USER_ID.get()
         if user_id == 0:
             status, code, decode_data = check_token(token)
             if not status:
-                raise HTTPException(code=code, msg=decode_data)
+                raise BizError(code=code, msg=decode_data)
 
             if decode_data["data"]["tokenType"] != "accessToken":
-                raise HTTPException(code=Code.INVALID_SESSION, msg="The token is not an access token")
+                raise BizError(code=Code.INVALID_SESSION, msg="该令牌不是访问令牌")
 
             user_id = decode_data["data"]["userId"]
 
@@ -58,11 +56,11 @@ class AuthControl:
             token_version_in_jwt = decode_data["data"].get("tokenVersion", 0)
             current_version = int(await redis.get(f"token_version:{user_id}") or 0)
             if token_version_in_jwt < current_version:
-                raise HTTPException(code=Code.INVALID_TOKEN, msg="Token已失效，请重新登录")
+                raise BizError(code=Code.INVALID_TOKEN, msg="Token已失效，请重新登录")
 
         user = await User.filter(id=user_id).first()
         if not user:
-            raise HTTPException(code=Code.INVALID_SESSION, msg=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
+            raise BizError(code=Code.INVALID_SESSION, msg=f"认证失败，用户ID {user_id} 不存在")
 
         uid = int(user_id)
         CTX_USER_ID.set(uid)
@@ -91,7 +89,7 @@ class PermissionControl:
             return
 
         if not role_codes:
-            raise HTTPException(code=Code.PERMISSION_DENIED, msg="The user is not bound to a role")
+            raise BizError(code=Code.PERMISSION_DENIED, msg="该用户未绑定角色")
 
         method = request.method.lower()
         path = request.url.path
@@ -107,12 +105,12 @@ class PermissionControl:
         for api_method, api_path, api_status in permission_apis:
             if api_method == method and check_url(api_path, path):
                 if api_status == StatusType.disable.value:
-                    raise HTTPException(code=Code.API_DISABLED, msg=f"The API has been disabled, method: {method} path: {path}")
+                    raise BizError(code=Code.API_DISABLED, msg=f"该接口已被禁用，method: {method} path: {path}")
                 return
 
         log.error(f"Permission denied, method: {method.upper()} path: {path}, x-request-id: {CTX_X_REQUEST_ID.get()}")
         radar_log("权限拒绝", level="ERROR", data={"method": method.upper(), "path": path, "xRequestId": CTX_X_REQUEST_ID.get()})
-        raise HTTPException(code=Code.PERMISSION_DENIED, msg=f"Permission denied, method: {method} path: {path}")
+        raise BizError(code=Code.PERMISSION_DENIED, msg=f"权限不足，method: {method} path: {path}")
 
 
 DependAuth = Depends(AuthControl.is_authed)

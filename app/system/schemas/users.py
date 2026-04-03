@@ -1,6 +1,8 @@
 from pydantic import Field, model_validator
 
 from app.core.base_schema import SchemaBase
+from app.core.code import Code
+from app.core.exceptions import SchemaValidationError
 from app.system.models import GenderType, StatusType
 
 
@@ -24,15 +26,22 @@ class UserCreate(UserBase):
     @model_validator(mode="after")
     def validate_create(self):
         if not self.user_name:
-            raise ValueError("用户名不能为空")
+            raise SchemaValidationError(code=Code.FAIL, msg="用户名不能为空")
         if not self.password:
-            raise ValueError("密码不能为空")
+            raise SchemaValidationError(code=Code.FAIL, msg="密码不能为空")
+        if not self.by_user_role_code_list:
+            raise SchemaValidationError(code=Code.FAIL, msg="用户至少需要一个角色")
         if not self.nick_name:
             self.nick_name = self.user_name
         return self
 
 
-class UserUpdate(UserBase): ...
+class UserUpdate(UserBase):
+    @model_validator(mode="after")
+    def validate_update(self):
+        if not self.by_user_role_code_list:
+            raise SchemaValidationError(code=Code.FAIL, msg="用户至少需要一个角色")
+        return self
 
 
 class UpdatePassword(SchemaBase):

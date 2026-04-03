@@ -68,7 +68,9 @@ async def init():
             ("patch", "/api/v1/business/hr/employees/{emp_id}"),
             ("get", "/api/v1/business/hr/employees/{item_id}"),
             ("get", "/api/v1/business/hr/department/employees"),
+            ("post", "/api/v1/business/hr/departments/all/"),
             ("patch", "/api/v1/business/hr/department/employees/{emp_id}/skills"),
             ("get", "/api/v1/business/hr/departments/stats"),
+            ("get", "/api/v1/business/hr/skills"),
         ],
     )

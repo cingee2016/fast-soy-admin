@@ -363,6 +363,7 @@ async def init_menus():
 async def _create_user(role_code: str, **kwargs) -> User:
     """创建用户并关联角色"""
     role = await role_controller.get_by_code(role_code)
+    kwargs.setdefault("byUserRoleCodeList", [role_code])
     user = await user_controller.create(UserCreate(**kwargs))
     if role:
         await user.by_user_roles.add(role)
