@@ -1,14 +1,12 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Request
-from fastapi_cache import JsonCoder
-from fastapi_cache.decorator import cache
 
 from app.core.base_schema import Fail, Success
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
-from app.core.ctx import CTX_BUTTON_CODES, CTX_ROLE_CODES, CTX_USER_ID
-from app.core.dependency import DependAuth, check_token
+from app.core.ctx import CTX_BUTTON_CODES, CTX_IMPERSONATOR_ID, CTX_ROLE_CODES, CTX_USER_ID
+from app.core.dependency import DependAuth, DependPermission, check_token
 from app.core.log import log
 from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
@@ -21,9 +19,12 @@ from app.system.services.captcha import send_captcha, verify_captcha
 router = APIRouter()
 
 
-def _build_tokens(user_obj: User, token_version: int) -> JWTOut:
+def _build_tokens(user_obj: User, token_version: int, *, impersonator_id: int | None = None) -> JWTOut:
     """构建 access_token + refresh_token"""
-    payload = JWTPayload(data={"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}, iat=datetime.now(UTC), exp=datetime.now(UTC))
+    data: dict = {"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}
+    if impersonator_id is not None:
+        data["impersonatorId"] = impersonator_id
+    payload = JWTPayload(data=data, iat=datetime.now(UTC), exp=datetime.now(UTC))
 
     access_token_payload = payload.model_copy(deep=True)
     access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -149,13 +150,13 @@ async def _(jwt_token: JWTOut, request: Request):
 
     await user_controller.update_last_login(user_id)
     token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
-    data = _build_tokens(user_obj, token_version)
+    impersonator_id = data["data"].get("impersonatorId") or None
+    data = _build_tokens(user_obj, token_version, impersonator_id=impersonator_id)
 
     radar_log("刷新令牌成功", data={"userId": user_obj.id})
     return Success(data=data.model_dump(by_alias=True))
 
 
-@cache(expire=60, coder=JsonCoder)
 @router.get("/user-info", summary="查看用户信息", dependencies=[DependAuth])
 async def _():
     user_id = CTX_USER_ID.get()
@@ -166,6 +167,12 @@ async def _():
     button_codes = [b.button_code for b in await Button.all()] if "R_SUPER" in role_codes else CTX_BUTTON_CODES.get()
 
     data.update({"userId": user_id, "roles": role_codes, "buttons": button_codes})
+
+    impersonator_id = CTX_IMPERSONATOR_ID.get()
+    if impersonator_id:
+        data["impersonating"] = True
+        data["impersonatorId"] = impersonator_id
+
     radar_log("获取用户信息", data={"userId": user_obj.id})
     return Success(data=data)
 
@@ -188,3 +195,27 @@ async def _(body: UpdatePassword, request: Request):
 
     radar_log("修改密码", data={"userId": user_id})
     return Success(msg="密码修改成功，请重新登录")
+
+
+@router.post("/impersonate/{user_id}", summary="模拟登录", dependencies=[DependPermission])
+async def _(user_id: int, request: Request):
+    """超级管理员模拟登录为指定用户，无需密码"""
+    role_codes = CTX_ROLE_CODES.get()
+    if "R_SUPER" not in role_codes:
+        return Fail(code=Code.PERMISSION_DENIED, msg="仅超级管理员可以模拟登录")
+
+    target_user = await User.filter(id=user_id).first()
+    if not target_user:
+        return Fail(code=Code.FAIL, msg="目标用户不存在")
+
+    if target_user.status_type == StatusType.disable:
+        return Fail(code=Code.ACCOUNT_DISABLED, msg="目标用户已被禁用")
+
+    impersonator_id = CTX_USER_ID.get()
+    redis = request.app.state.redis
+    token_version = int(await redis.get(f"token_version:{target_user.id}") or 0)
+    data = _build_tokens(target_user, token_version, impersonator_id=impersonator_id)
+
+    log.info(f"管理员模拟登录, 操作人ID: {impersonator_id}, 目标用户: {target_user.user_name}(ID:{target_user.id})")
+    radar_log("管理员模拟登录", data={"impersonatorId": impersonator_id, "targetUserId": target_user.id, "targetUserName": target_user.user_name})
+    return Success(data=data.model_dump(by_alias=True))

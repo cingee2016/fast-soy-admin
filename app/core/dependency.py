@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.cache import get_role_apis, get_user_button_codes, get_user_role_codes
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
-from app.core.ctx import CTX_BUTTON_CODES, CTX_ROLE_CODES, CTX_USER, CTX_USER_ID, CTX_X_REQUEST_ID
+from app.core.ctx import CTX_BUTTON_CODES, CTX_IMPERSONATOR_ID, CTX_ROLE_CODES, CTX_USER, CTX_USER_ID, CTX_X_REQUEST_ID
 from app.core.exceptions import (
     HTTPException,
 )
@@ -48,6 +48,10 @@ class AuthControl:
                 raise HTTPException(code=Code.INVALID_SESSION, msg="The token is not an access token")
 
             user_id = decode_data["data"]["userId"]
+
+            impersonator_id = decode_data["data"].get("impersonatorId", 0)
+            if impersonator_id:
+                CTX_IMPERSONATOR_ID.set(impersonator_id)
 
             # 校验 token 版本号
             redis = request.app.state.redis

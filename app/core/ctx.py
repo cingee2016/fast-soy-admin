@@ -15,6 +15,7 @@ CTX_BG_TASKS: contextvars.ContextVar[BackgroundTasks | None] = contextvars.Conte
 CTX_USER: contextvars.ContextVar[User | None] = contextvars.ContextVar("user", default=None)
 CTX_ROLE_CODES: contextvars.ContextVar[list[str]] = contextvars.ContextVar("role_codes", default=[])
 CTX_BUTTON_CODES: contextvars.ContextVar[list[str]] = contextvars.ContextVar("button_codes", default=[])
+CTX_IMPERSONATOR_ID: contextvars.ContextVar[int] = contextvars.ContextVar("impersonator_id", default=0)
 
 
 def get_current_user() -> User | None:
