@@ -106,7 +106,7 @@ def register_db(app: FastAPI):
     register_tortoise(
         app,
         config=APP_SETTINGS.TORTOISE_ORM,
-        generate_schemas=True,
+        generate_schemas=False,
     )
 
 
@@ -133,3 +133,12 @@ async def modify_db():
         await migrate(config=APP_SETTINGS.TORTOISE_ORM, app_labels=["app_system"])
     except Exception:
         ...
+
+    # migrate() → Tortoise.init() → close_connections() clears _global_context.
+    # Restore it so request handlers (running in separate tasks) can find the context.
+    from tortoise.context import _global_context, get_current_context, set_global_context
+
+    if _global_context is None:
+        ctx = get_current_context()
+        if ctx is not None:
+            set_global_context(ctx)

@@ -28,7 +28,7 @@ FastSoyAdmin 是一套开箱即用的全栈后台管理模板。前端基于 Vue
 
 ### 技术栈
 
-**后端**：Python 3.12+, FastAPI, Pydantic v2, Tortoise ORM, Aerich, Redis (fastapi-cache2), Argon2, PyJWT (HS256), uv, Ruff, Pyright
+**后端**：Python 3.12+, FastAPI, Pydantic v2, Tortoise ORM 1.x, Redis (fastapi-cache2), Argon2, PyJWT (HS256), uv, Ruff, Pyright
 
 **前端**：Vue 3.5, Vite 7, TypeScript 5.9, Naive UI 2.44, Pinia 3, UnoCSS, Alova, Elegant Router, vue-i18n, ECharts 6
 
@@ -123,7 +123,7 @@ fast-soy-admin/
 │   │   └── typings/           # TypeScript 类型声明
 │   └── packages/              # 内部 monorepo 包
 ├── deploy/                    # Docker 部署配置
-├── migrations/                # 数据库迁移 (Aerich)
+├── migrations/                # 数据库迁移 (Tortoise ORM built-in)
 └── docker-compose.yml         # Docker Compose 编排
 ```
 
@@ -399,6 +399,6 @@ ruff check app/              # lint
 ruff format app/             # format
 pyright app                  # 类型检查
 pytest tests/ -v             # 测试
-aerich migrate               # 生成迁移
-aerich upgrade               # 执行迁移
+tortoise makemigrations      # 生成迁移
+tortoise migrate             # 执行迁移
 ```

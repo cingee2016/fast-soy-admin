@@ -3,12 +3,8 @@ HR 管理接口 — 部门/技能/员工的 CRUD (需要系统权限)。
 """
 
 from fastapi import APIRouter, Request
-from tortoise.expressions import Q
-from tortoise.transactions import in_transaction
 
-from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.controllers import department_controller, employee_controller, skill_controller
-from app.business.hr.models import Employee
 from app.business.hr.schemas import (
     DepartmentCreate,
     DepartmentSearch,
@@ -19,8 +15,8 @@ from app.business.hr.schemas import (
     SkillCreate,
     SkillUpdate,
 )
-from app.business.hr.services import create_employee, get_department_stats
-from app.utils import CTX_USER_ID, CRUDRouter, DependPermission, Fail, SearchFieldConfig, Success, SuccessExtra, has_button_code, is_super_admin, radar_log
+from app.business.hr.services import create_employee, get_department_stats, list_employees_with_relations, update_employee
+from app.utils import CTX_USER_ID, CRUDRouter, DependPermission, Fail, SearchFieldConfig, Success, SuccessExtra, has_button_code, is_super_admin
 
 dept_crud = CRUDRouter(
     prefix="/departments",
@@ -53,6 +49,15 @@ emp_crud = CRUDRouter(
 )
 
 router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission])
+
+
+# 具体路径定义在参数化路由（{item_id}）之前，避免路由冲突
+@router.get("/departments/stats", summary="部门统计")
+async def dept_stats():
+    stats = await get_department_stats()
+    return Success(data=stats)
+
+
 router.include_router(dept_crud.router)
 router.include_router(skill_crud.router)
 router.include_router(emp_crud.router)
@@ -60,19 +65,7 @@ router.include_router(emp_crud.router)
 
 @router.post("/employees/all/", summary="查看员工列表")
 async def list_employees(obj_in: EmployeeSearch):
-    q = employee_controller.build_search(obj_in, contains_fields=["name", "email"], exact_fields=["status"])
-    if obj_in.department_id:
-        q &= Q(department_id=obj_in.department_id)
-
-    total, employees = await employee_controller.list(page=obj_in.current, page_size=obj_in.size, search=q, order=["id"])
-    records = []
-    for emp in employees:
-        record = await emp.to_dict(exclude_fields=["phone"])
-        await emp.fetch_related("department", "skills")
-        record["departmentName"] = emp.department.name
-        record["skillNames"] = [s.name for s in emp.skills]
-        records.append(record)
-
+    total, records = await list_employees_with_relations(obj_in)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -85,27 +78,10 @@ async def create_emp(emp_in: EmployeeCreate, request: Request):
     """
     if not is_super_admin() and not has_button_code("B_HR_CREATE"):
         return Fail(msg="无权限创建员工")
-    current_emp = await Employee.filter(user_id=CTX_USER_ID.get()).first()
+    current_emp = await employee_controller.get_or_none(user_id=CTX_USER_ID.get())
     return await create_employee(emp_in, current_emp, request.app.state.redis)
 
 
 @router.patch("/employees/{emp_id}", summary="更新员工")
 async def update_emp(emp_id: int, emp_in: EmployeeUpdate):
-    if emp_in.skill_ids and len(emp_in.skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
-        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
-
-    async with in_transaction("conn_system"):
-        emp = await employee_controller.update(id=emp_id, obj_in=emp_in, exclude={"skill_ids"})
-        if emp_in.skill_ids is not None:
-            await emp.skills.clear()
-            for sid in emp_in.skill_ids:
-                await emp.skills.add(await skill_controller.get(id=sid))
-
-    radar_log("编辑员工", data={"employeeId": emp_id})
-    return Success(msg="Updated Successfully", data={"updated_id": emp_id})
-
-
-@router.get("/departments/stats", summary="部门统计")
-async def dept_stats():
-    stats = await get_department_stats()
-    return Success(data=stats)
+    return await update_employee(emp_id, emp_in)

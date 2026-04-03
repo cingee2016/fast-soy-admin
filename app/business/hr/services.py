@@ -1,13 +1,14 @@
 """
-HR service — 员工创建、技能管理的核心业务逻辑。
+HR service — 员工创建、技能管理、部门查询的核心业务逻辑。
 """
 
+from tortoise.expressions import Q
 from tortoise.transactions import in_transaction
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.controllers import employee_controller, skill_controller
 from app.business.hr.models import Department, Employee
-from app.business.hr.schemas import EmployeeCreate
+from app.business.hr.schemas import EmployeeCreate, EmployeeSearch, EmployeeUpdate
 from app.utils import Fail, Success, create_system_user, has_button_code, is_super_admin, radar_log
 
 
@@ -57,9 +58,10 @@ async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, 
         except ValueError as e:
             return Fail(msg=str(e))
 
-        # 创建员工
-        new_emp = await employee_controller.create(obj_in=emp_in, exclude={"skill_ids", "password", "email", "user_name", "user_gender"})
-        await Employee.filter(id=new_emp.id).update(employee_no=employee_no, email=emp_in.email, user_id=result.user.id)
+        # 创建员工 — employee_no/email/user_id 需要在 create 时设置（NOT NULL 字段）
+        emp_data = emp_in.model_dump(exclude_unset=True, exclude_none=True, exclude={"skill_ids", "password", "email", "user_name", "user_gender"})
+        emp_data.update(employee_no=employee_no, email=emp_in.email, user_id=result.user.id)
+        new_emp = await employee_controller.create(obj_in=emp_data)
 
         # 关联技能
         if emp_in.skill_ids:
@@ -77,6 +79,84 @@ async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, 
             "raw_password": result.raw_password,
         },
     )
+
+
+async def list_employees_with_relations(search_in: EmployeeSearch):
+    """员工分页列表 — 使用 select_related/prefetch_related 优化 N+1 查询"""
+    q = employee_controller.build_search(search_in, contains_fields=["name", "email"], exact_fields=["status"])
+    if search_in.department_id:
+        q &= Q(department_id=search_in.department_id)
+    total, employees = await employee_controller.list(
+        page=search_in.current,
+        page_size=search_in.size,
+        search=q,
+        order=["id"],
+        select_related=["department"],
+        prefetch_related=["skills"],
+    )
+    records = []
+    for emp in employees:
+        record = await emp.to_dict(exclude_fields=["phone"])
+        record["departmentName"] = emp.department.name
+        record["skillNames"] = [s.name for s in emp.skills]
+        records.append(record)
+    return total, records
+
+
+async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
+    """更新员工信息 — 含技能关联更新"""
+    if emp_in.skill_ids and len(emp_in.skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
+        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
+    async with in_transaction("conn_system"):
+        emp = await employee_controller.update(id=emp_id, obj_in=emp_in, exclude={"skill_ids"})
+        if emp_in.skill_ids is not None:
+            await emp.skills.clear()
+            for sid in emp_in.skill_ids:
+                await emp.skills.add(await skill_controller.get(id=sid))
+    radar_log("编辑员工", data={"employeeId": emp_id})
+    return Success(msg="Updated Successfully", data={"updated_id": emp_id})
+
+
+async def update_employee_skills(emp: Employee, skill_ids: list[int], *, log_label: str = "编辑技能", extra_log: dict[str, object] | None = None):
+    """通用技能更新 — 校验上限 + 清除重建 + 日志"""
+    if len(skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
+        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
+    await emp.skills.clear()
+    for sid in skill_ids:
+        await emp.skills.add(await skill_controller.get(id=sid))
+    log_data: dict[str, object] = {"employeeId": emp.id, "skillIds": skill_ids}
+    if extra_log:
+        log_data.update(extra_log)
+    radar_log(log_label, data=log_data)
+    return Success(msg="技能更新成功")
+
+
+async def get_employee_profile(emp: Employee):
+    """获取员工完整信息 — 含部门和技能"""
+    await emp.fetch_related("department", "skills")
+    record = await emp.to_dict()
+    record["departmentName"] = emp.department.name
+    record["skills"] = [await s.to_dict() for s in emp.skills]
+    return record
+
+
+async def list_department_employees(department_id: int, exclude_fields: list[str] | None = None):
+    """部门员工列表 — prefetch_related 加载技能"""
+    employees = await employee_controller.model.filter(department_id=department_id).prefetch_related("skills")
+    records = []
+    for emp in employees:
+        record = await emp.to_dict(exclude_fields=exclude_fields)
+        record["skillNames"] = [s.name for s in emp.skills]
+        records.append(record)
+    return records
+
+
+async def edit_subordinate_skills(mgr: Employee, emp_id: int, skill_ids: list[int]):
+    """主管编辑下属技能"""
+    target = await employee_controller.get_or_none(id=emp_id, department_id=mgr.department_id)  # type: ignore[attr-defined]
+    if not target:
+        return Fail(msg="该员工不在您的部门中")
+    return await update_employee_skills(target, skill_ids, log_label="主管编辑下属技能", extra_log={"managerId": mgr.id})
 
 
 async def get_department_stats():

@@ -1,7 +1,8 @@
+# pyright: reportIncompatibleVariableOverride=false
 """
 Business model example — 员工、部门、技能。
 
-启用: 去掉文件名 _ 前缀，运行 aerich migrate && aerich upgrade
+启用: 去掉文件名 _ 前缀，运行 tortoise makemigrations && tortoise migrate
 """
 
 from tortoise import fields
@@ -23,7 +24,7 @@ class Department(BaseModel, AuditMixin):
         "app_system.Employee", null=True, on_delete=fields.SET_NULL, related_name="managed_departments", description="部门主管"
     )
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "biz_department"
 
 
@@ -35,7 +36,7 @@ class Skill(BaseModel, AuditMixin):
     category = fields.CharField(max_length=50, description="技能分类")
     description = fields.CharField(max_length=500, null=True, blank=True, description="技能描述")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "biz_skill"
 
 
@@ -57,5 +58,5 @@ class Employee(BaseModel, AuditMixin):
     # M2M: 员工 ↔ 技能
     skills: fields.ManyToManyRelation[Skill] = fields.ManyToManyField("app_system.Skill", related_name="employees", description="技能列表")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "biz_employee"

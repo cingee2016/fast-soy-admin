@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleVariableOverride=false
 from tortoise import fields
 
 from app.core.base_model import AuditMixin, BaseModel, GenderType, IconType, MenuType, MethodType, StatusType
@@ -18,7 +19,7 @@ class User(BaseModel, AuditMixin):
 
     by_user_roles: fields.ManyToManyRelation["Role"] = fields.ManyToManyField("app_system.Role", related_name="by_role_users")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "users"
         table_description = "用户表"
         indexes = [
@@ -44,7 +45,7 @@ class Role(BaseModel, AuditMixin):
     by_role_buttons: fields.ManyToManyRelation["Button"] = fields.ManyToManyField("app_system.Button", related_name="by_button_roles")
     by_role_users: fields.ReverseRelation["User"]
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "roles"
         table_description = "角色表"
         indexes = [
@@ -65,7 +66,7 @@ class Api(BaseModel, AuditMixin):
 
     by_api_roles: fields.ReverseRelation["Role"]
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "apis"
         table_description = "API表"
         indexes = [
@@ -104,7 +105,7 @@ class Menu(BaseModel, AuditMixin):
     by_menu_buttons: fields.ManyToManyRelation["Button"] = fields.ManyToManyField("app_system.Button", related_name="by_button_menus")
     by_menu_roles: fields.ReverseRelation["Role"]
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "menus"
         table_description = "菜单表"
 
@@ -118,7 +119,7 @@ class Button(BaseModel, AuditMixin):
     by_button_menus: fields.ReverseRelation["Menu"]
     by_button_roles: fields.ReverseRelation["Role"]
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "buttons"
 
 

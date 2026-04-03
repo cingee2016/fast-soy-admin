@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleVariableOverride=false
 from tortoise import fields
 
 from app.core.base_model import BaseModel
@@ -24,7 +25,7 @@ class RadarRequest(BaseModel):
     resolved = fields.BooleanField(default=False, description="是否已处理")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "radar_requests"
         table_description = "Radar请求记录"
         indexes = [("x_request_id",), ("path",), ("created_at",)]
@@ -41,7 +42,7 @@ class RadarQuery(BaseModel):
     start_offset_ms = fields.FloatField(null=True, description="相对请求起始偏移(ms)")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "radar_queries"
         table_description = "Radar SQL查询记录"
         indexes = [("duration_ms",)]
@@ -57,6 +58,6 @@ class RadarUserLog(BaseModel):
     offset_ms = fields.FloatField(null=True, description="相对请求起始偏移(ms)")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
 
-    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
+    class Meta:
         table = "radar_user_logs"
         table_description = "Radar开发者手动日志"

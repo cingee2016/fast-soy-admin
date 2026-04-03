@@ -16,6 +16,8 @@ from app.system.radar.db import (
 )
 from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 @pytest.fixture(scope="session")
 async def seed_radar_data(app):

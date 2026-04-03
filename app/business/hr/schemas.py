@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleVariableOverride=false
 """
 Business schema example — 员工、部门、技能的请求/响应 Schema。
 """
@@ -20,8 +21,8 @@ class DepartmentBase(SchemaBase):
 
 
 class DepartmentCreate(DepartmentBase):
-    name: str = Field(title="部门名称")  # pyright: ignore[reportIncompatibleVariableOverride]
-    code: str = Field(title="部门编码")  # pyright: ignore[reportIncompatibleVariableOverride]
+    name: str = Field(title="部门名称")
+    code: str = Field(title="部门编码")
 
 
 class DepartmentUpdate(DepartmentBase): ...
@@ -44,8 +45,8 @@ class SkillBase(SchemaBase):
 
 
 class SkillCreate(SkillBase):
-    name: str = Field(title="技能名称")  # pyright: ignore[reportIncompatibleVariableOverride]
-    category: str = Field(title="技能分类")  # pyright: ignore[reportIncompatibleVariableOverride]
+    name: str = Field(title="技能名称")
+    category: str = Field(title="技能分类")
 
 
 class SkillUpdate(SkillBase): ...
@@ -66,8 +67,8 @@ class EmployeeBase(SchemaBase):
 
 class EmployeeCreate(EmployeeBase):
     user_name: str = Field(title="用户名 (手机号)")
-    name: str = Field(title="昵称/姓名")  # pyright: ignore[reportIncompatibleVariableOverride]
-    email: str = Field(title="邮箱")  # pyright: ignore[reportIncompatibleVariableOverride]
+    name: str = Field(title="昵称/姓名")
+    email: str = Field(title="邮箱")
     user_gender: str | None = Field(None, title="性别 (1男 2女)")
     department_id: int | None = Field(None, title="部门ID (主管创建时自动继承)")
     skill_ids: list[int] | None = Field(None, title="技能ID列表")

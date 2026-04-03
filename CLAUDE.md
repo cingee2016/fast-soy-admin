@@ -51,7 +51,7 @@ Layered architecture: **Router → Controller → CRUD/Model**
 - `app/models/system/admin.py` — All ORM models (Tortoise ORM): User, Role, Menu, Api, Button, Log, APILog
 - `app/schemas/` — Pydantic request/response schemas with camelCase aliases for frontend compatibility
 - `app/core/`:
-  - `init_app.py` — DB registration (Tortoise + Aerich), exception handlers, router mounting
+  - `init_app.py` — DB registration (Tortoise ORM), exception handlers, router mounting
   - `dependency.py` — `AuthControl` (JWT auth) and `PermissionControl` (RBAC) as FastAPI dependencies
   - `crud.py` — Generic CRUD base class used by all controllers
   - `middlewares.py` — Request logging, background task middleware
@@ -82,7 +82,7 @@ Vue3 + Vite + Naive UI + Elegant Router + Pinia
 
 - Default: SQLite (`app_system.sqlite3`)
 - ORM: Tortoise ORM
-- Migrations: Aerich
+- Migrations: Tortoise ORM built-in (`tortoise makemigrations` / `tortoise migrate`)
 - Caching: Redis via fastapi-cache2
 
 ## Gate Checks

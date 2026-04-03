@@ -66,6 +66,7 @@ async def lifespan(_app: FastAPI):
 
         for init_fn in discover_business_init_data():
             await init_fn()
+
         # 启动时刷新所有缓存：清除 fastapi-cache2 + 常量路由 + 角色权限 + token 版本号
         await refresh_all_cache(_app.state.redis)
         if APP_SETTINGS.RADAR_ENABLED:

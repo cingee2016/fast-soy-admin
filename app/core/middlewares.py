@@ -112,7 +112,7 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
             str(APP_SETTINGS.PROJECT_ROOT / "radar" / "middleware.py"),
             str(APP_SETTINGS.PROJECT_ROOT / "core" / "middlewares.py"),
         ]
-        pretty_errors.blacklist(*[p for p in paths if os.path.isdir(p)])
+        pretty_errors.blacklist(*[p for p in paths if os.path.exists(p)])
 
     async def dispatch(self, request: Request, call_next):
         self.error_buffer.seek(0)

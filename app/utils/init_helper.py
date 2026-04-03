@@ -40,20 +40,26 @@ async def ensure_menu(
     component: str | None = None,
     icon: str | None = None,
     icon_type: str = "1",
+    menu_type: str | None = None,
     order: int = 1,
     i18n_key: str | None = None,
     children: list[dict] | None = None,
     buttons: list[dict] | None = None,
+    **extra,
 ) -> None:
     """
-    确保菜单存在（幂等）。支持子菜单和按钮。
+    确保菜单存在（幂等）。支持子菜单（可递归嵌套）和按钮。
 
     Args:
         parent_route: 父菜单的 route_name (如 "manage")，为 None 时创建顶级菜单
-        children: [{"menu_name", "route_name", "route_path", "component", "order", "icon", ...}]
+        menu_type: 强制指定菜单类型 ("1"=catalog, "2"=menu)，为 None 时自动推断
+        children: [{"menu_name", "route_name", "route_path", "component", "order",
+                     "icon", ..., "children": [...], "buttons": [...]}]
         buttons: [{"button_code", "button_desc"}] — 挂在当前菜单上
+        **extra: 传递给 Menu.create 的额外字段，如 constant, hide_in_menu, props,
+                 multi_tab, redirect。active_menu 传 route_name 字符串会自动解析。
     """
-    from app.core.base_model import IconType, MenuType, StatusType
+    from app.core.base_model import IconType, MenuType
     from app.system.models.admin import Button, Menu
 
     # 跳过已存在的
@@ -70,14 +76,22 @@ async def ensure_menu(
             return
         parent_id = parent.id
 
-    # 创建主菜单（顶级菜单默认 component="layout.base"）
-    menu_type = MenuType.catalog if children else MenuType.menu
-    if parent_id == 0 and component is None:
+    # 推断菜单类型
+    if menu_type is not None:
+        resolved_type = MenuType(menu_type)
+    else:
+        resolved_type = MenuType.catalog if children else MenuType.menu
+    if parent_id == 0 and component is None and not extra.get("constant"):
         component = "layout.base"
+
+    # 解析 active_menu (route_name -> Menu 实例)
+    if "active_menu" in extra and isinstance(extra["active_menu"], str):
+        active = await Menu.filter(route_name=extra["active_menu"]).first()
+        extra["active_menu"] = active
+
     main_menu = await Menu.create(
-        status=StatusType.enable,
         parent_id=parent_id,
-        menu_type=menu_type,
+        menu_type=resolved_type,
         menu_name=menu_name,
         route_name=route_name,
         route_path=route_path,
@@ -86,6 +100,7 @@ async def ensure_menu(
         i18n_key=i18n_key or f"route.{route_name}",
         icon=icon,
         icon_type=IconType(icon_type) if icon else None,
+        **extra,
     )
 
     # 创建按钮
@@ -96,31 +111,26 @@ async def ensure_menu(
         )
         await main_menu.by_menu_buttons.add(btn_obj)
 
-    # 创建子菜单
+    # 递归创建子菜单
     for child in children or []:
-        child_route = child["route_name"]
-        if await Menu.filter(route_name=child_route).exists():
-            continue
-        child_menu = await Menu.create(
-            status=StatusType.enable,
-            parent_id=main_menu.id,
-            menu_type=MenuType.menu,
+        child_buttons = child.get("buttons")
+        child_children = child.get("children")
+        child_extra = {k: v for k, v in child.items() if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")}
+        await ensure_menu(
+            parent_route=route_name,
             menu_name=child["menu_name"],
-            route_name=child_route,
+            route_name=child["route_name"],
             route_path=child["route_path"],
             component=child.get("component"),
-            order=child.get("order", 1),
-            i18n_key=child.get("i18n_key", f"route.{child_route}"),
             icon=child.get("icon"),
-            icon_type=IconType(child.get("icon_type", "1")) if child.get("icon") else None,
+            icon_type=child.get("icon_type", "1"),
+            menu_type=child.get("menu_type"),
+            order=child.get("order", 1),
+            i18n_key=child.get("i18n_key"),
+            children=child_children,
+            buttons=child_buttons,
+            **child_extra,
         )
-        # 子菜单的按钮
-        for btn in child.get("buttons", []):
-            btn_obj, _ = await Button.get_or_create(
-                button_code=btn["button_code"],
-                defaults={"button_desc": btn.get("button_desc", "")},
-            )
-            await child_menu.by_menu_buttons.add(btn_obj)
 
     log.info(f"ensure_menu: created '{route_name}'" + (f" under '{parent_route}'" if parent_route else " as top-level"))
 

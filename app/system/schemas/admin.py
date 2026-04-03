@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleVariableOverride=false
 from typing import Any
 
 from pydantic import Field
@@ -24,8 +25,8 @@ class RoleSearch(RoleBase):
 
 
 class RoleCreate(RoleBase):
-    role_name: str = Field(title="角色名称")  # pyright: ignore[reportIncompatibleVariableOverride]
-    role_code: str = Field(title="角色编码")  # pyright: ignore[reportIncompatibleVariableOverride]
+    role_name: str = Field(title="角色名称")
+    role_code: str = Field(title="角色编码")
 
 
 class RoleUpdate(RoleBase): ...
@@ -57,8 +58,8 @@ class ApiSearch(BaseApi):
 
 
 class ApiCreate(BaseApi):
-    api_path: str = Field(title="请求路径", description="/api/v1/auth/login")  # pyright: ignore[reportIncompatibleVariableOverride]
-    api_method: str = Field(title="请求方法", description="GET")  # pyright: ignore[reportIncompatibleVariableOverride]
+    api_path: str = Field(title="请求路径", description="/api/v1/auth/login")
+    api_method: str = Field(title="请求方法", description="GET")
 
 
 class ApiUpdate(BaseApi): ...
@@ -106,10 +107,10 @@ class MenuBase(SchemaBase):
 
 
 class MenuCreate(MenuBase):
-    menu_name: str = Field(max_length=200, title="菜单名称")  # pyright: ignore[reportIncompatibleVariableOverride]
-    menu_type: MenuType = Field(max_length=200, title="菜单类型")  # pyright: ignore[reportIncompatibleVariableOverride]
-    route_name: str = Field(max_length=200, title="路由名称")  # pyright: ignore[reportIncompatibleVariableOverride]
-    route_path: str = Field(max_length=200, title="路由路径")  
+    menu_name: str = Field(max_length=200, title="菜单名称")
+    menu_type: MenuType = Field(max_length=200, title="菜单类型")
+    route_name: str = Field(max_length=200, title="路由名称")
+    route_path: str = Field(max_length=200, title="路由路径")
 
 
 class MenuUpdate(MenuBase): ...

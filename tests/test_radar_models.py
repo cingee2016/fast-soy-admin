@@ -6,6 +6,8 @@ import pytest
 
 from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 def _uid() -> str:
     return uuid4().hex[:12]

@@ -57,7 +57,7 @@ Full docs: [llms-full.md](llms-full.md)
 
 ## Tech Stack
 
-Backend: Python 3.12+, FastAPI, Pydantic v2, Tortoise ORM, Aerich, Redis, Argon2, JWT (HS256)
+Backend: Python 3.12+, FastAPI, Pydantic v2, Tortoise ORM 1.x, Redis, Argon2, JWT (HS256)
 Frontend: Vue 3.5, Vite 7, TypeScript 5, Naive UI, Pinia, UnoCSS, Alova, Elegant Router, vue-i18n
 DevOps: Docker Compose (Nginx + FastAPI + Redis), uv, pnpm monorepo, Ruff, Pyright, ESLint, oxlint
 
@@ -111,4 +111,4 @@ cd web && pnpm install && pnpm dev      # port 9527
 
 /fastsoy-admin-docs/     # VitePress documentation site
 /deploy/                 # Docker configs (Dockerfile, nginx)
-/migrations/             # Aerich DB migrations
+/migrations/             # Tortoise ORM DB migrations
