@@ -1,6 +1,6 @@
 # pyright: reportIncompatibleVariableOverride=false
 """
-Business schema example — 员工、部门、技能的请求/响应 Schema。
+Business schema example — 员工、部门、标签的请求/响应 Schema。
 """
 
 from pydantic import Field
@@ -34,19 +34,19 @@ class DepartmentSearch(DepartmentBase):
 
 
 # ============================================================
-# Skill
+# Tag
 # ============================================================
 
 
 class SkillBase(SchemaBase):
-    name: str | None = Field(None, title="技能名称")
-    category: str | None = Field(None, title="技能分类")
-    description: str | None = Field(None, title="技能描述")
+    name: str | None = Field(None, title="标签名称")
+    category: str | None = Field(None, title="标签分类")
+    description: str | None = Field(None, title="标签描述")
 
 
 class SkillCreate(SkillBase):
-    name: str = Field(title="技能名称")
-    category: str = Field(title="技能分类")
+    name: str = Field(title="标签名称")
+    category: str = Field(title="标签分类")
 
 
 class SkillUpdate(SkillBase): ...
@@ -71,15 +71,15 @@ class EmployeeCreate(EmployeeBase):
     email: str = Field(title="邮箱")
     user_gender: str | None = Field(None, title="性别 (1男 2女)")
     department_id: int | None = Field(None, title="部门ID (主管创建时自动继承)")
-    skill_ids: list[int] | None = Field(None, title="技能ID列表")
+    skill_ids: list[int] | None = Field(None, title="标签ID列表")
 
 
 class EmployeeUpdate(EmployeeBase):
-    skill_ids: list[int] | None = Field(None, title="技能ID列表")
+    skill_ids: list[int] | None = Field(None, title="标签ID列表")
 
 
 class SkillIds(SchemaBase):
-    skill_ids: list[int] = Field(title="技能ID列表")
+    skill_ids: list[int] = Field(title="标签ID列表")
 
 
 class EmployeeSearch(EmployeeBase):

@@ -1,7 +1,34 @@
-from app.system.controllers import role_controller
-from app.system.controllers.user import UserCreate, user_controller
-from app.system.models import Button, Menu, Role, User
-from app.utils.init_helper import ensure_menu, ensure_role
+from app.system.models import Button, Menu, Role
+from app.utils.init_helper import ensure_menu, ensure_role, ensure_user
+
+SYSTEM_ROLE_SEEDS = [
+    {
+        "role_name": "管理员",
+        "role_code": "R_ADMIN",
+        "role_desc": "管理员",
+        "menus": ["home", "about", "manage", "manage_user", "manage_user-detail", "manage_log"],
+        "buttons": ["B_CODE2", "B_CODE3"],
+        "apis": [
+            ("post", "/api/v1/users/all/"),
+            ("get", "/api/v1/users/{item_id}"),
+            ("post", "/api/v1/users"),
+            ("patch", "/api/v1/users/{user_id}"),
+        ],
+    },
+    {
+        "role_name": "普通用户",
+        "role_code": "R_USER",
+        "role_desc": "普通用户",
+        "menus": ["home", "about"],
+    },
+]
+
+SYSTEM_USER_SEEDS = [
+    {"user_name": "Soybean", "user_email": "admin@admin.com", "password": "123456", "role_codes": ["R_SUPER"]},
+    {"user_name": "Super", "user_email": "admin1@admin.com", "password": "123456", "role_codes": ["R_SUPER"]},
+    {"user_name": "Admin", "user_email": "admin2@admin.com", "password": "123456", "role_codes": ["R_ADMIN"]},
+    {"user_name": "User", "user_email": "user@user.com", "password": "123456", "role_codes": ["R_USER"]},
+]
 
 
 async def init_menus():
@@ -360,52 +387,32 @@ async def init_menus():
     )
 
 
-async def _create_user(role_code: str, **kwargs) -> User:
-    """创建用户并关联角色"""
-    role = await role_controller.get_by_code(role_code)
-    kwargs.setdefault("byUserRoleCodeList", [role_code])
-    user = await user_controller.create(UserCreate(**kwargs))
-    if role:
-        await user.by_user_roles.add(role)
-    return user
+async def _ensure_super_role() -> None:
+    """同步超级管理员角色到最新菜单和按钮集合"""
+    role_home_menu = await Menu.get(route_name="home")
+    super_role, _ = await Role.update_or_create(
+        role_code="R_SUPER",
+        defaults={
+            "role_name": "超级管理员",
+            "role_desc": "超级管理员",
+            "by_role_home": role_home_menu,
+        },
+    )
+
+    await super_role.by_role_menus.clear()
+    for menu_obj in await Menu.filter(constant=False):
+        await super_role.by_role_menus.add(menu_obj)
+
+    await super_role.by_role_buttons.clear()
+    for button_obj in await Button.all():
+        await super_role.by_role_buttons.add(button_obj)
 
 
 async def init_users():
-    if not await role_controller.model.exists():
-        role_home_menu = await Menu.get(route_name="home")
+    await _ensure_super_role()
 
-        # 超级管理员: 所有菜单 + 所有按钮（特殊处理，不使用 ensure_role）
-        super_role = await Role.create(role_name="超级管理员", role_code="R_SUPER", role_desc="超级管理员", by_role_home=role_home_menu)
-        for menu_obj in await Menu.filter(constant=False):
-            await super_role.by_role_menus.add(menu_obj)
-        for button_obj in await Button.all():
-            await super_role.by_role_buttons.add(button_obj)
+    for role_seed in SYSTEM_ROLE_SEEDS:
+        await ensure_role(**role_seed)
 
-        # 管理员
-        await ensure_role(
-            role_name="管理员",
-            role_code="R_ADMIN",
-            role_desc="管理员",
-            menus=["home", "about", "manage", "manage_user", "manage_user-detail", "manage_log"],
-            buttons=["B_CODE2", "B_CODE3"],
-            apis=[
-                ("post", "/api/v1/users/all/"),
-                ("get", "/api/v1/users/{item_id}"),
-                ("post", "/api/v1/users"),
-                ("patch", "/api/v1/users/{user_id}"),
-            ],
-        )
-
-        # 普通用户
-        await ensure_role(
-            role_name="普通用户",
-            role_code="R_USER",
-            role_desc="普通用户",
-            menus=["home", "about"],
-        )
-
-    if not await user_controller.model.exists():
-        await _create_user("R_SUPER", userName="Soybean", userEmail="admin@admin.com", password="123456")  # type: ignore
-        await _create_user("R_SUPER", userName="Super", userEmail="admin1@admin.com", password="123456")  # type: ignore
-        await _create_user("R_ADMIN", userName="Admin", userEmail="admin2@admin.com", password="123456")  # type: ignore
-        await _create_user("R_USER", userName="User", userEmail="user@user.com", password="123456")  # type: ignore
+    for user_seed in SYSTEM_USER_SEEDS:
+        await ensure_user(**user_seed)

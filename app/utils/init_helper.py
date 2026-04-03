@@ -198,3 +198,60 @@ async def ensure_role(
                 await role.by_role_apis.add(api)
 
     log.info(f"ensure_role: {'created' if created else 'updated'} role '{role_code}'")
+
+
+async def ensure_user(
+    *,
+    user_name: str,
+    password: str,
+    role_codes: list[str],
+    user_email: str | None = None,
+    nick_name: str | None = None,
+    user_phone: str | None = None,
+    user_gender: str | None = None,
+    must_change_password: bool = False,
+    reset_password: bool = False,
+) -> "User":
+    """
+    确保用户存在且角色与声明一致。
+
+    语义：
+    - 首次不存在时创建
+    - 已存在时同步基础资料和角色
+    - 默认不重置密码，避免每次启动覆盖已有账号密码
+    """
+    from app.system.controllers.user import user_controller
+    from app.core.base_model import GenderType
+    from app.system.models import User
+    from app.system.security import get_password_hash
+
+    base_payload = {
+        "nick_name": nick_name or user_name,
+        "must_change_password": must_change_password,
+    }
+    if user_email is not None:
+        base_payload["user_email"] = user_email
+    if user_phone is not None:
+        base_payload["user_phone"] = user_phone
+    if user_gender is not None:
+        base_payload["user_gender"] = user_gender
+
+    user = await User.filter(user_name=user_name).first()
+    if user:
+        payload = base_payload.copy()
+        if reset_password:
+            payload["password"] = get_password_hash(password)
+        await User.filter(id=user.id).update(**payload)
+        user = await User.get(id=user.id)
+    else:
+        payload = base_payload.copy()
+        payload.setdefault("user_gender", GenderType.unknow)
+        user = await User.create(
+            user_name=user_name,
+            password=get_password_hash(password),
+            **payload,
+        )
+
+    await user_controller.update_roles_by_code(user, role_codes)
+    log.info(f"ensure_user: synced user '{user_name}'")
+    return user

@@ -1,5 +1,5 @@
 """
-HR 管理接口 — 部门/技能/员工的 CRUD (需要系统权限)。
+HR 管理接口 — 部门/标签/员工的 CRUD (需要系统权限)。
 """
 
 from fastapi import APIRouter, Request
@@ -35,7 +35,7 @@ skill_crud = CRUDRouter(
     controller=skill_controller,
     create_schema=SkillCreate,
     update_schema=SkillUpdate,
-    summary_prefix="技能",
+    summary_prefix="标签",
     batch_delete_method="body",
 )
 

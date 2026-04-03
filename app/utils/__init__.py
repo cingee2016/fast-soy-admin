@@ -71,5 +71,5 @@ from app.utils.init_helper import ensure_menu as ensure_menu
 from app.utils.init_helper import ensure_role as ensure_role
 
 # ---- User management ----
-from app.utils.user import CreateUserResult as CreateUserResult
-from app.utils.user import create_system_user as create_system_user
+from app.system.services import CreateUserResult as CreateUserResult
+from app.system.services import create_system_user as create_system_user

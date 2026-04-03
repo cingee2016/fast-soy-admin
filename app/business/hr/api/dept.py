@@ -26,7 +26,7 @@ async def dept_employees(mgr: Employee = DependManager):
     return Success(data=records)
 
 
-@router.patch("/department/employees/{emp_id}/skills", summary="[主管] 编辑下属技能")
+@router.patch("/department/employees/{emp_id}/skills", summary="[主管] 编辑下属标签")
 async def edit_employee_skills(emp_id: int, body: SkillIds, mgr: Employee = DependManager):
-    """主管编辑同部门下属的技能"""
+    """主管编辑同部门下属的标签"""
     return await edit_subordinate_skills(mgr, emp_id, body.skill_ids)

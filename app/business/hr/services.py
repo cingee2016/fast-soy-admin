@@ -1,5 +1,5 @@
 """
-HR service — 员工创建、技能管理、部门查询的核心业务逻辑。
+HR service — 员工创建、标签管理、部门查询的核心业务逻辑。
 """
 
 from tortoise.expressions import Q
@@ -20,7 +20,7 @@ async def generate_employee_no() -> str:
 
 async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, redis):
     """
-    统一创建员工 — 自动创建系统用户 + 员工 + 技能关联。
+    统一创建员工 — 自动创建系统用户 + 员工 + 标签关联。
 
     - 超级管理员: department 必须指定
     - 部门主管(B_HR_CREATE): department 自动继承
@@ -37,13 +37,13 @@ async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, 
     else:
         return Fail(msg="无权限创建员工")
 
-    # 2. 校验技能上限
+    # 2. 校验标签上限
     if emp_in.skill_ids and len(emp_in.skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
-        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
+        return Fail(msg=f"标签数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
 
     employee_no = await generate_employee_no()
 
-    # 3. 一个事务: 创建 User + Employee + 技能关联
+    # 3. 一个事务: 创建 User + Employee + 标签关联
     async with in_transaction("conn_system"):
         # 创建系统用户 (随机密码 + must_change_password + R_USER)
         try:
@@ -63,7 +63,7 @@ async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, 
         emp_data.update(employee_no=employee_no, email=emp_in.email, user_id=result.user.id)
         new_emp = await employee_controller.create(obj_in=emp_data)
 
-        # 关联技能
+        # 关联标签
         if emp_in.skill_ids:
             for sid in emp_in.skill_ids:
                 skill = await skill_controller.get(id=sid)
@@ -104,9 +104,9 @@ async def list_employees_with_relations(search_in: EmployeeSearch):
 
 
 async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
-    """更新员工信息 — 含技能关联更新"""
+    """更新员工信息 — 含标签关联更新"""
     if emp_in.skill_ids and len(emp_in.skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
-        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
+        return Fail(msg=f"标签数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
     async with in_transaction("conn_system"):
         emp = await employee_controller.update(id=emp_id, obj_in=emp_in, exclude={"skill_ids"})
         if emp_in.skill_ids is not None:
@@ -117,10 +117,10 @@ async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
     return Success(msg="更新成功", data={"updated_id": emp_id})
 
 
-async def update_employee_skills(emp: Employee, skill_ids: list[int], *, log_label: str = "编辑技能", extra_log: dict[str, object] | None = None):
-    """通用技能更新 — 校验上限 + 清除重建 + 日志"""
+async def update_employee_skills(emp: Employee, skill_ids: list[int], *, log_label: str = "编辑标签", extra_log: dict[str, object] | None = None):
+    """通用标签更新 — 校验上限 + 清除重建 + 日志"""
     if len(skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
-        return Fail(msg=f"技能数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
+        return Fail(msg=f"标签数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
     await emp.skills.clear()
     for sid in skill_ids:
         await emp.skills.add(await skill_controller.get(id=sid))
@@ -128,11 +128,11 @@ async def update_employee_skills(emp: Employee, skill_ids: list[int], *, log_lab
     if extra_log:
         log_data.update(extra_log)
     radar_log(log_label, data=log_data)
-    return Success(msg="技能更新成功")
+    return Success(msg="标签更新成功")
 
 
 async def get_employee_profile(emp: Employee):
-    """获取员工完整信息 — 含部门和技能"""
+    """获取员工完整信息 — 含部门和标签"""
     await emp.fetch_related("department", "skills")
     record = await emp.to_dict()
     record["departmentName"] = emp.department.name
@@ -141,7 +141,7 @@ async def get_employee_profile(emp: Employee):
 
 
 async def list_department_employees(department_id: int, exclude_fields: list[str] | None = None):
-    """部门员工列表 — prefetch_related 加载技能"""
+    """部门员工列表 — prefetch_related 加载标签"""
     employees = await employee_controller.model.filter(department_id=department_id).prefetch_related("skills")
     records = []
     for emp in employees:
@@ -152,11 +152,11 @@ async def list_department_employees(department_id: int, exclude_fields: list[str
 
 
 async def edit_subordinate_skills(mgr: Employee, emp_id: int, skill_ids: list[int]):
-    """主管编辑下属技能"""
+    """主管编辑下属标签"""
     target = await employee_controller.get_or_none(id=emp_id, department_id=mgr.department_id)  # type: ignore[attr-defined]
     if not target:
         return Fail(msg="该员工不在您的部门中")
-    return await update_employee_skills(target, skill_ids, log_label="主管编辑下属技能", extra_log={"managerId": mgr.id})
+    return await update_employee_skills(target, skill_ids, log_label="主管编辑下属标签", extra_log={"managerId": mgr.id})
 
 
 async def get_department_stats():
