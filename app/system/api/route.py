@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 from app.core.base_schema import Success
 from app.core.cache import get_constant_routes, get_role_menu_ids, get_user_role_home
@@ -107,7 +107,7 @@ async def _(request: Request):
     return Success(data=data)
 
 
-@router.get("/{route_name}/exists", summary="路由是否存在", dependencies=[DependAuth])
-async def _(route_name: str):
-    is_exists = await menu_controller.model.exists(route_name=route_name)
+@router.get("/exists", summary="路由是否存在", dependencies=[DependAuth])
+async def _(name: str = Query(..., description="路由名称")):
+    is_exists = await menu_controller.model.exists(route_name=name)
     return Success(data=is_exists)

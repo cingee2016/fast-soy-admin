@@ -4,49 +4,53 @@ from tortoise.transactions import in_transaction
 from app.core.base_schema import Fail, Success
 from app.core.cache import load_role_permissions
 from app.core.code import Code
+from app.core.crud import get_db_conn
 from app.core.router import CRUDRouter, SearchFieldConfig
 from app.system.controllers import menu_controller, role_controller
 from app.system.models import Api, Button, Role
 from app.system.schemas.admin import RoleCreate, RoleSearch, RoleUpdate, RoleUpdateAuthrization
 
-# 标准 CRUD 路由：list(POST搜索), get, delete, batch_delete
+# 标准 CRUD 路由：list(POST /search), get, delete, batch_delete, create, update
+# create / update 使用 override 注入 Redis 缓存刷新
 crud = CRUDRouter(
     prefix="/roles",
     controller=role_controller,
+    create_schema=RoleCreate,
+    update_schema=RoleUpdate,
     list_schema=RoleSearch,
     search_fields=SearchFieldConfig(
         contains_fields=["role_name", "role_code"],
         exact_fields=["status_type"],
     ),
     summary_prefix="角色",
-    list_order=["id"],
-    batch_delete_method="body",
-    enable_routes={"list", "get", "delete", "batch_delete"},
 )
 router = crud.router
 
 
-# ---- 自定义 create/update（需要刷新 Redis 缓存） ----
+# ---- 覆盖 create：需要刷新 Redis 权限缓存 ----
 
 
-@router.post("/roles", summary="创建角色")
-async def _(role_in: RoleCreate, request: Request):
+@crud.override("create")
+async def _create_role(role_in: RoleCreate, request: Request):
     if await role_controller.exists(role_code=role_in.role_code):
         return Fail(code=Code.DUPLICATE_RESOURCE, msg="该角色编码已存在")
 
     new_role = await role_controller.create(obj_in=role_in)
     await load_role_permissions(request.app.state.redis, role_code=new_role.role_code)
-    return Success(msg="创建成功", data={"created_id": new_role.id})
+    return Success(msg="创建成功", data={"createdId": new_role.id})
 
 
-@router.patch("/roles/{role_id}", summary="更新角色")
-async def _(role_id: int, role_in: RoleUpdate, request: Request):
-    role_obj = await role_controller.update(id=role_id, obj_in=role_in)
+# ---- 覆盖 update：同上 ----
+
+
+@crud.override("update")
+async def _update_role(item_id: int, obj_in: RoleUpdate, request: Request):
+    role_obj = await role_controller.update(id=item_id, obj_in=obj_in)
     await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
-    return Success(msg="更新成功", data={"updated_id": role_id})
+    return Success(msg="更新成功", data={"updatedId": item_id})
 
 
-# ---- 自定义扩展接口：角色菜单/按钮/API 管理 ----
+# ---- 扩展：角色菜单管理 ----
 
 
 @router.get("/roles/{role_id}/menus", summary="查看角色菜单")
@@ -56,15 +60,14 @@ async def _(role_id: int):
         menu_objs = await menu_controller.model.filter(constant=False)
     else:
         menu_objs = await role_obj.by_role_menus
-    data = {"byRoleHomeId": role_obj.by_role_home.id, "byRoleMenuIds": [menu_obj.id for menu_obj in menu_objs]}
-    return Success(data=data)
+    return Success(data={"byRoleHomeId": role_obj.by_role_home.id, "byRoleMenuIds": [m.id for m in menu_objs]})
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
 async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
     if role_in.by_role_home_id:
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(Role)):
             role_obj = await role_controller.update(id=role_id, obj_in=dict(by_role_home_id=role_in.by_role_home_id))
             if role_in.by_role_menu_ids:
                 menu_objs = await menu_controller.get_by_id_list(id_list=role_in.by_role_menu_ids)
@@ -82,7 +85,13 @@ async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
 
         await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
 
-    return Success(msg="更新成功", data={"by_role_menu_ids": role_in.by_role_menu_ids, "by_role_home_id": role_in.by_role_home_id})
+    return Success(
+        msg="更新成功",
+        data={"byRoleMenuIds": role_in.by_role_menu_ids, "byRoleHomeId": role_in.by_role_home_id},
+    )
+
+
+# ---- 扩展：角色按钮管理 ----
 
 
 @router.get("/roles/{role_id}/buttons", summary="查看角色按钮")
@@ -93,22 +102,24 @@ async def _(role_id: int):
     else:
         button_objs = await role_obj.by_role_buttons
 
-    data = {"byRoleButtonIds": [button_obj.id for button_obj in button_objs]}
-    return Success(data=data)
+    return Success(data={"byRoleButtonIds": [b.id for b in button_objs]})
 
 
 @router.patch("/roles/{role_id}/buttons", summary="更新角色按钮")
 async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
     if role_in.by_role_button_ids is not None:
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(Role)):
             await role_obj.by_role_buttons.clear()
             for button_id in role_in.by_role_button_ids:
                 button_obj = await Button.get(id=button_id)
                 await role_obj.by_role_buttons.add(button_obj)
 
     await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
-    return Success(msg="更新成功", data={"by_role_button_ids": role_in.by_role_button_ids})
+    return Success(msg="更新成功", data={"byRoleButtonIds": role_in.by_role_button_ids})
+
+
+# ---- 扩展：角色 API 管理 ----
 
 
 @router.get("/roles/{role_id}/apis", summary="查看角色API")
@@ -119,19 +130,18 @@ async def _(role_id: int):
     else:
         api_objs = await role_obj.by_role_apis
 
-    data = {"byRoleApiIds": [api_obj.id for api_obj in api_objs]}
-    return Success(data=data)
+    return Success(data={"byRoleApiIds": [a.id for a in api_objs]})
 
 
 @router.patch("/roles/{role_id}/apis", summary="更新角色API")
 async def _(role_id: int, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
     if role_in.by_role_api_ids is not None:
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(Role)):
             await role_obj.by_role_apis.clear()
             for api_id in role_in.by_role_api_ids:
                 api_obj = await Api.get(id=api_id)
                 await role_obj.by_role_apis.add(api_obj)
 
     await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
-    return Success(msg="更新成功", data={"by_role_api_ids": role_in.by_role_api_ids})
+    return Success(msg="更新成功", data={"byRoleApiIds": role_in.by_role_api_ids})

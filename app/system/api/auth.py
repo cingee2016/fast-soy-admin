@@ -1,56 +1,41 @@
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Request
 
 from app.core.base_schema import Fail, Success
 from app.core.code import Code
-from app.core.config import APP_SETTINGS
 from app.core.ctx import CTX_BUTTON_CODES, CTX_IMPERSONATOR_ID, CTX_ROLE_CODES, CTX_USER_ID
 from app.core.dependency import DependAuth, DependPermission, check_token
+from app.core.exceptions import BizError
 from app.core.log import log
 from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
 from app.system.radar.developer import radar_log
-from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, JWTPayload, RegisterSchema
+from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, RegisterSchema
 from app.system.schemas.users import UpdatePassword
-from app.system.security import create_access_token, get_password_hash, verify_password
+from app.system.security import get_password_hash, verify_password
+from app.system.services.auth import (
+    build_tokens,
+    get_token_version,
+    impersonate_user,
+    invalidate_user_session,
+    login_with_credentials,
+)
 from app.system.services.captcha import send_captcha, verify_captcha
 
 router = APIRouter()
 
 
-def _build_tokens(user_obj: User, token_version: int, *, impersonator_id: int | None = None) -> JWTOut:
-    """构建 access_token + refresh_token"""
-    data: dict = {"userId": user_obj.id, "userName": user_obj.user_name, "tokenType": "accessToken", "tokenVersion": token_version}
-    if impersonator_id is not None:
-        data["impersonatorId"] = impersonator_id
-    payload = JWTPayload(data=data, iat=datetime.now(UTC), exp=datetime.now(UTC))
-
-    access_token_payload = payload.model_copy(deep=True)
-    access_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_payload = payload.model_copy(deep=True)
-    refresh_token_payload.data["tokenType"] = "refreshToken"
-    refresh_token_payload.exp += timedelta(minutes=APP_SETTINGS.JWT_REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    return JWTOut(
-        access_token=create_access_token(data=access_token_payload),
-        refresh_token=create_access_token(data=refresh_token_payload),
-    )
-
-
 @router.post("/login", summary="登录")
 async def _(credentials: CredentialsSchema, request: Request):
-    user_obj: User | None = await user_controller.authenticate(credentials)
-
-    await user_controller.update_last_login(user_obj.id)
-
     redis = request.app.state.redis
-    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
-    data = _build_tokens(user_obj, token_version)
+    user_obj, tokens = await login_with_credentials(
+        redis,
+        user_name=credentials.user_name,
+        password=credentials.password,
+    )
 
     log.info(f"用户登录成功, 用户名: {user_obj.user_name}")
     radar_log("用户登录成功", data={"userName": user_obj.user_name, "userId": user_obj.id})
-    result = data.model_dump(by_alias=True)
+    result = tokens.model_dump(by_alias=True)
     result["mustChangePassword"] = user_obj.must_change_password
     return Success(data=result)
 
@@ -68,11 +53,9 @@ async def _(captcha_in: CaptchaRequest, request: Request):
 async def _(login_in: CodeLoginSchema, request: Request):
     redis = request.app.state.redis
 
-    # 验证验证码
     if not await verify_captcha(redis, login_in.phone, login_in.code):
         return Fail(code=Code.FAIL, msg="验证码错误或已过期")
 
-    # 通过手机号查找用户
     user_obj = await User.filter(user_phone=login_in.phone).first()
     if not user_obj:
         return Fail(code=Code.FAIL, msg="该手机号未注册")
@@ -82,32 +65,28 @@ async def _(login_in: CodeLoginSchema, request: Request):
 
     await user_controller.update_last_login(user_obj.id)
 
-    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
-    data = _build_tokens(user_obj, token_version)
+    token_version = await get_token_version(redis, user_obj.id)
+    tokens = build_tokens(user_obj, token_version)
 
     log.info(f"验证码登录成功, 手机号: {login_in.phone}")
     radar_log("验证码登录成功", data={"phone": login_in.phone, "userId": user_obj.id})
-    return Success(data=data.model_dump(by_alias=True))
+    return Success(data=tokens.model_dump(by_alias=True))
 
 
 @router.post("/register", summary="注册")
 async def _(register_in: RegisterSchema, request: Request):
     redis = request.app.state.redis
 
-    # 验证验证码
     if not await verify_captcha(redis, register_in.phone, register_in.code):
         return Fail(code=Code.FAIL, msg="验证码错误或已过期")
 
-    # 检查手机号是否已注册
     if await User.filter(user_phone=register_in.phone).exists():
         return Fail(code=Code.DUPLICATE_RESOURCE, msg="该手机号已注册")
 
-    # 用户名：优先使用指定的，否则用手机号
     user_name = register_in.user_name or register_in.phone
     if await User.filter(user_name=user_name).exists():
         return Fail(code=Code.DUPLICATE_RESOURCE, msg="该用户名已存在")
 
-    # 创建用户
     default_role = await Role.filter(role_code="R_USER").first()
     user_obj = await User.create(
         user_name=user_name,
@@ -144,17 +123,16 @@ async def _(jwt_token: JWTOut, request: Request):
 
     redis = request.app.state.redis
     token_version_in_jwt = data["data"].get("tokenVersion", 0)
-    current_version = int(await redis.get(f"token_version:{user_id}") or 0)
+    current_version = await get_token_version(redis, user_id)
     if token_version_in_jwt < current_version:
         return Fail(code=Code.INVALID_TOKEN, msg="Token已失效，请重新登录")
 
     await user_controller.update_last_login(user_id)
-    token_version = int(await redis.get(f"token_version:{user_obj.id}") or 0)
     impersonator_id = data["data"].get("impersonatorId") or None
-    data = _build_tokens(user_obj, token_version, impersonator_id=impersonator_id)
+    tokens = build_tokens(user_obj, current_version, impersonator_id=impersonator_id)
 
     radar_log("刷新令牌成功", data={"userId": user_obj.id})
-    return Success(data=data.model_dump(by_alias=True))
+    return Success(data=tokens.model_dump(by_alias=True))
 
 
 @router.get("/user-info", summary="查看用户信息", dependencies=[DependAuth])
@@ -185,13 +163,13 @@ async def _(body: UpdatePassword, request: Request):
     if not verify_password(body.old_password, user_obj.password):
         return Fail(code=Code.FAIL, msg="原密码错误")
 
-    await User.filter(id=user_id).update(password=get_password_hash(body.new_password), must_change_password=False)
+    await User.filter(id=user_id).update(
+        password=get_password_hash(body.new_password),
+        must_change_password=False,
+    )
 
-    # 递增 token_version 使旧 token 失效，强制重新登录
-    user_obj.token_version += 1
-    await user_obj.save(update_fields=["token_version"])
-    redis = request.app.state.redis
-    await redis.set(f"token_version:{user_id}", user_obj.token_version)
+    # 递增 token_version 使旧 token 失效
+    await invalidate_user_session(request.app.state.redis, user_id)
 
     radar_log("修改密码", data={"userId": user_id})
     return Success(msg="密码修改成功，请重新登录")
@@ -204,18 +182,15 @@ async def _(user_id: int, request: Request):
     if "R_SUPER" not in role_codes:
         return Fail(code=Code.PERMISSION_DENIED, msg="仅超级管理员可以模拟登录")
 
-    target_user = await User.filter(id=user_id).first()
-    if not target_user:
-        return Fail(code=Code.FAIL, msg="目标用户不存在")
-
-    if target_user.status_type == StatusType.disable:
-        return Fail(code=Code.ACCOUNT_DISABLED, msg="目标用户已被禁用")
-
     impersonator_id = CTX_USER_ID.get()
-    redis = request.app.state.redis
-    token_version = int(await redis.get(f"token_version:{target_user.id}") or 0)
-    data = _build_tokens(target_user, token_version, impersonator_id=impersonator_id)
+    try:
+        tokens = await impersonate_user(
+            request.app.state.redis,
+            target_user_id=user_id,
+            impersonator_id=impersonator_id,
+        )
+    except BizError as e:
+        return Fail(code=e.code, msg=e.msg)
 
-    log.info(f"管理员模拟登录, 操作人ID: {impersonator_id}, 目标用户: {target_user.user_name}(ID:{target_user.id})")
-    radar_log("管理员模拟登录", data={"impersonatorId": impersonator_id, "targetUserId": target_user.id, "targetUserName": target_user.user_name})
-    return Success(data=data.model_dump(by_alias=True))
+    log.info(f"管理员模拟登录, 操作人ID: {impersonator_id}, 目标用户ID: {user_id}")
+    return Success(data=tokens.model_dump(by_alias=True))

@@ -1,7 +1,7 @@
 from loguru import logger
 from tortoise.transactions import in_transaction
 
-from app.core.crud import CRUDBase
+from app.core.crud import CRUDBase, get_db_conn
 from app.system.models import Button, Menu
 from app.system.radar.developer import radar_log
 from app.system.schemas.admin import ButtonBase, MenuCreate, MenuUpdate
@@ -27,7 +27,7 @@ class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         if not buttons:
             return False
 
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(Menu)):
             existing_buttons = [button.button_code for button in await menu.by_menu_buttons]
             menu_buttons = [button.button_code for button in buttons]
 

@@ -16,7 +16,15 @@ from app.business.hr.schemas import (
     SkillUpdate,
 )
 from app.business.hr.services import create_employee, get_department_stats, list_employees_with_relations, update_employee
-from app.utils import CTX_USER_ID, CRUDRouter, DependPermission, Fail, SearchFieldConfig, Success, SuccessExtra, has_button_code, is_super_admin
+from app.utils import (
+    CTX_USER_ID,
+    CRUDRouter,
+    DependPermission,
+    SearchFieldConfig,
+    Success,
+    SuccessExtra,
+    require_buttons,
+)
 
 dept_crud = CRUDRouter(
     prefix="/departments",
@@ -26,8 +34,6 @@ dept_crud = CRUDRouter(
     list_schema=DepartmentSearch,
     search_fields=SearchFieldConfig(contains_fields=["name", "code"], exact_fields=["status"]),
     summary_prefix="部门",
-    list_method="post",
-    batch_delete_method="body",
 )
 
 skill_crud = CRUDRouter(
@@ -36,17 +42,23 @@ skill_crud = CRUDRouter(
     create_schema=SkillCreate,
     update_schema=SkillUpdate,
     summary_prefix="标签",
-    batch_delete_method="body",
 )
 
+# 员工的 list / create / update 全部走自定义逻辑
 emp_crud = CRUDRouter(
     prefix="/employees",
     controller=employee_controller,
+    list_schema=EmployeeSearch,
     summary_prefix="员工",
     exclude_fields=["phone"],
-    batch_delete_method="body",
-    enable_routes={"get", "delete", "batch_delete"},
 )
+
+
+@emp_crud.override("list")
+async def _list_employees(obj_in: EmployeeSearch):
+    total, records = await list_employees_with_relations(obj_in)
+    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
+
 
 router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission])
 
@@ -63,21 +75,20 @@ router.include_router(skill_crud.router)
 router.include_router(emp_crud.router)
 
 
-@router.post("/employees/all/", summary="查看员工列表")
-async def list_employees(obj_in: EmployeeSearch):
-    total, records = await list_employees_with_relations(obj_in)
-    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
+# ---- 员工创建 / 更新：独立走 service，依赖 B_HR_CREATE 按钮权限 ----
 
 
-@router.post("/employees", summary="创建员工")
+@router.post(
+    "/employees",
+    summary="创建员工",
+    dependencies=[require_buttons("B_HR_CREATE")],
+)
 async def create_emp(emp_in: EmployeeCreate, request: Request):
     """
     超管: 需指定 department_id
     主管(B_HR_CREATE): department 自动继承
     共同: 自动创建系统用户(R_USER, must_change_password=True), 密码随机生成返回前端
     """
-    if not is_super_admin() and not has_button_code("B_HR_CREATE"):
-        return Fail(msg="无权限创建员工")
     current_emp = await employee_controller.get_or_none(user_id=CTX_USER_ID.get())
     return await create_employee(emp_in, current_emp, request.app.state.redis)
 

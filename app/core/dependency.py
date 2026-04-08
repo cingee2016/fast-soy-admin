@@ -115,3 +115,57 @@ class PermissionControl:
 
 DependAuth = Depends(AuthControl.is_authed)
 DependPermission = Depends(PermissionControl.has_permission)
+
+
+def require_buttons(*button_codes: str, require_all: bool = False):
+    """工厂函数：生成校验按钮权限的 FastAPI 依赖。
+
+    用法::
+
+        @router.post("/employees", dependencies=[require_buttons("B_HR_CREATE")])
+        async def create_emp(...): ...
+
+        # 任意一个通过即可
+        @router.patch("/x", dependencies=[require_buttons("B_A", "B_B")])
+
+        # 必须全部通过
+        @router.patch("/y", dependencies=[require_buttons("B_A", "B_B", require_all=True)])
+
+    超级管理员 (``R_SUPER``) 自动通过所有按钮权限校验，不需要单独列出。
+    """
+
+    async def _checker(_: User = Depends(AuthControl.is_authed)) -> None:
+        role_codes = CTX_ROLE_CODES.get()
+        if "R_SUPER" in role_codes:
+            return
+        owned = set(CTX_BUTTON_CODES.get() or [])
+        if require_all:
+            missing = [c for c in button_codes if c not in owned]
+            if missing:
+                raise BizError(code=Code.PERMISSION_DENIED, msg=f"缺少按钮权限: {', '.join(missing)}")
+        else:
+            if not any(c in owned for c in button_codes):
+                raise BizError(code=Code.PERMISSION_DENIED, msg=f"需要任一按钮权限: {', '.join(button_codes)}")
+
+    return Depends(_checker)
+
+
+def require_roles(*role_codes_required: str, require_all: bool = False):
+    """工厂函数：生成校验角色的 FastAPI 依赖。
+
+    超级管理员 (``R_SUPER``) 自动通过。
+    """
+
+    async def _checker(_: User = Depends(AuthControl.is_authed)) -> None:
+        owned = set(CTX_ROLE_CODES.get() or [])
+        if "R_SUPER" in owned:
+            return
+        if require_all:
+            missing = [c for c in role_codes_required if c not in owned]
+            if missing:
+                raise BizError(code=Code.PERMISSION_DENIED, msg=f"缺少角色: {', '.join(missing)}")
+        else:
+            if not any(c in owned for c in role_codes_required):
+                raise BizError(code=Code.PERMISSION_DENIED, msg=f"需要任一角色: {', '.join(role_codes_required)}")
+
+    return Depends(_checker)

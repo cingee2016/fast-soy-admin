@@ -6,7 +6,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.log import log
+
+if TYPE_CHECKING:
+    from app.system.models import User
 
 
 async def ensure_menu(
@@ -95,11 +100,7 @@ async def ensure_menu(
     for child in children or []:
         child_buttons = child.get("buttons")
         child_children = child.get("children")
-        child_extra = {
-            k: v
-            for k, v in child.items()
-            if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")
-        }
+        child_extra = {k: v for k, v in child.items() if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")}
         await ensure_menu(
             parent_route=route_name,
             menu_name=child["menu_name"],

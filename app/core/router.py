@@ -1,9 +1,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
-from tortoise.expressions import Q
 
 from app.core.base_schema import CommonIds, Success, SuccessExtra
 from app.core.crud import CRUDBase
@@ -20,31 +20,59 @@ class SearchFieldConfig:
     in_fields: list[str] = field(default_factory=list)
 
 
+# 所有标准路由的名称（顺序即注册顺序）
+_ALL_ROUTES = ("list", "get", "create", "update", "delete", "batch_delete")
+
+
 class CRUDRouter:
     """
-    CRUD Router 工厂，自动生成标准 CRUD 接口，同时支持自定义扩展。
+    CRUD Router 工厂，自动生成标准 CRUD 接口。
 
-    用法:
-        # 基础用法 — 一行生成标准 CRUD
-        crud_router = CRUDRouter(
+    统一路由风格（参见 ``CLAUDE.md`` 的 "API Conventions"）::
+
+        POST   /resources/search     列表/搜索 (Body: list_schema, 含 current/size)
+        GET    /resources/{item_id}  详情
+        POST   /resources            创建
+        PATCH  /resources/{item_id}  更新
+        DELETE /resources/{item_id}  删除
+        DELETE /resources            批量删除 (Body: {ids: [...]})
+
+    基础用法::
+
+        crud = CRUDRouter(
             prefix="/roles",
             controller=role_controller,
             create_schema=RoleCreate,
             update_schema=RoleUpdate,
+            list_schema=RoleSearch,
             search_fields=SearchFieldConfig(
                 contains_fields=["role_name", "role_code"],
                 exact_fields=["status_type"],
             ),
             summary_prefix="角色",
         )
+        router = crud.router
 
-        # 扩展自定义接口
-        @crud_router.router.get("/roles/{role_id}/menus", summary="查看角色菜单")
-        async def get_role_menus(role_id: int):
-            ...
+    自定义某一路由时使用 ``@crud.override("name")`` 装饰器 — 该装饰器会移除
+    CRUDRouter 默认注册的实现，并用你的函数替换，同时保留路径/方法/summary::
 
-        # 在 __init__.py 中注册
-        router_system_manage.include_router(crud_router.router)
+        crud = CRUDRouter(prefix="/users", controller=user_controller, ...)
+
+        @crud.override("create")
+        async def create_user(user_in: UserCreate, request: Request):
+            # 自定义逻辑 — 事务、密码哈希、角色关联等
+            return Success(...)
+
+        router = crud.router
+
+    完全关闭某个路由用 ``enable_routes``::
+
+        crud = CRUDRouter(..., enable_routes={"get", "delete"})
+
+    额外的业务接口继续在 ``crud.router`` 上挂载即可::
+
+        @crud.router.post("/roles/{role_id}/menus")
+        async def get_role_menus(role_id: int): ...
     """
 
     def __init__(
@@ -59,25 +87,23 @@ class CRUDRouter:
         list_order: list[str] | None = None,
         exclude_fields: list[str] | None = None,
         enable_routes: set[str] | None = None,
-        list_method: str = "get",
-        batch_delete_method: str = "query",
         record_transform: Callable | None = None,
     ):
         """
         Args:
-            prefix: 路由前缀，如 "/roles"
-            controller: CRUDBase 控制器实例
-            create_schema: 创建 schema
-            update_schema: 更新 schema
-            list_schema: 列表搜索 schema（POST 列表时使用）
-            search_fields: 搜索字段配置
-            summary_prefix: 接口 summary 前缀，如 "角色"
-            list_order: 列表排序字段，默认 ["id"]
-            exclude_fields: to_dict 时排除的字段
-            enable_routes: 启用的路由集合，默认全部启用。可选值: list, get, create, update, delete, batch_delete
-            list_method: 列表接口方法 "get"(Query参数) 或 "post"(Body搜索)
-            batch_delete_method: 批量删除参数方式 "query"(逗号分隔) 或 "body"(CommonIds)
-            record_transform: 自定义记录转换函数，签名: async def transform(obj) -> dict
+            prefix: 路由前缀，如 "/roles"。
+            controller: CRUDBase 控制器实例。
+            create_schema: 创建 schema。
+            update_schema: 更新 schema。
+            list_schema: 列表搜索 schema（必须继承 PageQueryBase 或含 current/size 字段）。
+            search_fields: 搜索字段配置。
+            summary_prefix: 接口 summary 前缀，如 "角色"。
+            list_order: 列表排序字段，默认 ["id"]。
+            exclude_fields: to_dict 时排除的字段。
+            enable_routes: 启用的路由集合，默认全部启用。可选值:
+                list, get, create, update, delete, batch_delete。
+            record_transform: 自定义记录转换函数，签名:
+                ``async def transform(obj) -> dict``。
         """
         self.prefix = prefix
         self.controller = controller
@@ -88,18 +114,21 @@ class CRUDRouter:
         self.summary_prefix = summary_prefix
         self.list_order = list_order or ["id"]
         self.exclude_fields = exclude_fields or []
-        self.list_method = list_method
-        self.batch_delete_method = batch_delete_method
         self.record_transform = record_transform
 
         # 资源名（从 prefix 提取，如 "/roles" -> "roles"）
         self._resource = prefix.strip("/").split("/")[-1]
 
-        all_routes = {"list", "get", "create", "update", "delete", "batch_delete"}
-        self.enable_routes = enable_routes if enable_routes is not None else all_routes
+        self.enable_routes: set[str] = enable_routes if enable_routes is not None else set(_ALL_ROUTES)
+
+        # 存储每个标准路由的规格：name -> {"path", "methods", "summary"}
+        # override() 会根据 name 找到对应规格，再用用户函数替换默认实现
+        self._route_specs: dict[str, dict] = {}
 
         self.router = APIRouter()
         self._register_routes()
+
+    # ---- 路由注册入口 ----
 
     def _register_routes(self):
         if "list" in self.enable_routes:
@@ -120,67 +149,92 @@ class CRUDRouter:
             return await self.record_transform(obj)
         return await obj.to_dict(exclude_fields=self.exclude_fields)
 
-    # ---- 路由注册方法 ----
+    # ---- override 钩子 ----
+
+    def override(self, name: str) -> Callable:
+        """装饰器: 用用户实现替换指定标准路由的默认实现。
+
+        ``name`` 必须是已注册的路由名 (``list`` / ``get`` / ``create`` / ``update`` /
+        ``delete`` / ``batch_delete``)，且该路由在 ``enable_routes`` 中启用。
+
+        替换后仍保留 CRUDRouter 生成的 path / method / summary，用户只需提供
+        函数体和参数签名。
+        """
+        if name not in self._route_specs:
+            raise ValueError(f"Cannot override '{name}': route is not enabled or does not exist. Available: {sorted(self._route_specs.keys())}")
+        spec = self._route_specs[name]
+
+        def decorator(func: Callable) -> Callable:
+            self._remove_route(spec["path"], spec["methods"])
+            self.router.add_api_route(
+                spec["path"],
+                func,
+                methods=list(spec["methods"]),
+                summary=spec["summary"],
+            )
+            return func
+
+        return decorator
+
+    def _remove_route(self, path: str, methods: set[str]) -> None:
+        """从 self.router.routes 中移除匹配 (path, methods) 的默认路由。"""
+        self.router.routes = [r for r in self.router.routes if not (isinstance(r, APIRoute) and r.path == path and set(r.methods) == methods)]
+
+    def _register_spec(self, name: str, path: str, methods: set[str], summary: str, endpoint: Callable) -> None:
+        """登记路由规格并实际挂到 router 上。"""
+        self._route_specs[name] = {"path": path, "methods": methods, "summary": summary}
+        self.router.add_api_route(path, endpoint, methods=list(methods), summary=summary)
+
+    # ---- 标准路由实现 ----
 
     def _add_list_route(self):
+        if not self.list_schema:
+            return
+
         controller = self.controller
         search_fields = self.search_fields
         list_order = self.list_order
         to_record = self._to_record
+        schema = self.list_schema
 
-        if self.list_method == "post" and self.list_schema:
-            schema = self.list_schema
+        async def list_items(obj_in: schema):  # type: ignore[valid-type]
+            q = controller.build_search(
+                obj_in,
+                contains_fields=search_fields.contains_fields,
+                icontains_fields=search_fields.icontains_fields,
+                exact_fields=search_fields.exact_fields,
+                iexact_fields=search_fields.iexact_fields,
+                in_fields=search_fields.in_fields,
+            )
+            current = getattr(obj_in, "current", 1)
+            size = getattr(obj_in, "size", 10)
+            total, objs = await controller.list(page=current, page_size=size, search=q, order=list_order)
+            records = [await to_record(obj) for obj in objs]
+            return SuccessExtra(data={"records": records}, total=total, current=current, size=size)
 
-            @self.router.post(f"/{self._resource}/all/", summary=f"查看{self.summary_prefix}列表")
-            async def list_items(obj_in: schema):  # type: ignore[valid-type]
-                q = controller.build_search(
-                    obj_in,
-                    contains_fields=search_fields.contains_fields,
-                    icontains_fields=search_fields.icontains_fields,
-                    exact_fields=search_fields.exact_fields,
-                    iexact_fields=search_fields.iexact_fields,
-                    in_fields=search_fields.in_fields,
-                )
-                total, objs = await controller.list(page=obj_in.current, page_size=obj_in.size, search=q, order=list_order)
-                records = [await to_record(obj) for obj in objs]
-                data = {"records": records}
-                return SuccessExtra(data=data, total=total, current=obj_in.current, size=obj_in.size)
-
-        else:
-            schema = self.list_schema
-
-            @self.router.get(f"/{self._resource}", summary=f"查看{self.summary_prefix}列表")
-            async def list_items_get(
-                request: Request,
-                current: int = Query(1, description="页码"),
-                size: int = Query(10, description="每页数量"),
-            ):
-                if schema:
-                    params = {k: v for k, v in request.query_params.items() if v != ""}
-                    obj_in = schema.model_validate(params)
-                    q = controller.build_search(
-                        obj_in,
-                        contains_fields=search_fields.contains_fields,
-                        icontains_fields=search_fields.icontains_fields,
-                        exact_fields=search_fields.exact_fields,
-                        iexact_fields=search_fields.iexact_fields,
-                        in_fields=search_fields.in_fields,
-                    )
-                else:
-                    q = Q()
-                total, objs = await controller.list(page=current, page_size=size, search=q, order=list_order)
-                records = [await to_record(obj) for obj in objs]
-                data = {"records": records}
-                return SuccessExtra(data=data, total=total, current=current, size=size)
+        self._register_spec(
+            "list",
+            f"/{self._resource}/search",
+            {"POST"},
+            f"查看{self.summary_prefix}列表",
+            list_items,
+        )
 
     def _add_get_route(self):
         controller = self.controller
         to_record = self._to_record
 
-        @self.router.get(f"/{self._resource}/{{item_id}}", summary=f"查看{self.summary_prefix}")
         async def get_item(item_id: int):
             obj = await controller.get(id=item_id)
             return Success(data=await to_record(obj))
+
+        self._register_spec(
+            "get",
+            f"/{self._resource}/{{item_id}}",
+            {"GET"},
+            f"查看{self.summary_prefix}",
+            get_item,
+        )
 
     def _add_create_route(self):
         if not self.create_schema:
@@ -189,10 +243,17 @@ class CRUDRouter:
         controller = self.controller
         schema = self.create_schema
 
-        @self.router.post(f"/{self._resource}", summary=f"创建{self.summary_prefix}")
         async def create_item(obj_in: schema):  # type: ignore[valid-type]
             new_obj = await controller.create(obj_in=obj_in)
-            return Success(msg="创建成功", data={"created_id": new_obj.id})
+            return Success(msg="创建成功", data={"createdId": new_obj.id})
+
+        self._register_spec(
+            "create",
+            f"/{self._resource}",
+            {"POST"},
+            f"创建{self.summary_prefix}",
+            create_item,
+        )
 
     def _add_update_route(self):
         if not self.update_schema:
@@ -201,33 +262,44 @@ class CRUDRouter:
         controller = self.controller
         schema = self.update_schema
 
-        @self.router.patch(f"/{self._resource}/{{item_id}}", summary=f"更新{self.summary_prefix}")
         async def update_item(item_id: int, obj_in: schema):  # type: ignore[valid-type]
             await controller.update(id=item_id, obj_in=obj_in)
-            return Success(msg="更新成功", data={"updated_id": item_id})
+            return Success(msg="更新成功", data={"updatedId": item_id})
+
+        self._register_spec(
+            "update",
+            f"/{self._resource}/{{item_id}}",
+            {"PATCH"},
+            f"更新{self.summary_prefix}",
+            update_item,
+        )
 
     def _add_delete_route(self):
         controller = self.controller
 
-        @self.router.delete(f"/{self._resource}/{{item_id}}", summary=f"删除{self.summary_prefix}")
         async def delete_item(item_id: int):
             await controller.remove(id=item_id)
-            return Success(msg="删除成功", data={"deleted_id": item_id})
+            return Success(msg="删除成功", data={"deletedId": item_id})
+
+        self._register_spec(
+            "delete",
+            f"/{self._resource}/{{item_id}}",
+            {"DELETE"},
+            f"删除{self.summary_prefix}",
+            delete_item,
+        )
 
     def _add_batch_delete_route(self):
         controller = self.controller
 
-        if self.batch_delete_method == "body":
+        async def batch_delete(obj_in: CommonIds):
+            deleted_count = await controller.batch_remove(obj_in.ids)
+            return Success(msg="删除成功", data={"deletedCount": deleted_count, "deletedIds": obj_in.ids})
 
-            @self.router.delete(f"/{self._resource}", summary=f"批量删除{self.summary_prefix}")
-            async def batch_delete_by_body(obj_in: CommonIds):
-                deleted_count = await controller.batch_remove(obj_in.ids)
-                return Success(msg="删除成功", data={"deleted_count": deleted_count, "deleted_ids": obj_in.ids})
-
-        else:
-
-            @self.router.delete(f"/{self._resource}", summary=f"批量删除{self.summary_prefix}")
-            async def batch_delete_by_query(ids: str = Query(..., description="ID列表, 用逗号隔开")):
-                id_list = [int(i) for i in ids.split(",")]
-                deleted_count = await controller.batch_remove(id_list)
-                return Success(msg="删除成功", data={"deleted_count": deleted_count, "deleted_ids": id_list})
+        self._register_spec(
+            "batch_delete",
+            f"/{self._resource}",
+            {"DELETE"},
+            f"批量删除{self.summary_prefix}",
+            batch_delete,
+        )

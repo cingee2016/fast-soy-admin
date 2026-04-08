@@ -1,6 +1,6 @@
 from pydantic import Field, model_validator
 
-from app.core.base_schema import SchemaBase
+from app.core.base_schema import PageQueryBase, SchemaBase
 from app.core.code import Code
 from app.core.exceptions import SchemaValidationError
 from app.system.models import GenderType, StatusType
@@ -17,9 +17,8 @@ class UserBase(SchemaBase):
     by_user_role_code_list: list[str] | None = Field(None, title="用户角色编码列表")
 
 
-class UserSearch(UserBase):
-    current: int | None = Field(1, description="页码")
-    size: int | None = Field(10, description="每页数量")
+class UserSearch(UserBase, PageQueryBase):
+    pass
 
 
 class UserCreate(UserBase):

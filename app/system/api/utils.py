@@ -2,6 +2,7 @@ from fastapi.routing import APIRoute
 from loguru import logger
 from tortoise.transactions import in_transaction
 
+from app.core.crud import get_db_conn
 from app.system.models import Api
 from app.system.radar.developer import radar_log
 
@@ -12,7 +13,7 @@ async def refresh_api_list():
     app_routes = [route for route in app.routes if isinstance(route, APIRoute)]
     app_routes_compared = [(list(route.methods)[0].lower(), route.path_format) for route in app_routes]
 
-    async with in_transaction("conn_system"):
+    async with in_transaction(get_db_conn(Api)):
         existing_apis = [(str(api.api_method.value), api.api_path) for api in await Api.all()]
 
         for api_method, api_path in set(existing_apis) - set(app_routes_compared):

@@ -55,14 +55,15 @@ async def create_system_user(
     raw_password = secrets.token_urlsafe(10)
 
     new_user = await user_controller.create(
-        UserCreate(
-            userName=user_name,  # type: ignore[call-arg]
-            nickName=nick_name,  # type: ignore[call-arg]
-            userEmail=user_email,  # type: ignore[call-arg]
-            userGender=user_gender,  # type: ignore[call-arg]
-            userPhone=user_phone,  # type: ignore[call-arg]
-            password=raw_password,
-        )
+        UserCreate.model_validate({
+            "user_name": user_name,
+            "nick_name": nick_name,
+            "user_email": user_email,
+            "user_gender": user_gender,
+            "user_phone": user_phone,
+            "password": raw_password,
+            "by_user_role_code_list": role_codes or ["R_USER"],
+        })
     )
 
     await User.filter(id=new_user.id).update(must_change_password=True)

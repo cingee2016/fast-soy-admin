@@ -3,7 +3,7 @@ from datetime import datetime
 from tortoise.transactions import in_transaction
 
 from app.core.code import Code
-from app.core.crud import CRUDBase
+from app.core.crud import CRUDBase, get_db_conn
 from app.core.exceptions import BizError
 from app.system.models import Role, StatusType, User
 from app.system.radar.developer import radar_log
@@ -71,7 +71,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if isinstance(role_id_list, str):
             role_id_list = [int(x) for x in role_id_list.split("|")]
 
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(User)):
             await user.by_user_roles.clear()
             user_role_objs = await Role.filter(id__in=role_id_list)
             for user_role_obj in user_role_objs:
@@ -87,7 +87,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if isinstance(roles_code_list, str):
             roles_code_list = roles_code_list.split("|")
 
-        async with in_transaction("conn_system"):
+        async with in_transaction(get_db_conn(User)):
             user_role_objs = await Role.filter(role_code__in=roles_code_list)
             await user.by_user_roles.clear()
             for user_role_obj in user_role_objs:

@@ -16,6 +16,13 @@ class SchemaBase(BaseModel):
     )
 
 
+class PageQueryBase(SchemaBase):
+    """分页查询基类 — 所有 POST /resources/search 接口的 body 应继承它"""
+
+    current: int | None = Field(1, title="页码")
+    size: int | None = Field(10, title="每页数量")
+
+
 class Custom(JSONResponse):
     def __init__(
         self,
@@ -61,5 +68,9 @@ class SuccessExtra(Custom):
         super().__init__(code=code, msg=msg, data=data, status_code=200, **kwargs)
 
 
-class CommonIds(BaseModel):
+class CommonIds(SchemaBase):
     ids: list[int] = Field(title="通用ids")
+
+
+class OfflineByRoleRequest(SchemaBase):
+    role_codes: list[str] = Field(title="角色编码列表")

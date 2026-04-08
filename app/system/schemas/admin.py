@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from app.core.base_schema import SchemaBase
+from app.core.base_schema import PageQueryBase, SchemaBase
 from app.core.code import Code
 from app.core.exceptions import SchemaValidationError
 from app.system.models import IconType, MenuType, StatusType
@@ -21,9 +21,8 @@ class RoleBase(SchemaBase):
     status_type: StatusType | None = Field(None, title="角色状态")
 
 
-class RoleSearch(RoleBase):
-    current: int | None = Field(1, title="页码")
-    size: int | None = Field(10, title="每页数量")
+class RoleSearch(RoleBase, PageQueryBase):
+    pass
 
 
 class RoleCreate(RoleBase):
@@ -62,9 +61,8 @@ class BaseApi(SchemaBase):
     status_type: StatusType | None = Field(None, title="API状态")
 
 
-class ApiSearch(BaseApi):
-    current: int | None = Field(1, title="页码")
-    size: int | None = Field(10, title="每页数量")
+class ApiSearch(BaseApi, PageQueryBase):
+    pass
 
 
 class ApiCreate(BaseApi):
@@ -92,8 +90,8 @@ class MenuBase(SchemaBase):
     route_path: str | None = Field(None, max_length=200, title="路由路径")
 
     path_param: str | None = Field(None, max_length=200, description="路径参数")
-    route_param: list[dict[str, Any]] | None = Field(default=[], alias="query", description="路由参数列表")
-    by_menu_buttons: list[ButtonBase] | None = Field(default=[], description="按钮列表")
+    route_param: list[dict[str, Any]] = Field(default_factory=list, alias="query", description="路由参数列表")
+    by_menu_buttons: list[ButtonBase] = Field(default_factory=list, description="按钮列表")
     order: int | None = Field(None, description="菜单顺序")
     component: str | None = Field(None, description="路由组件")
 
@@ -114,6 +112,12 @@ class MenuBase(SchemaBase):
     redirect: str | None = Field(None, description="重定向路径")
     props: bool | None = Field(None, description="是否为首路由")
     constant: bool | None = Field(None, description="是否为公共路由")
+
+
+class MenuSearch(PageQueryBase):
+    menu_name: str | None = Field(None, title="菜单名称")
+    menu_type: MenuType | None = Field(None, title="菜单类型")
+    status_type: StatusType | None = Field(None, title="状态")
 
 
 class MenuCreate(MenuBase):
@@ -146,6 +150,7 @@ __all__ = [
     "ApiUpdate",
     "ButtonBase",
     "MenuBase",
+    "MenuSearch",
     "MenuCreate",
     "MenuUpdate",
 ]

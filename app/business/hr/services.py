@@ -10,7 +10,7 @@ from app.business.hr.controllers import employee_controller, skill_controller
 from app.business.hr.models import Department, Employee
 from app.business.hr.schemas import EmployeeCreate, EmployeeSearch, EmployeeUpdate
 from app.system.services import create_system_user
-from app.utils import Fail, Success, has_button_code, is_super_admin, radar_log
+from app.utils import Fail, Success, get_db_conn, has_button_code, is_super_admin, radar_log
 
 
 async def generate_employee_no() -> str:
@@ -45,7 +45,7 @@ async def create_employee(emp_in: EmployeeCreate, current_emp: Employee | None, 
     employee_no = await generate_employee_no()
 
     # 3. 一个事务: 创建 User + Employee + 标签关联
-    async with in_transaction("conn_system"):
+    async with in_transaction(get_db_conn(Employee)):
         # 创建系统用户 (随机密码 + must_change_password + R_USER)
         try:
             result = await create_system_user(
@@ -108,7 +108,7 @@ async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
     """更新员工信息 — 含标签关联更新"""
     if emp_in.skill_ids and len(emp_in.skill_ids) > BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE:
         return Fail(msg=f"标签数量不能超过 {BIZ_SETTINGS.MAX_SKILLS_PER_EMPLOYEE}")
-    async with in_transaction("conn_system"):
+    async with in_transaction(get_db_conn(Employee)):
         emp = await employee_controller.update(id=emp_id, obj_in=emp_in, exclude={"skill_ids"})
         if emp_in.skill_ids is not None:
             await emp.skills.clear()

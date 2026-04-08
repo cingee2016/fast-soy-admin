@@ -15,6 +15,17 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 _list = list  # 避免与 CRUDBase.list 方法名冲突
 
 
+def get_db_conn(model: type[Model]) -> str:
+    """Return the Tortoise connection name configured for a model.
+
+    Prefer this over hard-coding connection names in transactions:
+
+        async with in_transaction(get_db_conn(User)):
+            ...
+    """
+    return model._meta.default_connection or "default"
+
+
 def _get_current_user() -> str | None:
     user_id = CTX_USER_ID.get(0)
     return str(user_id) if user_id else None
@@ -109,8 +120,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             obj_dict = obj_in.model_dump(exclude_unset=True, exclude_none=True, exclude=exclude)
         if "updated_by" in self.model._meta.db_fields:
             obj_dict["updated_by"] = _get_current_user()
-        conn_name = self.model._meta.default_connection or "default"
-        async with in_transaction(conn_name):
+        async with in_transaction(get_db_conn(self.model)):
             obj = await self.get(id=id)
             obj = obj.update_from_dict(obj_dict)
             await obj.save()

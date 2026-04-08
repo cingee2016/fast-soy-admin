@@ -5,7 +5,7 @@ Business schema example — 员工、部门、标签的请求/响应 Schema。
 
 from pydantic import Field
 
-from app.utils import SchemaBase, StatusType
+from app.utils import PageQueryBase, SchemaBase, StatusType
 
 # ============================================================
 # Department
@@ -28,9 +28,8 @@ class DepartmentCreate(DepartmentBase):
 class DepartmentUpdate(DepartmentBase): ...
 
 
-class DepartmentSearch(DepartmentBase):
-    current: int | None = Field(1, title="页码")
-    size: int | None = Field(10, title="每页数量")
+class DepartmentSearch(DepartmentBase, PageQueryBase):
+    pass
 
 
 # ============================================================
@@ -82,7 +81,5 @@ class SkillIds(SchemaBase):
     skill_ids: list[int] = Field(title="标签ID列表")
 
 
-class EmployeeSearch(EmployeeBase):
-    current: int | None = Field(1, title="页码")
-    size: int | None = Field(10, title="每页数量")
+class EmployeeSearch(EmployeeBase, PageQueryBase):
     department_id: int | None = Field(None, title="部门ID")

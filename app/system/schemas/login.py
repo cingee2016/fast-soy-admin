@@ -11,7 +11,7 @@ class CredentialsSchema(SchemaBase):
 
 
 class JWTOut(SchemaBase):
-    access_token: str | None = Field(None, alias="token", title="请求token")
+    token: str | None = Field(None, title="请求token")
     refresh_token: str | None = Field(None, title="刷新token")
 
 
