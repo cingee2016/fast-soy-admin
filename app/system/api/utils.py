@@ -45,15 +45,16 @@ async def generate_tags_recursive_list():
     unique_tags = list(set(tuple(tag) for tag in sorted(tags_list)))
 
     def build_tree():
-        tree = []
+        tree: list[dict] = []
         for tags in unique_tags:
             current_level = tree
             for tag in tags:
                 existing_tag = next((item for item in current_level if item["value"] == tag), None)
                 if not existing_tag:
-                    new_tag = {"value": tag, "label": tag}
+                    new_tag: dict = {"value": tag, "label": tag}
                     current_level.append(new_tag)
-                    current_level = []
+                    new_tag["children"] = []
+                    current_level = new_tag["children"]
                 else:
                     if existing_tag.get("children") is None:
                         existing_tag["children"] = []

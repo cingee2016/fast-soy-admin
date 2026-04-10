@@ -109,12 +109,12 @@ async def _batch_delete_apis(obj_in: CommonIds):
 
 
 def build_api_tree(apis: list[Api]):
-    parent_map = {"root": {"id": "root", "children": []}}
+    parent_map: dict[str, dict] = {"root": {"id": "root", "children": []}}
     for api in apis:
         tags = api.tags
         parent_id = "root"
         for tag in tags:
-            node_id = f"parent${tag}"
+            node_id = f"{parent_id}>{tag}"
             if node_id not in parent_map:
                 node = {"id": node_id, "summary": tag, "children": []}
                 parent_map[node_id] = node

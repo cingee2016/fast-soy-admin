@@ -2,6 +2,7 @@ import multiprocessing
 import os
 
 from granian import Granian
+from granian.constants import Interfaces
 
 
 def main():
@@ -10,7 +11,7 @@ def main():
         target="app:app",
         address="0.0.0.0",
         port=9999,
-        interface="asgi",
+        interface=Interfaces.ASGI,
         workers=workers,
         reload=False,
     )
