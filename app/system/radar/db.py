@@ -332,9 +332,9 @@ def _extract_business_code_and_msg(response_body: str | None) -> tuple[str | Non
     """Extract business code and msg from response body JSON."""
     if not response_body:
         return None, None
-    try:
-        import json
+    import json
 
+    try:
         parsed = json.loads(response_body)
         code = parsed.get("code")
         msg = parsed.get("msg")

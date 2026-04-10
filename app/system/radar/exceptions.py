@@ -50,7 +50,7 @@ def format_exception_pretty(
                 buffer.write(_text)
                 count += self.visible_length(_text)
             line_length = self.get_line_length()
-            if count == 0 or count % line_length != 0 or self.config.full_line_newline:
+            if count == 0 or count % line_length != 0 or self.config.full_line_newline:  # type: ignore[union-attr]
                 buffer.write("\n")
             buffer.write(pretty_errors.RESET_COLOR)  # type: ignore[union-attr]
 

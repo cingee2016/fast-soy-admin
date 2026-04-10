@@ -1,5 +1,6 @@
 from app.system.models import Button, Menu, Role
 from app.system.services import ensure_menu, ensure_role, ensure_user
+from app.system.services.init_helper import _safe_update_or_create
 
 SYSTEM_ROLE_SEEDS = [
     {
@@ -390,22 +391,23 @@ async def init_menus():
 async def _ensure_super_role() -> None:
     """同步超级管理员角色到最新菜单和按钮集合"""
     role_home_menu = await Menu.get(route_name="home")
-    super_role, _ = await Role.update_or_create(
-        role_code="R_SUPER",
-        defaults={
+    super_role, _ = await _safe_update_or_create(
+        Role,
+        {"role_code": "R_SUPER"},
+        {
             "role_name": "超级管理员",
             "role_desc": "超级管理员",
             "by_role_home": role_home_menu,
         },
     )
 
-    await super_role.by_role_menus.clear()
+    await super_role.by_role_menus.clear()  # type: ignore[attr-defined]
     for menu_obj in await Menu.filter(constant=False):
-        await super_role.by_role_menus.add(menu_obj)
+        await super_role.by_role_menus.add(menu_obj)  # type: ignore[attr-defined]
 
-    await super_role.by_role_buttons.clear()
+    await super_role.by_role_buttons.clear()  # type: ignore[attr-defined]
     for button_obj in await Button.all():
-        await super_role.by_role_buttons.add(button_obj)
+        await super_role.by_role_buttons.add(button_obj)  # type: ignore[attr-defined]
 
 
 async def init_users():

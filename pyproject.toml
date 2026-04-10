@@ -21,7 +21,7 @@ dependencies = [
   "pyjwt>=2.12.1",
   "starlette==0.52.1",
   "tortoise-orm>=1.1.7",
-  "uvicorn>=0.42.0",
+  "granian>=2.3.0",
 ]
 
 [dependency-groups]

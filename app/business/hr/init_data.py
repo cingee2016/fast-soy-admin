@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.models import Department, Employee, Skill
 from app.system.services import ensure_menu, ensure_role, ensure_user
+from app.system.services.init_helper import _safe_update_or_create
 
 HR_MENU_CHILDREN = [
     {
@@ -201,14 +202,15 @@ async def _init_departments() -> None:
             "name": department_seed["name"],
             "description": department_seed["description"],
         }
-        await Department.update_or_create(code=department_seed["code"], defaults=defaults)
+        await _safe_update_or_create(Department, {"code": department_seed["code"]}, defaults)
 
 
 async def _init_tags() -> None:
     for tag_seed in HR_TAG_SEEDS:
-        await Skill.update_or_create(
-            name=tag_seed["name"],
-            defaults={
+        await _safe_update_or_create(
+            Skill,
+            {"name": tag_seed["name"]},
+            {
                 "category": tag_seed["category"],
                 "description": tag_seed["description"],
             },
@@ -222,9 +224,10 @@ async def _ensure_demo_employee(seed: dict) -> Employee:
     department = await Department.get(code=employee_seed["department_code"])
     employee_no = _employee_no(employee_seed["employee_no_serial"])
 
-    employee, _ = await Employee.update_or_create(
-        employee_no=employee_no,
-        defaults={
+    employee, _ = await _safe_update_or_create(
+        Employee,
+        {"employee_no": employee_no},
+        {
             "name": employee_seed["name"],
             "email": employee_seed["email"],
             "phone": employee_seed["phone"],

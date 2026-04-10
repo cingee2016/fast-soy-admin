@@ -3,6 +3,7 @@ from loguru import logger
 from tortoise.transactions import in_transaction
 
 from app.core.crud import get_db_conn
+from app.core.exceptions import IntegrityError
 from app.system.models import Api
 from app.system.radar.developer import radar_log
 
@@ -30,7 +31,10 @@ async def refresh_api_list():
             if instance:
                 await Api.filter(id=instance.id).update(summary=summary, tags=tags, is_system=True)
             else:
-                await Api.create(api_path=api_path, api_method=api_method, summary=summary, tags=tags, is_system=True)
+                try:
+                    await Api.create(api_path=api_path, api_method=api_method, summary=summary, tags=tags, is_system=True)
+                except IntegrityError:
+                    await Api.filter(api_path=api_path, api_method=api_method).update(summary=summary, tags=tags, is_system=True)
 
 
 async def generate_tags_recursive_list():

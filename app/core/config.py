@@ -10,7 +10,7 @@ def tortoise_orm_factory() -> dict[str, Any]:
 
     models = ["app.system.models", "app.system.radar.models"] + discover_business_models()
     return {
-        "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3"}}},
+        "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3", "busy_timeout": 5000}}},
         "apps": {"app_system": {"models": models, "default_connection": "conn_system", "migrations": "migrations.app_system"}},
         "use_tz": False,
         "timezone": "Asia/Shanghai",
