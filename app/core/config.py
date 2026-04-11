@@ -1,20 +1,10 @@
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-
-def tortoise_orm_factory() -> dict[str, Any]:
-    from app.core.autodiscover import discover_business_models
-
-    models = ["app.system.models", "app.system.radar.models"] + discover_business_models()
-    return {
-        "connections": {"conn_system": {"engine": "tortoise.backends.sqlite", "credentials": {"file_path": "app_system.sqlite3", "busy_timeout": 5000}}},
-        "apps": {"app_system": {"models": models, "default_connection": "conn_system", "migrations": "migrations.app_system"}},
-        "use_tz": False,
-        "timezone": "Asia/Shanghai",
-    }
+from app.core.autodiscover import discover_business_models
 
 
 class Settings(BaseSettings):
@@ -39,7 +29,27 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12  # 12 hours
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    TORTOISE_ORM: dict[str, Any] = Field(default_factory=tortoise_orm_factory)
+    # 数据库连接 URL — Tortoise ORM 原生支持多引擎, 直接在 .env 里覆盖 DB_URL
+    # 即可切换, 无需改代码。URL 格式参考 tortoise-orm 官方文档:
+    #
+    #   sqlite:   sqlite://DB_FILE                    # 相对路径两个斜杠
+    #             sqlite:///data/db.sqlite3           # 绝对路径三个斜杠 (/data/db.sqlite3)
+    #             sqlite://app_system.sqlite3?busy_timeout=5000&journal_mode=WAL
+    #
+    #   postgres: postgres://user:password@host:5432/dbname   # 默认走 asyncpg
+    #             asyncpg://user:password@host:5432/dbname    # 显式指定 asyncpg
+    #             psycopg://user:password@host:5432/dbname    # 显式指定 psycopg
+    #
+    #   mysql:    mysql://user:password@host:3306/dbname
+    #
+    #   mssql:    mssql://user:password@host:1433/dbname?driver=ODBC%20Driver%2018%20for%20SQL%20Server
+    #             # 可追加 &encrypt=no&trust_server_certificate=yes 等 ODBC 选项
+    DB_URL: str = "sqlite://app_system.sqlite3?busy_timeout=5000"
+
+    # Tortoise ORM 配置字典 — 由 DB_URL + autodiscover 在 model_validator 里构建,
+    # 无需在 .env 中手动设置 (也不要设置: 多行 JSON 会被 VS Code 等工具的
+    # 简易 .env 解析器破坏, 导致环境变量注入失败)。
+    TORTOISE_ORM: dict[str, Any] = Field(default_factory=dict)
 
     DATETIME_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 
@@ -59,6 +69,24 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"
+
+    @model_validator(mode="after")
+    def _build_tortoise_orm(self) -> "Settings":
+        """从 DB_URL + 业务模块自动发现构建 TORTOISE_ORM 配置。
+
+        已经显式设置 TORTOISE_ORM 的情况下保留不覆盖 (测试夹具会这样用)。
+        """
+        if self.TORTOISE_ORM:
+            return self
+
+        models = ["app.system.models", "app.system.radar.models"] + discover_business_models()
+        self.TORTOISE_ORM = {
+            "connections": {"conn_system": self.DB_URL},
+            "apps": {"app_system": {"models": models, "default_connection": "conn_system", "migrations": "migrations.app_system"}},
+            "use_tz": False,
+            "timezone": "Asia/Shanghai",
+        }
+        return self
 
 
 APP_SETTINGS = Settings()

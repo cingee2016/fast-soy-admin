@@ -3,7 +3,7 @@
 import pytest
 
 from app.system.radar.db import (
-    _extract_business_code,
+    _extract_business_code_and_msg,
     _percentile,
     query_all_queries,
     query_exceptions,
@@ -17,6 +17,11 @@ from app.system.radar.db import (
 from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def _extract_business_code(body: str | None) -> str | None:
+    """Test shim: return only the code portion from the new (code, msg) tuple."""
+    return _extract_business_code_and_msg(body)[0]
 
 
 @pytest.fixture(scope="session")

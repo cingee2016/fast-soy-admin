@@ -1,9 +1,14 @@
+import orjson
 import pretty_errors
 from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
+from guard import SecurityConfig
+from guard.middleware import SecurityMiddleware
+from starlette.responses import Response
 from tortoise.contrib.fastapi import register_tortoise
 
+from app.core.code import Code
 from app.core.config import APP_SETTINGS
 from app.core.exceptions import (
     BizError,
@@ -18,15 +23,13 @@ from app.core.exceptions import (
     ResponseValidationHandle,
 )
 from app.core.middlewares import BackGroundTaskMiddleware, PrettyErrorsMiddleware, RequestIDMiddleware
+from app.system.api import system_router
+from app.system.api.health import router as health_router
+from app.system.radar.middleware import RadarMiddleware
 
 
 async def _guard_response_modifier(response):
     """Rewrite guard error responses to the project's unified JSON format."""
-    import orjson
-    from starlette.responses import Response
-
-    from app.core.code import Code
-
     status = response.status_code
     if status < 400:
         return response
@@ -47,8 +50,6 @@ async def _guard_response_modifier(response):
 
 def _make_guard_config():
     """Create fastapi-guard SecurityConfig from app settings."""
-    from guard import SecurityConfig
-
     return SecurityConfig(
         rate_limit=APP_SETTINGS.GUARD_RATE_LIMIT,
         rate_limit_window=APP_SETTINGS.GUARD_RATE_LIMIT_WINDOW,
@@ -93,13 +94,9 @@ def make_middlewares():
         Middleware(RequestIDMiddleware),
     ]
     if APP_SETTINGS.GUARD_ENABLED:
-        from guard.middleware import SecurityMiddleware
-
         middleware.append(Middleware(SecurityMiddleware, config=_make_guard_config()))
 
     if APP_SETTINGS.RADAR_ENABLED:
-        from app.system.radar.middleware import RadarMiddleware
-
         middleware.append(Middleware(RadarMiddleware))
     return middleware
 
@@ -121,8 +118,5 @@ def register_exceptions(app: FastAPI):
 
 
 def register_routers(app: FastAPI, prefix: str = "/api"):
-    from app.system.api import system_router
-    from app.system.api.health import router as health_router
-
     app.include_router(system_router, prefix=f"{prefix}/v1")
     app.include_router(health_router)

@@ -20,5 +20,13 @@
     "*.log": "ansi",
     "*.log.*": "ansi"
   },
-  "python.analysis.typeCheckingMode": "off"
+  "python.analysis.typeCheckingMode": "off",
+  // 禁用 VS Code 自带的 .env 解析器 —— 它不支持多行带引号的值
+  // (如 TORTOISE_ORM),会把 `'{` 残片注入 os.environ 导致 pydantic-settings
+  // 解析失败. pydantic-settings 在 Settings() 里用 python-dotenv 正确读 .env,
+  // 无需 VS Code 再做一次.
+  "python.envFile": "",
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

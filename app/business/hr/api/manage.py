@@ -13,6 +13,7 @@ from app.business.hr.schemas import (
     EmployeeSearch,
     EmployeeUpdate,
     SkillCreate,
+    SkillSearch,
     SkillUpdate,
 )
 from app.business.hr.services import create_employee, get_department_stats, list_employees_with_relations, update_employee
@@ -41,6 +42,8 @@ skill_crud = CRUDRouter(
     controller=skill_controller,
     create_schema=SkillCreate,
     update_schema=SkillUpdate,
+    list_schema=SkillSearch,
+    search_fields=SearchFieldConfig(contains_fields=["name"], exact_fields=["category"]),
     summary_prefix="标签",
 )
 
@@ -50,8 +53,18 @@ emp_crud = CRUDRouter(
     controller=employee_controller,
     list_schema=EmployeeSearch,
     summary_prefix="员工",
-    exclude_fields=["phone"],
 )
+
+
+@emp_crud.override("get")
+async def _get_employee(item_id: int):
+    emp = await employee_controller.get(id=item_id)
+    await emp.fetch_related("department", "skills")
+    record = await emp.to_dict()
+    record["departmentName"] = emp.department.name
+    record["skillIds"] = [s.id for s in emp.skills]
+    record["skillNames"] = [s.name for s in emp.skills]
+    return Success(data=record)
 
 
 @emp_crud.override("list")

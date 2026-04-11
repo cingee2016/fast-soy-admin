@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.models import Department, Employee, Skill
-from app.system.services import ensure_menu, ensure_role, ensure_user
+from app.system.services import ensure_menu, ensure_role, ensure_user, reconcile_menu_subtree
 from app.system.services.init_helper import _safe_update_or_create
 
 HR_MENU_CHILDREN = [
@@ -180,6 +180,27 @@ def _employee_no(serial: int) -> str:
     return f"{BIZ_SETTINGS.EMPLOYEE_NO_PREFIX}{serial:04d}"
 
 
+def _collect_declared_routes(children: list[dict]) -> set[str]:
+    """递归收集 HR_MENU_CHILDREN 里所有 route_name（含任意层级 children）。"""
+    result: set[str] = set()
+    for item in children:
+        result.add(item["route_name"])
+        if item.get("children"):
+            result.update(_collect_declared_routes(item["children"]))
+    return result
+
+
+def _collect_declared_buttons(children: list[dict]) -> set[str]:
+    """递归收集 HR_MENU_CHILDREN 里所有 button_code。"""
+    result: set[str] = set()
+    for item in children:
+        for btn in item.get("buttons") or []:
+            result.add(btn["button_code"])
+        if item.get("children"):
+            result.update(_collect_declared_buttons(item["children"]))
+    return result
+
+
 async def _init_menu_data() -> None:
     await ensure_menu(
         menu_name="HR管理",
@@ -188,6 +209,12 @@ async def _init_menu_data() -> None:
         icon="mdi:account-group",
         order=8,
         children=HR_MENU_CHILDREN,
+    )
+    # HR 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮。
+    await reconcile_menu_subtree(
+        root_route="hr",
+        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
+        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
     )
 
 

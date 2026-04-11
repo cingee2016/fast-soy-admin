@@ -6,6 +6,8 @@ import time
 from functools import wraps
 from typing import Any
 
+from tortoise.backends.sqlite.client import SqliteClient, SqliteTransactionWrapper
+
 from app.system.radar.ctx import CTX_RADAR
 
 # Recursion guard: set to True when radar itself is writing to DB
@@ -84,8 +86,6 @@ def _make_patched_many(original: Any) -> Any:
 
 
 def install_query_capture() -> None:
-    from tortoise.backends.sqlite.client import SqliteClient, SqliteTransactionWrapper
-
     if _originals:
         return  # Already installed
 
@@ -105,8 +105,6 @@ def install_query_capture() -> None:
 
 
 def uninstall_query_capture() -> None:
-    from tortoise.backends.sqlite.client import SqliteClient, SqliteTransactionWrapper
-
     for cls in (SqliteClient, SqliteTransactionWrapper):
         cls_name = cls.__name__
         for method_name in ("execute_query", "execute_insert", "execute_query_dict", "execute_many"):

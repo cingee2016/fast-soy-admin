@@ -51,6 +51,10 @@ class SkillCreate(SkillBase):
 class SkillUpdate(SkillBase): ...
 
 
+class SkillSearch(SkillBase, PageQueryBase):
+    pass
+
+
 # ============================================================
 # Employee
 # ============================================================

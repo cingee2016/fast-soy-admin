@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+import socket
 import sys
 import time
 from datetime import datetime
@@ -221,8 +222,6 @@ class ServerInfoCollector:
 
     @staticmethod
     def _get_ip() -> str:
-        import socket
-
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))

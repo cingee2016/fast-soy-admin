@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import pytest_asyncio
+from fakeredis import aioredis as fake_aioredis
 from httpx import ASGITransport, AsyncClient
 from tortoise import Tortoise
 
@@ -17,75 +18,6 @@ TEST_TORTOISE_ORM = {
     "use_tz": False,
     "timezone": "Asia/Shanghai",
 }
-
-
-# ===================== Mock Redis =====================
-
-
-class MockRedis:
-    """Minimal async Redis mock for testing (no real Redis required)."""
-
-    def __init__(self):
-        self._store: dict[str, str] = {}
-
-    async def get(self, key: str) -> str | None:
-        return self._store.get(key)
-
-    async def set(self, key: str, value, *args, **kwargs):
-        self._store[key] = str(value) if not isinstance(value, str) else value
-
-    async def delete(self, *keys: str):
-        for k in keys:
-            self._store.pop(k, None)
-
-    async def keys(self, pattern: str = "*") -> list[str]:
-        import fnmatch
-
-        return [k for k in self._store if fnmatch.fnmatch(k, pattern)]
-
-    async def scan(self, cursor: int = 0, match: str | None = None, count: int | None = None) -> tuple[int, list[str]]:
-        import fnmatch
-
-        keys = [k for k in self._store if not match or fnmatch.fnmatch(k, match)]
-        return (0, keys)
-
-    def pipeline(self):
-        return _MockPipeline(self)
-
-
-class _MockPipeline:
-    """Minimal pipeline mock — buffers set/get, executes in order."""
-
-    def __init__(self, redis: MockRedis):
-        self._redis = redis
-        self._ops: list[tuple[str, tuple]] = []
-
-    def set(self, key: str, value, *args, **kwargs):
-        self._ops.append(("set", (key, str(value) if not isinstance(value, str) else value)))
-        return self
-
-    def get(self, key: str):
-        self._ops.append(("get", (key,)))
-        return self
-
-    def delete(self, *keys: str):
-        self._ops.append(("delete", keys))
-        return self
-
-    async def execute(self) -> list:
-        results = []
-        for op, args in self._ops:
-            if op == "set":
-                self._redis._store[args[0]] = args[1]
-                results.append(True)
-            elif op == "get":
-                results.append(self._redis._store.get(args[0]))
-            elif op == "delete":
-                for k in args:
-                    self._redis._store.pop(k, None)
-                results.append(len(args))
-        self._ops.clear()
-        return results
 
 
 # ===================== App Factory =====================
@@ -121,7 +53,7 @@ def _create_test_app():
     # Business module routes
     from app.core.autodiscover import discover_business_routers
 
-    business_router = discover_business_routers()
+    business_router, _ = discover_business_routers()
     if business_router.routes:
         _app.include_router(business_router, prefix="/api/v1/business")
 
@@ -143,7 +75,10 @@ async def app():
     await Tortoise.generate_schemas()
 
     _app = _create_test_app()
-    _app.state.redis = MockRedis()
+    # fakeredis: in-process Redis, wire compatible with redis.asyncio.Redis.
+    # Production also returns bytes (no decode_responses), so keep the default
+    # to match real behavior. No explicit close — nothing to release in-process.
+    _app.state.redis = fake_aioredis.FakeRedis()
 
     yield _app
 

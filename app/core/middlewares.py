@@ -1,3 +1,5 @@
+import os
+import re
 import sys
 from datetime import datetime
 from io import StringIO
@@ -98,8 +100,6 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def _setup_blacklist():
         """Blacklist framework dispatch layers that add noise to tracebacks."""
-        import os
-
         site_pkg = next((p for p in sys.path if "site-packages" in p), "")
         stdlib = os.path.dirname(os.__file__)
 
@@ -138,8 +138,6 @@ class PrettyErrorsMiddleware(BaseHTTPMiddleware):
 
             # Return plain-text output in debug mode (strip ANSI escape codes)
             if APP_SETTINGS.DEBUG:
-                import re
-
                 ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
                 details: str | None = ansi_escape.sub("", f"{msg}\n{output}")
             else:

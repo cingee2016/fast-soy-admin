@@ -24,6 +24,20 @@ class SearchFieldConfig:
 _ALL_ROUTES = ("list", "get", "create", "update", "delete", "batch_delete")
 
 
+class _OrderedRouter(APIRouter):
+    """APIRouter that keeps static routes before parameterized routes.
+
+    Prevents ``GET /resources/{item_id}`` from shadowing later-added static
+    routes like ``GET /resources/pages``.  After every ``add_api_route`` call
+    the route list is re-sorted so that paths without ``{…}`` come first
+    (Python's stable sort preserves relative order within each group).
+    """
+
+    def add_api_route(self, path: str, *args, **kwargs) -> None:  # type: ignore[override]
+        super().add_api_route(path, *args, **kwargs)
+        self.routes.sort(key=lambda r: 1 if isinstance(r, APIRoute) and "{" in r.path else 0)
+
+
 class CRUDRouter:
     """
     CRUD Router 工厂，自动生成标准 CRUD 接口。
@@ -125,7 +139,7 @@ class CRUDRouter:
         # override() 会根据 name 找到对应规格，再用用户函数替换默认实现
         self._route_specs: dict[str, dict] = {}
 
-        self.router = APIRouter()
+        self.router = _OrderedRouter()
         self._register_routes()
 
     # ---- 路由注册入口 ----

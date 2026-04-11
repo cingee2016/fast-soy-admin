@@ -7,6 +7,7 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from tortoise.exceptions import DoesNotExist, IntegrityError
 
+from app.core.code import Code
 from app.core.ctx import CTX_X_REQUEST_ID
 
 
@@ -63,14 +64,10 @@ async def BaseHandle(req: Request, exc: Exception, handle_exc, code: int | str, 
 
 
 async def DoesNotExistHandle(req: Request, exc: Exception) -> JSONResponse:
-    from app.core.code import Code
-
     return await BaseHandle(req, exc, DoesNotExist, Code.NOT_FOUND, f"Object has not found, exc: {exc}, path: {req.path_params}, query: {req.query_params}", 200)
 
 
 async def IntegrityHandle(req: Request, exc: Exception) -> JSONResponse:
-    from app.core.code import Code
-
     return await BaseHandle(req, exc, IntegrityError, Code.INTEGRITY_ERROR, f"IntegrityError，{exc}, path: {req.path_params}, query: {req.query_params}", 200)
 
 
@@ -79,12 +76,8 @@ async def BizErrorHandle(req: Request, exc: BizError) -> JSONResponse:
 
 
 async def RequestValidationHandle(req: Request, exc: RequestValidationError) -> JSONResponse:
-    from app.core.code import Code
-
     return await BaseHandle(req, exc, RequestValidationError, Code.REQUEST_VALIDATION, "RequestValidationError", 200, detail=exc.errors())
 
 
 async def ResponseValidationHandle(req: Request, exc: ResponseValidationError) -> JSONResponse:
-    from app.core.code import Code
-
     return await BaseHandle(req, exc, ResponseValidationError, Code.RESPONSE_VALIDATION, "ResponseValidationError", 200, detail=exc.errors())

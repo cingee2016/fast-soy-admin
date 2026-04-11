@@ -145,6 +145,22 @@ app/business/<name>/
 
 Directories under `app/business/` that start with `_` are skipped. Do not import business module internals from `app.system.*` — only the other way around.
 
+### Startup init & reconciliation
+
+On every startup, the Redis leader worker runs: `init_menus()` → `refresh_api_list()` → `init_users()` → each business `init_data.init()` → `refresh_all_cache()`.
+
+**Sync semantics by data type:**
+- **APIs** — `refresh_api_list()` does a full reconcile against FastAPI routes (adds new, deletes stale, updates metadata). Nothing to do manually.
+- **Menus / Buttons** — `ensure_menu()` is upsert-only. To also clean up *removed* entries, call `reconcile_menu_subtree(root_route=..., declared_route_names=..., declared_button_codes=...)` at the end of the module's `_init_menu_data()`. This scopes deletion strictly to the BFS subtree under `root_route`, so it never touches sibling modules. See [app/business/hr/init_data.py](app/business/hr/init_data.py) for the pattern.
+- **Roles** — `ensure_role()` upserts the role row and does clear-and-readd on `menus`/`buttons`/`apis` grants. **Removing** a role from the seed list does NOT delete the `Role` row — that needs a migration.
+- **Business seed data** — `_safe_update_or_create` by unique key. Removal requires a migration.
+
+**Drift warnings:** `ensure_role` now logs a warning when a declared `route_name` / `button_code` / `(method, path)` can't be resolved — always fix these, they indicate a seed list that's out of sync with renamed/deleted code.
+
+**Enabling `reconcile_menu_subtree` means the subtree becomes Infrastructure-as-Code**: menus/buttons created manually via the Web UI under that subtree will be wiped on the next restart. If you need dynamic user-created menus, don't call `reconcile_menu_subtree` on that subtree.
+
+Full details: [fast-soy-admin-docs/src/backend/init-data.md](fast-soy-admin-docs/src/backend/init-data.md).
+
 ## API Conventions
 
 All system and business HTTP APIs follow the same conventions. These are enforced; deviations should be discussed before merging.

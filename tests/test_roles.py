@@ -16,7 +16,7 @@ async def home_menu_id(seed_data) -> int:
 class TestRoleList:
     async def test_get_role_list(self, auth_client: AsyncClient):
         resp = await auth_client.post(
-            "/api/v1/roles/all/",
+            "/api/v1/system-manage/roles/search",
             json={
                 "current": 1,
                 "size": 10,
@@ -30,7 +30,7 @@ class TestRoleList:
 
     async def test_get_role_list_filter_by_name(self, auth_client: AsyncClient):
         resp = await auth_client.post(
-            "/api/v1/roles/all/",
+            "/api/v1/system-manage/roles/search",
             json={
                 "current": 1,
                 "size": 10,
@@ -47,7 +47,7 @@ class TestRoleList:
 class TestRoleCRUD:
     async def test_create_role(self, auth_client: AsyncClient, home_menu_id: int):
         resp = await auth_client.post(
-            "/api/v1/roles",
+            "/api/v1/system-manage/roles",
             json={
                 "roleName": "测试角色",
                 "roleCode": "R_TEST",
@@ -58,12 +58,12 @@ class TestRoleCRUD:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
-        assert "created_id" in data["data"]
+        assert "createdId" in data["data"]
 
     async def test_create_role_duplicate_code(self, auth_client: AsyncClient, home_menu_id: int):
         # R_SUPER already exists
         resp = await auth_client.post(
-            "/api/v1/roles",
+            "/api/v1/system-manage/roles",
             json={
                 "roleName": "重复角色",
                 "roleCode": "R_SUPER",
@@ -79,7 +79,8 @@ class TestRoleCRUD:
         from app.system.controllers import role_controller
 
         role = await role_controller.get_by_code("R_SUPER")
-        resp = await auth_client.get(f"/api/v1/roles/{role.id}")
+        assert role is not None
+        resp = await auth_client.get(f"/api/v1/system-manage/roles/{role.id}")
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
@@ -88,7 +89,7 @@ class TestRoleCRUD:
     async def test_update_role(self, auth_client: AsyncClient, home_menu_id: int):
         # Create a role first
         create_resp = await auth_client.post(
-            "/api/v1/roles",
+            "/api/v1/system-manage/roles",
             json={
                 "roleName": "待更新角色",
                 "roleCode": "R_UPDATE_TEST",
@@ -96,10 +97,10 @@ class TestRoleCRUD:
                 "byRoleHomeId": home_menu_id,
             },
         )
-        role_id = create_resp.json()["data"]["created_id"]
+        role_id = create_resp.json()["data"]["createdId"]
 
         resp = await auth_client.patch(
-            f"/api/v1/roles/{role_id}",
+            f"/api/v1/system-manage/roles/{role_id}",
             json={
                 "roleDesc": "已更新描述",
             },
@@ -111,7 +112,7 @@ class TestRoleCRUD:
     async def test_delete_role(self, auth_client: AsyncClient, home_menu_id: int):
         # Create a role first
         create_resp = await auth_client.post(
-            "/api/v1/roles",
+            "/api/v1/system-manage/roles",
             json={
                 "roleName": "待删除角色",
                 "roleCode": "R_DELETE_TEST",
@@ -119,15 +120,15 @@ class TestRoleCRUD:
                 "byRoleHomeId": home_menu_id,
             },
         )
-        role_id = create_resp.json()["data"]["created_id"]
+        role_id = create_resp.json()["data"]["createdId"]
 
-        resp = await auth_client.delete(f"/api/v1/roles/{role_id}")
+        resp = await auth_client.delete(f"/api/v1/system-manage/roles/{role_id}")
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
 
     async def test_get_role_list_no_auth(self, client: AsyncClient):
-        resp = await client.post("/api/v1/roles/all/", json={"current": 1, "size": 10})
+        resp = await client.post("/api/v1/system-manage/roles/search", json={"current": 1, "size": 10})
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] != "0000"

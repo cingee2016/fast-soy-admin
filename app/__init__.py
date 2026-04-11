@@ -7,6 +7,7 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from starlette.staticfiles import StaticFiles
 
+from app.core.autodiscover import discover_business_init_data, discover_business_routers
 from app.core.cache import refresh_all_cache
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
@@ -19,6 +20,7 @@ from app.core.log import log
 from app.core.redis import close_redis, init_redis
 from app.system.api.utils import refresh_api_list
 from app.system.init_data import init_menus, init_users
+from app.system.radar import setup_radar, shutdown_radar, startup_radar
 
 try:
     from app.core.config import APP_SETTINGS
@@ -44,56 +46,49 @@ def create_app() -> FastAPI:
     register_routers(_app, prefix="/api")
 
     # Auto-discover and register business routes
-    from app.core.autodiscover import discover_business_routers
-
-    business_router = discover_business_routers()
+    business_router, business_names = discover_business_routers()
     if business_router.routes:
         _app.include_router(business_router, prefix="/api/v1/business")
+    _app.state.business_modules = business_names
 
     if APP_SETTINGS.RADAR_ENABLED:
-        from app.system.radar import setup_radar
-
         setup_radar(_app)
     return _app
 
 
-async def _run_init_data(_app: FastAPI) -> None:
-    """初始化种子数据和缓存。多 worker 下仅由一个进程执行，其余等待完成信号。"""
+async def _run_init_data(_app: FastAPI) -> bool:
+    """初始化种子数据和缓存。多 worker 下仅由一个进程执行，其余等待完成信号。
+
+    Returns True if this worker was the leader (ran the init).
+    """
     redis = _app.state.redis
 
-    # 清除上次启动遗留的完成标记
     acquired = await redis.set(_INIT_LOCK_KEY, "1", nx=True, ex=_INIT_LOCK_TIMEOUT)
 
     if acquired:
-        # 当前 worker 负责初始化
         try:
             await init_menus()
             await refresh_api_list()
             await init_users()
 
-            from app.core.autodiscover import discover_business_init_data
-
             for init_fn in discover_business_init_data():
                 await init_fn()
 
             await refresh_all_cache(redis)
-            # 通知其他 worker 初始化完成
             await redis.set(_INIT_DONE_KEY, "1", ex=_INIT_LOCK_TIMEOUT)
-            log.info("Init data completed (leader worker)")
+            return True
         except Exception:
             await redis.delete(_INIT_LOCK_KEY)
             raise
     else:
-        # 其他 worker 等待初始化完成
-        log.info("Waiting for leader worker to finish init data...")
         elapsed = 0.0
         while elapsed < _INIT_WAIT_TIMEOUT:
             if await redis.exists(_INIT_DONE_KEY):
-                log.info("Init data done (follower worker)")
-                return
+                return False
             await asyncio.sleep(0.5)
             elapsed += 0.5
         log.warning("Init wait timed out — proceeding anyway")
+        return False
 
 
 @asynccontextmanager
@@ -104,18 +99,21 @@ async def lifespan(_app: FastAPI):
     try:
         # 清除上一次启动遗留的锁（新一轮部署）
         await _app.state.redis.delete(_INIT_LOCK_KEY, _INIT_DONE_KEY)
-        await _run_init_data(_app)
+        is_leader = await _run_init_data(_app)
 
         if APP_SETTINGS.RADAR_ENABLED:
-            from app.system.radar import startup_radar
-
             await startup_radar()
+
+        if is_leader:
+            for name in _app.state.business_modules:
+                log.info(f"Business: registered routes from '{name}'")
+            if APP_SETTINGS.RADAR_ENABLED:
+                log.info("Radar: enabled")
+            log.info("Init data completed")
         yield
 
     finally:
         if APP_SETTINGS.RADAR_ENABLED:
-            from app.system.radar import shutdown_radar
-
             await shutdown_radar()
         end_time = datetime.now()
         runtime = (end_time - start_time).total_seconds() / 60

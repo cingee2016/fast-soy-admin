@@ -18,11 +18,11 @@ class TestDepartmentCRUD:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
-        assert "created_id" in data["data"]
+        assert "createdId" in data["data"]
 
     async def test_list_departments(self, auth_client: AsyncClient, hr_data):
         resp = await auth_client.post(
-            f"{PREFIX}/departments/all/",
+            f"{PREFIX}/departments/search",
             json={"current": 1, "size": 10},
         )
         assert resp.status_code == 200
@@ -32,7 +32,7 @@ class TestDepartmentCRUD:
 
     async def test_list_departments_filter_by_name(self, auth_client: AsyncClient, hr_data):
         resp = await auth_client.post(
-            f"{PREFIX}/departments/all/",
+            f"{PREFIX}/departments/search",
             json={"current": 1, "size": 10, "name": "Engineering"},
         )
         assert resp.status_code == 200
@@ -62,7 +62,7 @@ class TestDepartmentCRUD:
             f"{PREFIX}/departments",
             json={"name": "TempDept", "code": "TMP"},
         )
-        dept_id = create_resp.json()["data"]["created_id"]
+        dept_id = create_resp.json()["data"]["createdId"]
 
         resp = await auth_client.delete(f"{PREFIX}/departments/{dept_id}")
         assert resp.status_code == 200
@@ -93,7 +93,7 @@ class TestSkillCRUD:
         assert resp.json()["code"] == "0000"
 
     async def test_list_skills(self, auth_client: AsyncClient, hr_data):
-        resp = await auth_client.get(f"{PREFIX}/skills")
+        resp = await auth_client.post(f"{PREFIX}/skills/search", json={"current": 1, "size": 10})
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
@@ -122,7 +122,7 @@ class TestSkillCRUD:
             f"{PREFIX}/skills",
             json={"name": "TempSkill", "category": "Temp"},
         )
-        skill_id = create_resp.json()["data"]["created_id"]
+        skill_id = create_resp.json()["data"]["createdId"]
 
         resp = await auth_client.delete(f"{PREFIX}/skills/{skill_id}")
         assert resp.status_code == 200
@@ -136,7 +136,7 @@ class TestEmployeeCRUD:
     async def test_list_employees(self, auth_client: AsyncClient, hr_data):
         """List employees — verifies select_related/prefetch_related returns relations."""
         resp = await auth_client.post(
-            f"{PREFIX}/employees/all/",
+            f"{PREFIX}/employees/search",
             json={"current": 1, "size": 10},
         )
         assert resp.status_code == 200
@@ -152,7 +152,7 @@ class TestEmployeeCRUD:
     async def test_list_employees_filter_by_department(self, auth_client: AsyncClient, hr_data):
         dept_id = hr_data["department"].id
         resp = await auth_client.post(
-            f"{PREFIX}/employees/all/",
+            f"{PREFIX}/employees/search",
             json={"current": 1, "size": 10, "departmentId": dept_id},
         )
         assert resp.status_code == 200

@@ -16,14 +16,13 @@ import json
 from redis.asyncio import Redis
 
 from app.core.log import log
+from app.system.models.admin import Menu, Role, User
 
 # ===================== 常量路由 =====================
 
 
 async def load_constant_routes(redis: Redis) -> None:
     """从数据库加载常量路由到 Redis"""
-    from app.system.models.admin import Menu
-
     menu_objs = await Menu.filter(constant=True, hide_in_menu=True)
     routes = []
     for m in menu_objs:
@@ -59,8 +58,6 @@ async def load_role_permissions(redis: Redis, role_code: str | None = None) -> N
         redis: Redis 实例
         role_code: 指定角色编码，为 None 时加载所有角色
     """
-    from app.system.models.admin import Role
-
     if role_code:
         roles = await Role.filter(role_code=role_code)
     else:
@@ -122,8 +119,6 @@ async def get_role_button_codes(redis: Redis, role_code: str) -> list[str]:
 
 async def load_user_roles(redis: Redis) -> None:
     """启动时将所有用户的角色编码和首页路由加载到 Redis"""
-    from app.system.models.admin import Role, User
-
     # 预加载所有角色的首页路由
     roles = await Role.all().select_related("by_role_home")
     role_home_map = {r.id: r.by_role_home.route_name for r in roles}
@@ -170,8 +165,6 @@ async def get_user_button_codes(redis: Redis, user_id: int) -> list[str]:
 
 async def refresh_user_roles(redis: Redis, user_id: int) -> None:
     """刷新单个用户的角色和首页缓存（用户角色变更时调用）"""
-    from app.system.models.admin import User
-
     user = await User.get(id=user_id).prefetch_related("by_user_roles")
     user_roles = sorted(user.by_user_roles, key=lambda r: r.created_at, reverse=True)
     role_codes = [r.role_code for r in user_roles]
@@ -191,8 +184,6 @@ async def refresh_user_roles(redis: Redis, user_id: int) -> None:
 
 async def load_token_versions(redis: Redis) -> None:
     """启动时将数据库中所有用户的 token_version 加载到 Redis"""
-    from app.system.models.admin import User
-
     users = await User.all().values_list("id", "token_version")
     pipe = redis.pipeline()
     for user_id, token_version in users:

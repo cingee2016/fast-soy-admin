@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
+from uuid import uuid4
 
 from loguru import logger
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -58,8 +59,6 @@ class RadarMiddleware:
     async def _handle_http(self, scope: Scope, receive: Receive, send: Send, *, flush_only_if_logged: bool = False) -> None:
         x_request_id = CTX_X_REQUEST_ID.get("")
         if not x_request_id:
-            from uuid import uuid4
-
             x_request_id = uuid4().hex
 
         # Extract client IP

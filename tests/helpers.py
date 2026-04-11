@@ -34,6 +34,7 @@ async def seed_super_admin() -> User:
             userName="Soybean",  # type: ignore
             userEmail="admin@admin.com",  # type: ignore
             password="123456",
+            byUserRoleCodeList=["R_SUPER"],  # type: ignore
         )
     )
     await user.by_user_roles.add(role)
@@ -71,6 +72,7 @@ async def seed_test_users(count: int = 3) -> list[User]:
                 userName=username,  # type: ignore
                 userEmail=f"test_{i}@test.com",  # type: ignore
                 password="123456",
+                byUserRoleCodeList=["R_USER"],  # type: ignore
             )
         )
         if role:

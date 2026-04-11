@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime, timedelta
 
 from loguru import logger
 from tortoise.expressions import Q
+from tortoise.functions import Avg
 
+from app.system.radar.config import RADAR_SETTINGS
 from app.system.radar.ctx import RadarRequestContext
 from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
+from app.system.radar.query_capture import CTX_RADAR_WRITING
 
 
 async def flush_request_data(ctx: RadarRequestContext) -> None:
-    import time
-
-    from app.system.radar.query_capture import CTX_RADAR_WRITING
-
     token = CTX_RADAR_WRITING.set(True)
     try:
         duration_ms = round((time.monotonic() - ctx.start_mono) * 1000, 3)
@@ -70,8 +71,6 @@ async def flush_request_data(ctx: RadarRequestContext) -> None:
 
 
 async def purge_old_data(retention_hours: int = 24) -> int:
-    from app.system.radar.query_capture import CTX_RADAR_WRITING
-
     token = CTX_RADAR_WRITING.set(True)
     try:
         cutoff = datetime.now() - timedelta(hours=retention_hours)
@@ -235,8 +234,6 @@ async def query_user_logs(page: int = 1, page_size: int = 20, level: str | None 
 
 
 async def query_stats(hours: int | None = None) -> dict:
-    from app.system.radar.config import RADAR_SETTINGS
-
     base_q = Q()
     query_base_q = Q()
     if hours is not None:
@@ -245,8 +242,6 @@ async def query_stats(hours: int | None = None) -> dict:
         query_base_q &= Q(created_at__gte=cutoff)
 
     req_count = await RadarRequest.filter(base_q).count()
-    from tortoise.functions import Avg
-
     avg_row = await RadarRequest.filter(base_q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
     avg_duration: float = avg_row["avg_dur"] if avg_row and avg_row.get("avg_dur") is not None else 0
     error_count = await RadarRequest.filter(base_q & Q(error_type__not_isnull=True)).count()
@@ -272,8 +267,6 @@ async def query_dashboard_stats(hours: int = 1) -> dict:
 
     # Basic counts
     req_count = await RadarRequest.filter(base_q).count()
-    from tortoise.functions import Avg
-
     avg_row = await RadarRequest.filter(base_q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
     avg_duration: float = avg_row["avg_dur"] if avg_row and avg_row.get("avg_dur") is not None else 0
     error_count = await RadarRequest.filter(base_q & Q(error_type__not_isnull=True)).count()
@@ -332,8 +325,6 @@ def _extract_business_code_and_msg(response_body: str | None) -> tuple[str | Non
     """Extract business code and msg from response body JSON."""
     if not response_body:
         return None, None
-    import json
-
     try:
         parsed = json.loads(response_body)
         code = parsed.get("code")
@@ -345,8 +336,6 @@ def _extract_business_code_and_msg(response_body: str | None) -> tuple[str | Non
 
 async def _build_code_distribution(base_q: Q) -> list[dict]:
     """Build business code distribution from response_body JSON."""
-    import json
-
     rows = await RadarRequest.filter(base_q & Q(response_body__not_isnull=True)).values_list("response_body", flat=True)
     counter: dict[str, int] = {}
     no_code_count = 0
@@ -398,8 +387,6 @@ async def _build_time_trend(cutoff: datetime, hours: int) -> list[dict]:
     while current < now:
         bucket_end = min(current + timedelta(minutes=bucket_minutes), now)
         q = Q(created_at__gte=current, created_at__lt=bucket_end, duration_ms__not_isnull=True)
-        from tortoise.functions import Avg
-
         row = await RadarRequest.filter(q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
         count = await RadarRequest.filter(Q(created_at__gte=current, created_at__lt=bucket_end)).count()
         avg_val = row["avg_dur"] if row and row.get("avg_dur") is not None else 0
@@ -431,8 +418,6 @@ async def _build_query_activity(cutoff: datetime, hours: int) -> list[dict]:
         bucket_end = min(current + timedelta(minutes=bucket_minutes), now)
         q = Q(created_at__gte=current, created_at__lt=bucket_end)
         count = await RadarQuery.filter(q).count()
-        from tortoise.functions import Avg
-
         row = await RadarQuery.filter(q).annotate(avg_dur=Avg("duration_ms")).first().values("avg_dur")
         avg_val = row["avg_dur"] if row and row.get("avg_dur") is not None else 0
         buckets.append({

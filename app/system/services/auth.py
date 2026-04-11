@@ -17,7 +17,7 @@ from app.core.exceptions import BizError
 from app.system.controllers import user_controller
 from app.system.models import StatusType, User
 from app.system.radar.developer import radar_log
-from app.system.schemas.login import JWTOut, JWTPayload
+from app.system.schemas.login import CredentialsSchema, JWTOut, JWTPayload
 from app.system.security import create_access_token
 
 # ---------------------------------------------------------------------------
@@ -125,8 +125,6 @@ async def login_with_credentials(
     password: str | None,
 ) -> tuple[User, JWTOut]:
     """校验密码 + 更新 last_login + 构建 tokens。失败抛 BizError。"""
-    from app.system.schemas.login import CredentialsSchema
-
     user = await user_controller.authenticate(CredentialsSchema(user_name=user_name, password=password))
     await user_controller.update_last_login(user.id)
     token_version = await get_token_version(redis, user.id)

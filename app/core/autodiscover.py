@@ -28,7 +28,9 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-from app.core.log import log
+# NOTE: ``app.core.log`` is imported lazily inside ``discover_business_init_data``
+# to avoid a circular import (``config.py`` calls ``discover_business_models()``
+# during ``Settings()`` construction, and ``log.py`` depends on ``config.py``).
 
 BUSINESS_ROOT = Path(__file__).resolve().parent.parent / "business"
 
@@ -50,9 +52,13 @@ def discover_business_models() -> list[str]:
     return model_modules
 
 
-def discover_business_routers() -> APIRouter:
-    """Auto-discover routers from each business module's api module."""
+def discover_business_routers() -> tuple[APIRouter, list[str]]:
+    """Auto-discover routers from each business module's api module.
+
+    Returns the aggregated router and the list of discovered module names.
+    """
     parent_router = APIRouter()
+    names: list[str] = []
     for name in _discover_modules():
         try:
             module = importlib.import_module(f"app.business.{name}.api")
@@ -61,12 +67,14 @@ def discover_business_routers() -> APIRouter:
         router = getattr(module, "router", None)
         if isinstance(router, APIRouter):
             parent_router.include_router(router)
-            log.info(f"Business: registered routes from '{name}'")
-    return parent_router
+            names.append(name)
+    return parent_router, names
 
 
 def discover_business_init_data() -> list[Callable]:
     """Auto-discover init() functions from each business module's init_data module."""
+    from app.core.log import log  # lazy import — see module docstring note
+
     init_funcs: list[Callable] = []
     for name in _discover_modules():
         try:
@@ -76,5 +84,5 @@ def discover_business_init_data() -> list[Callable]:
         init_fn = getattr(module, "init", None)
         if callable(init_fn):
             init_funcs.append(init_fn)
-            log.info(f"Business: found init_data for '{name}'")
+            log.debug(f"Business: found init_data for '{name}'")
     return init_funcs

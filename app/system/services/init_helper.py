@@ -10,15 +10,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 from tortoise.models import Model
 
+from app.core.base_model import GenderType, IconType, MenuType
 from app.core.exceptions import IntegrityError
 from app.core.log import log
-
-if TYPE_CHECKING:
-    from app.system.models import User
+from app.system.controllers.user import user_controller
+from app.system.models import User
+from app.system.models.admin import Api, Button, Menu, Role
+from app.system.security import get_password_hash
 
 _M = TypeVar("_M", bound=Model)
 
@@ -68,9 +70,6 @@ async def ensure_menu(
         **extra: 传递给 Menu 的额外字段，如 constant, hide_in_menu, props,
                  multi_tab, redirect。active_menu 传 route_name 字符串会自动解析。
     """
-    from app.core.base_model import IconType, MenuType
-    from app.system.models.admin import Button, Menu
-
     if parent_route is None:
         parent_id = 0
     else:
@@ -157,8 +156,6 @@ async def ensure_role(
         buttons: button_code 列表
         apis: [(method, path), ...] 列表
     """
-    from app.system.models.admin import Api, Button, Menu, Role
-
     home_menu = await Menu.filter(route_name=home_route).first()
     role, created = await _safe_update_or_create(
         Role,
@@ -172,26 +169,99 @@ async def ensure_role(
 
     if menus is not None:
         await role.by_role_menus.clear()  # type: ignore[attr-defined]
+        missing_menus: list[str] = []
         for rn in menus:
             menu = await Menu.filter(route_name=rn).first()
             if menu:
                 await role.by_role_menus.add(menu)  # type: ignore[attr-defined]
+            else:
+                missing_menus.append(rn)
+        if missing_menus:
+            log.warning(f"ensure_role '{role_code}': missing menus {missing_menus} (route renamed or deleted?)")
 
     if buttons is not None:
         await role.by_role_buttons.clear()  # type: ignore[attr-defined]
+        missing_buttons: list[str] = []
         for code in buttons:
             btn = await Button.filter(button_code=code).first()
             if btn:
                 await role.by_role_buttons.add(btn)  # type: ignore[attr-defined]
+            else:
+                missing_buttons.append(code)
+        if missing_buttons:
+            log.warning(f"ensure_role '{role_code}': missing buttons {missing_buttons} (button_code renamed or deleted?)")
 
     if apis is not None:
         await role.by_role_apis.clear()  # type: ignore[attr-defined]
+        missing_apis: list[tuple[str, str]] = []
         for method, path in apis:
             api = await Api.filter(api_method=method, api_path=path).first()
             if api:
                 await role.by_role_apis.add(api)  # type: ignore[attr-defined]
+            else:
+                missing_apis.append((method, path))
+        if missing_apis:
+            log.warning(f"ensure_role '{role_code}': missing apis {missing_apis} (route signature changed?)")
 
     log.info(f"ensure_role: {'created' if created else 'updated'} role '{role_code}'")
+
+
+async def reconcile_menu_subtree(
+    *,
+    root_route: str,
+    declared_route_names: set[str],
+    declared_button_codes: set[str] | None = None,
+) -> None:
+    """
+    对齐菜单子树：删除根路由下未在声明集合中的菜单与按钮，用于业务模块 init_data 把自身当作
+    single-source-of-truth 时的"多余项清理"。幂等。
+
+    语义（严格限定在子树内，不会误伤其他模块）：
+        - 以 `root_route` 对应菜单为根，递归收集子树中所有菜单。
+        - 子树中 `route_name` 不在 `declared_route_names ∪ {root_route}` 的菜单会被删除。
+        - 若传入 `declared_button_codes`，子树菜单关联的按钮中 `button_code` 不在该集合内的
+          会被删除（级联清理 Menu/Role 的多对多关系）。传 None 表示不处理按钮。
+
+    Args:
+        root_route: 业务模块菜单子树根的 route_name，例如 HR 模块传 "hr"。
+        declared_route_names: 当前声明保留的子路由名集合（不含 root 本身）。
+        declared_button_codes: 当前声明保留的按钮 code 集合；传 None 表示跳过按钮对账。
+
+    注意：
+        - 一旦启用此函数，业务模块 init_data 就成为该子树的 single-source-of-truth，
+          从 Web 端手动新建的 HR 子菜单会在下次启动时被清掉。
+        - 按钮对账是"子树内使用过的按钮"为基准，不会触及其他子树的按钮。
+    """
+    root = await Menu.filter(route_name=root_route).first()
+    if not root:
+        log.warning(f"reconcile_menu_subtree: root '{root_route}' not found, skip")
+        return
+
+    # 递归收集子树所有菜单 id（BFS）
+    subtree_ids: set[int] = {root.id}
+    frontier = [root.id]
+    while frontier:
+        children = await Menu.filter(parent_id__in=frontier).values("id")
+        next_ids = [c["id"] for c in children]
+        if not next_ids:
+            break
+        frontier = next_ids
+        subtree_ids.update(next_ids)
+
+    # 删除子树中未声明的菜单
+    allowed = declared_route_names | {root_route}
+    stale_menus = await Menu.filter(id__in=subtree_ids).exclude(route_name__in=allowed).all()
+    for m in stale_menus:
+        log.warning(f"reconcile_menu_subtree: removing stale menu '{m.route_name}' (under '{root_route}')")
+        await m.delete()
+        subtree_ids.discard(m.id)
+
+    # 对齐按钮：仅处理"挂在本子树菜单上"的按钮
+    if declared_button_codes is not None and subtree_ids:
+        stale_buttons = await Button.filter(by_button_menus__id__in=subtree_ids).exclude(button_code__in=declared_button_codes).distinct()
+        for b in stale_buttons:
+            log.warning(f"reconcile_menu_subtree: removing stale button '{b.button_code}' (under '{root_route}')")
+            await b.delete()
 
 
 async def ensure_user(
@@ -214,11 +284,6 @@ async def ensure_user(
     - 已存在时同步基础资料和角色
     - 默认不重置密码，避免每次启动覆盖已有账号密码
     """
-    from app.core.base_model import GenderType
-    from app.system.controllers.user import user_controller
-    from app.system.models import User
-    from app.system.security import get_password_hash
-
     base_payload = {
         "nick_name": nick_name or user_name,
         "must_change_password": must_change_password,

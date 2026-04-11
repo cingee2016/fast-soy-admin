@@ -97,8 +97,9 @@ async def list_employees_with_relations(search_in: EmployeeSearch):
     )
     records = []
     for emp in employees:
-        record = await emp.to_dict(exclude_fields=["phone"])
+        record = await emp.to_dict()
         record["departmentName"] = emp.department.name
+        record["skillIds"] = [s.id for s in emp.skills]
         record["skillNames"] = [s.name for s in emp.skills]
         records.append(record)
     return total, records
