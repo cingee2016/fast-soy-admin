@@ -1,7 +1,7 @@
 # Stage 1: install dependencies (cached unless lockfile changes)
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS deps
 WORKDIR /opt/fast-soy-admin
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock uv.toml ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Stage 2: copy app source and run
