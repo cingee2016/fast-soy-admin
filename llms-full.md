@@ -1014,7 +1014,9 @@ docker compose up -d
 ```bash
 docker compose logs -f          # 所有服务
 docker compose logs -f app      # 仅后端
-make logs                       # == docker compose logs -f
+make logs                       # 全部，== docker compose logs -f --tail=100
+make logs SVC=app               # 仅后端
+make logs SVC=nginx TAIL=500    # 仅 nginx，最近 500 行
 ```
 
 ### 15.3 首次部署（initdb）
@@ -1169,7 +1171,7 @@ server {
 | `make up` | `docker compose up -d` |
 | `make rebuild` | `docker compose up -d --build` |
 | `make down` | 停止并移除容器 |
-| `make logs` | 实时查看日志 |
+| `make logs` | 实时查看日志，可加 `SVC=app\|nginx\|redis` 过滤、`TAIL=N` 指定行数 |
 
 ---
 
