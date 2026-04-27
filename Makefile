@@ -146,8 +146,8 @@ down: ## Docker compose down
 	docker compose down
 
 .PHONY: logs
-logs: ## Docker compose logs (follow)
-	docker compose logs -f
+logs: ## Docker compose logs (follow). 用法: make logs [SVC=app|nginx|redis] [TAIL=200]
+	docker compose logs -f --tail=$(or $(TAIL),100) $(SVC)
 
 # ── Help ─────────────────────────────────────────────────────
 
