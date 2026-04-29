@@ -8,8 +8,9 @@ class RadarRequest(BaseModel):
     id = fields.IntField(primary_key=True)
     x_request_id = fields.CharField(max_length=64, unique=True, description="请求ID")
     method = fields.CharField(max_length=10, description="请求方法")
-    path = fields.CharField(max_length=500, description="请求路径")
+    path = fields.CharField(max_length=500, db_index=True, description="请求路径")
     client_ip = fields.CharField(max_length=45, null=True, description="客户端IP")
+    client_port = fields.IntField(null=True, description="客户端端口")
     user_id = fields.IntField(null=True, description="操作人ID")
     user_name = fields.CharField(max_length=255, null=True, description="操作人用户名")
     query_params = fields.TextField(null=True, description="查询参数")
@@ -23,12 +24,11 @@ class RadarRequest(BaseModel):
     error_message = fields.TextField(null=True, description="异常消息")
     error_traceback = fields.TextField(null=True, description="异常堆栈")
     resolved = fields.BooleanField(default=False, description="是否已处理")
-    created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
+    created_at = fields.DatetimeField(auto_now_add=True, db_index=True, description="创建时间")
 
     class Meta:
         table = "radar_requests"
         table_description = "Radar请求记录"
-        indexes = [("x_request_id",), ("path",), ("created_at",)]
 
 
 class RadarQuery(BaseModel):
@@ -38,7 +38,7 @@ class RadarQuery(BaseModel):
     sql_text = fields.TextField(description="SQL语句")
     params = fields.TextField(null=True, description="绑定参数")
     operation = fields.CharField(max_length=20, null=True, description="操作类型")
-    duration_ms = fields.FloatField(description="查询耗时(ms)")
+    duration_ms = fields.FloatField(db_index=True, description="查询耗时(ms)")
     connection_name = fields.CharField(max_length=100, null=True, description="连接名称")
     start_offset_ms = fields.FloatField(null=True, description="相对请求起始偏移(ms)")
     created_at = fields.DatetimeField(auto_now_add=True, description="创建时间")
@@ -46,7 +46,6 @@ class RadarQuery(BaseModel):
     class Meta:
         table = "radar_queries"
         table_description = "Radar SQL查询记录"
-        indexes = [("duration_ms",)]
 
 
 class RadarUserLog(BaseModel):

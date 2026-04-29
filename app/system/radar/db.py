@@ -25,6 +25,7 @@ async def flush_request_data(ctx: RadarRequestContext) -> None:
             method=ctx.method,
             path=ctx.path,
             client_ip=ctx.client_ip,
+            client_port=ctx.client_port,
             user_id=ctx.user_id,
             user_name=ctx.user_name,
             query_params=ctx.query_params,

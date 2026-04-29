@@ -27,18 +27,6 @@ def _serialize_headers(headers: list[tuple[bytes, bytes]]) -> dict[str, str]:
     return result
 
 
-def _format_endpoint(host: str | None, port: int | str | None) -> str | None:
-    """把 (host, port) 拼成 ``ip:port`` 形式；IPv6 用方括号包裹。port 缺失则只返回 host。"""
-    if not host:
-        return None
-    if not port:
-        return host
-    # IPv6 文本里含冒号，需要包成 [::1]:8080
-    if ":" in host and not host.startswith("["):
-        return f"[{host}]:{port}"
-    return f"{host}:{port}"
-
-
 def _truncate_body(body: str | None, max_size: int) -> str | None:
     if body is None:
         return None
@@ -73,11 +61,11 @@ class RadarMiddleware:
         if not x_request_id:
             x_request_id = uuid4().hex
 
-        # 获取客户端 IP+端口
-        # ASGI 直连场景：scope["client"] 是 (host, port) 二元组（granian / uvicorn 都遵循）
-        # 反代场景：从 X-Forwarded-For 取首个 IP，端口需反代显式发 X-Forwarded-Port
+        # 获取客户端 IP 与端口（分字段存储，便于按端口排序 / 过滤）
+        # ASGI 直连：scope["client"] = (host, port)（granian / uvicorn 都遵循）
+        # 反代：X-Forwarded-For 取首个 IP；端口需反代显式发 X-Forwarded-Port
         proxied_host: str | None = None
-        proxied_port: str | None = None
+        proxied_port_str: str | None = None
         for key_bytes, val_bytes in scope.get("headers", []):
             key = key_bytes.decode("latin-1", errors="replace").lower()
             val = val_bytes.decode("latin-1", errors="replace")
@@ -86,14 +74,20 @@ class RadarMiddleware:
             elif key == "x-real-ip" and proxied_host is None:
                 proxied_host = val.strip() or None
             elif key == "x-forwarded-port":
-                proxied_port = val.strip() or None
+                proxied_port_str = val.strip() or None
 
+        client_ip: str | None
+        client_port: int | None
         if proxied_host:
-            client_ip = _format_endpoint(proxied_host, proxied_port)
+            client_ip = proxied_host
+            try:
+                client_port = int(proxied_port_str) if proxied_port_str else None
+            except ValueError:
+                client_port = None
         else:
             client_info = scope.get("client")
-            host, port = (client_info[0], client_info[1]) if client_info else (None, None)
-            client_ip = _format_endpoint(host, port)
+            client_ip = client_info[0] if client_info else None
+            client_port = client_info[1] if client_info else None
 
         radar_ctx = RadarRequestContext(
             x_request_id=x_request_id,
@@ -101,6 +95,7 @@ class RadarMiddleware:
             method=scope.get("method", ""),
             path=scope.get("path", ""),
             client_ip=client_ip,
+            client_port=client_port,
             query_params=scope.get("query_string", b"").decode("latin-1") or None,
             request_headers=_serialize_headers(scope.get("headers", [])),
         )

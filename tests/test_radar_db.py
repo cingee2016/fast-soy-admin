@@ -281,37 +281,37 @@ class TestExtractBusinessCode:
 
 class TestFormatEndpoint:
     def test_ipv4_with_port(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("192.168.1.1", 54321) == "192.168.1.1:54321"
 
     def test_ipv4_no_port(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("192.168.1.1", None) == "192.168.1.1"
 
     def test_ipv6_with_port(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("::1", 8080) == "[::1]:8080"
 
     def test_ipv6_no_port(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("fe80::1", None) == "fe80::1"
 
     def test_already_bracketed_ipv6(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("[::1]", 8080) == "[::1]:8080"
 
     def test_string_port(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint("10.0.0.1", "443") == "10.0.0.1:443"
 
     def test_no_host(self):
-        from app.system.radar.middleware import _format_endpoint
+        from app.system.radar.developer import _format_endpoint
 
         assert _format_endpoint(None, 80) is None
         assert _format_endpoint("", 80) is None

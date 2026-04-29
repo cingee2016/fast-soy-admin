@@ -7,6 +7,18 @@ import time
 from app.core.log import log
 from app.system.radar.ctx import CTX_RADAR
 
+
+def _format_endpoint(host: str | None, port: int | str | None) -> str | None:
+    """把 (host, port) 拼成 ``ip:port`` 形式；IPv6 用方括号包裹。port 缺失则只返回 host。"""
+    if not host:
+        return None
+    if not port:
+        return host
+    if ":" in host and not host.startswith("["):
+        return f"[{host}]:{port}"
+    return f"{host}:{port}"
+
+
 _LOG_DISPATCH = {
     "DEBUG": log.debug,
     "INFO": log.info,
@@ -31,7 +43,8 @@ def radar_log(message: str, *, level: str = "INFO", data: dict | None = None, lo
 
     if log_to_file:
         log_func = _LOG_DISPATCH.get(level, log.info)
-        prefix = f"[{radar_ctx.client_ip}] " if radar_ctx and radar_ctx.client_ip else ""
+        endpoint = _format_endpoint(radar_ctx.client_ip, radar_ctx.client_port) if radar_ctx else None
+        prefix = f"[{endpoint}] " if endpoint else ""
         if data:
             log_func(f"{prefix}{message} | {json.dumps(data, ensure_ascii=False, default=str)}")
         else:
