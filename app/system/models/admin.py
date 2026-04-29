@@ -10,12 +10,12 @@ class User(BaseModel, AuditMixin):
     id = fields.IntField(primary_key=True, description="用户id")
     user_name = fields.CharField(max_length=20, unique=True, description="用户名称")
     password = fields.CharField(max_length=128, description="密码")
-    nick_name = fields.CharField(max_length=30, null=True, description="昵称")
-    user_gender = fields.CharEnumField(enum_type=GenderType, default=GenderType.unknow, description="性别")
+    nick_name = fields.CharField(max_length=30, db_index=True, null=True, description="昵称")
+    user_gender = fields.CharEnumField(enum_type=GenderType, db_index=True, default=GenderType.unknow, description="性别")
     user_email = fields.CharField(max_length=255, unique=True, null=True, description="邮箱")
-    user_phone = fields.CharField(max_length=20, null=True, description="电话")
+    user_phone = fields.CharField(max_length=20, db_index=True, null=True, description="电话")
     last_login = fields.DatetimeField(null=True, description="最后登录时间")
-    status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    status_type = fields.CharEnumField(enum_type=StatusType, db_index=True, default=StatusType.enable, description="状态")
     token_version = fields.IntField(default=0, description="令牌版本号，递增后使已签发token失效")
     must_change_password = fields.BooleanField(default=False, description="首次登录需修改密码")
 
@@ -24,14 +24,6 @@ class User(BaseModel, AuditMixin):
     class Meta:
         table = "users"
         table_description = "用户表"
-        indexes = [
-            ("user_name",),
-            ("nick_name",),
-            ("user_gender",),
-            ("user_email",),
-            ("user_phone",),
-            ("status_type",),
-        ]
 
 
 class Role(BaseModel, AuditMixin):
@@ -42,7 +34,7 @@ class Role(BaseModel, AuditMixin):
     data_scope = fields.CharEnumField(enum_type=DataScopeType, default=DataScopeType.all, description="数据权限范围")
     by_role_home_id: int
     by_role_home: fields.ForeignKeyRelation["Menu"] = fields.ForeignKeyField("app_system.Menu", related_name=None, description="角色首页")
-    status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    status_type = fields.CharEnumField(enum_type=StatusType, db_index=True, default=StatusType.enable, description="状态")
 
     by_role_menus: fields.ManyToManyRelation["Menu"] = fields.ManyToManyField("app_system.Menu", related_name="by_menu_roles")
     by_role_apis: fields.ManyToManyRelation["Api"] = fields.ManyToManyField("app_system.Api", related_name="by_api_roles")
@@ -52,18 +44,13 @@ class Role(BaseModel, AuditMixin):
     class Meta:
         table = "roles"
         table_description = "角色表"
-        indexes = [
-            ("role_name",),
-            ("role_code",),
-            ("status_type",),
-        ]
 
 
 class Api(BaseModel, AuditMixin):
     id = fields.IntField(primary_key=True, description="API id")
-    api_path = fields.CharField(max_length=500, description="API路径")
-    api_method = fields.CharEnumField(MethodType, description="请求方法")
-    summary = fields.CharField(max_length=500, null=True, description="请求简介")
+    api_path = fields.CharField(max_length=500, db_index=True, description="API路径")
+    api_method = fields.CharEnumField(MethodType, db_index=True, description="请求方法")
+    summary = fields.CharField(max_length=500, db_index=True, null=True, description="请求简介")
     tags = DelimitedListField(max_length=500, null=True, description="API标签")
     status_type = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
     is_system = fields.BooleanField(default=False, description="是否为系统自动注册的API")
@@ -73,11 +60,6 @@ class Api(BaseModel, AuditMixin):
     class Meta:
         table = "apis"
         table_description = "API表"
-        indexes = [
-            ("api_path",),
-            ("api_method",),
-            ("summary",),
-        ]
 
 
 class Menu(BaseModel, AuditMixin):
