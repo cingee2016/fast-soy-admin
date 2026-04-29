@@ -67,8 +67,10 @@ redis_data/
 # ========================
 # Secrets & env overrides
 # ========================
+.env
 .env.local
 .env.*.local
+!.env.example
 
 # ========================
 # Testing

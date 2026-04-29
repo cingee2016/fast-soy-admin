@@ -121,6 +121,7 @@ docker compose restart app
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
 make install-all     # 后端 uv sync + 前端 pnpm install
+cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
 make initdb          # 首次建表 + 基础数据
 make dev             # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起停
 ```

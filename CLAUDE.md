@@ -16,6 +16,7 @@ FastSoyAdmin 是一套全栈后台管理模板，后端使用 **FastAPI**（Pyth
 
 ```bash
 make install-all            # 同装后端 (uv sync) + 前端 (pnpm install)
+cp .env.example .env        # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
 make initdb                 # 首次初始化数据库（建表 + 基础数据）
 ```
 

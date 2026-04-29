@@ -64,8 +64,9 @@ docker compose restart app
 ### 2.3 本地开发
 
 ```bash
-make install-all  # 后端 uv sync + 前端 pnpm install
-make initdb       # 首次建表 + 基础数据（之后不再需要）
+make install-all     # 后端 uv sync + 前端 pnpm install
+cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
+make initdb          # 首次建表 + 基础数据（之后不再需要）
 make dev          # 并行启动后端 :9999 + 前端 :9527，Ctrl+C 一起停
 ```
 

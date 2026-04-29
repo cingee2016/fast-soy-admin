@@ -121,6 +121,7 @@ Open `http://localhost:1880`.
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
 make install-all     # uv sync + pnpm install
+cp .env.example .env # copy env template; update SECRET_KEY / DB_URL / REDIS_URL as needed
 make initdb          # first-time: create tables + seed
 make dev             # backend (:9999) + frontend (:9527) in parallel, Ctrl+C stops both
 ```
