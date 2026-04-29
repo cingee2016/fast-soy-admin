@@ -11,7 +11,7 @@ from app.core.types import SqidPath
 from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
 from app.system.radar.developer import radar_log
-from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, RegisterSchema
+from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, RegisterSchema, ResetPasswordSchema
 from app.system.schemas.users import UpdatePassword
 from app.system.security import get_password_hash, verify_password
 from app.system.services.auth import (
@@ -127,6 +127,32 @@ async def _(register_in: RegisterSchema, request: Request):
 
     radar_log("用户注册成功", data={"phone": register_in.phone, "userName": user_name, "userId": user_obj.id})
     return Success(msg="注册成功")
+
+
+@router.post("/reset-password", summary="忘记密码 - 通过手机验证码重置")
+async def _(reset_in: ResetPasswordSchema, request: Request):
+    redis = request.app.state.redis
+
+    if not await verify_captcha(redis, reset_in.phone, reset_in.code):
+        return Fail(code=Code.CAPTCHA_INVALID, msg="验证码错误或已过期")
+
+    user_obj = await User.filter(user_phone=reset_in.phone).first()
+    if not user_obj:
+        return Fail(code=Code.PHONE_NOT_REGISTERED, msg="该手机号未注册")
+
+    if user_obj.status_type == StatusType.disable:
+        return Fail(code=Code.ACCOUNT_DISABLED, msg="该账号已被禁用")
+
+    await User.filter(id=user_obj.id).update(
+        password=get_password_hash(reset_in.password),
+        must_change_password=False,
+    )
+
+    # 失效旧 token，强制重新登录
+    await invalidate_user_session(redis, user_obj.id)
+
+    radar_log("通过验证码重置密码", data={"phone": reset_in.phone, "userId": user_obj.id})
+    return Success(msg="密码重置成功，请使用新密码登录")
 
 
 @router.post("/refresh-token", summary="刷新认证")

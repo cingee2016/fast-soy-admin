@@ -83,6 +83,81 @@ class TestRefreshToken:
         assert data["code"] == Code.INVALID_TOKEN
 
 
+class TestResetPassword:
+    async def _seed_phone_user(self, phone: str, user_name: str):
+        """Create a user with the given phone, return the user."""
+        from app.system.models import User
+        from app.system.security import get_password_hash
+
+        existing = await User.filter(user_phone=phone).first()
+        if existing:
+            return existing
+        return await User.create(
+            user_name=user_name,
+            password=get_password_hash("old_password"),
+            nick_name=user_name,
+            user_phone=phone,
+        )
+
+    async def _set_captcha(self, app, phone: str, code: str = "123456"):
+        await app.state.redis.set(f"captcha:{phone}", code, ex=300)
+
+    async def test_reset_password_success(self, client: AsyncClient, app, seed_data):
+        phone = "13800138001"
+        user = await self._seed_phone_user(phone, f"reset_u_{phone[-4:]}")
+        await self._set_captcha(app, phone, "123456")
+
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"phone": phone, "code": "123456", "password": "new_password"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == "0000"
+
+        # New password works for login
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={"userName": user.user_name, "password": "new_password"},
+        )
+        assert login.json()["code"] == "0000"
+
+    async def test_reset_password_invalid_captcha(self, client: AsyncClient, app, seed_data):
+        phone = "13800138002"
+        await self._seed_phone_user(phone, f"reset_u_{phone[-4:]}")
+        await self._set_captcha(app, phone, "999999")
+
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"phone": phone, "code": "000000", "password": "new_password"},
+        )
+        assert resp.json()["code"] == Code.CAPTCHA_INVALID
+
+    async def test_reset_password_phone_not_registered(self, client: AsyncClient, app, seed_data):
+        phone = "13800138999"
+        await self._set_captcha(app, phone, "123456")
+
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"phone": phone, "code": "123456", "password": "new_password"},
+        )
+        assert resp.json()["code"] == Code.PHONE_NOT_REGISTERED
+
+    async def test_reset_password_disabled_account(self, client: AsyncClient, app, seed_data):
+        from app.system.models import StatusType, User
+
+        phone = "13800138003"
+        user = await self._seed_phone_user(phone, f"reset_u_{phone[-4:]}")
+        await User.filter(id=user.id).update(status_type=StatusType.disable)
+        await self._set_captcha(app, phone, "123456")
+
+        resp = await client.post(
+            "/api/v1/auth/reset-password",
+            json={"phone": phone, "code": "123456", "password": "new_password"},
+        )
+        assert resp.json()["code"] == Code.ACCOUNT_DISABLED
+
+
 class TestUserInfo:
     async def test_get_user_info(self, auth_client: AsyncClient):
         resp = await auth_client.get("/api/v1/auth/user-info")
