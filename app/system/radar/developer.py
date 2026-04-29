@@ -27,15 +27,16 @@ def radar_log(message: str, *, level: str = "INFO", data: dict | None = None, lo
         radar_log("仅 radar 记录", log_to_file=False)
     """
     level = level.upper()
+    radar_ctx = CTX_RADAR.get()
 
     if log_to_file:
         log_func = _LOG_DISPATCH.get(level, log.info)
+        prefix = f"[{radar_ctx.client_ip}] " if radar_ctx and radar_ctx.client_ip else ""
         if data:
-            log_func(f"{message} | {json.dumps(data, ensure_ascii=False, default=str)}")
+            log_func(f"{prefix}{message} | {json.dumps(data, ensure_ascii=False, default=str)}")
         else:
-            log_func(message)
+            log_func(f"{prefix}{message}")
 
-    radar_ctx = CTX_RADAR.get()
     if radar_ctx is None:
         return
 
