@@ -21,14 +21,13 @@ dependencies = [
   "pyjwt>=2.12.1",
   "sqids>=0.5.0",
   "starlette==0.52.1",
-  "tortoise-orm>=1.1.7",
+  "tortoise-orm[asyncpg]>=1.1.7",
   "granian>=2.3.0",
   "python-multipart>=0.0.26",
 ]
 
 [project.optional-dependencies]
 mysql = ["tortoise-orm[asyncmy]>=1.1.7"]
-postgres = ["tortoise-orm[asyncpg]>=1.1.7"]
 mssql = ["tortoise-orm[asyncodbc]>=1.1.7"]
 oracle = ["tortoise-orm[asyncodbc]>=1.1.7"]
 

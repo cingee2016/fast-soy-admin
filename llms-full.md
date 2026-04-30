@@ -937,11 +937,11 @@ async def init():
 `DB_URL` 在根目录 `.env`：
 
 ```dotenv
-# SQLite（默认）
-DB_URL="sqlite://app_system.sqlite3?busy_timeout=5000"
+# PostgreSQL（默认，驱动 asyncpg）
+DB_URL="postgres://postgres:password@localhost:5432/fastsoyadmin"
 
-# PostgreSQL（默认驱动 asyncpg）
-DB_URL="postgres://user:password@localhost:5432/fastsoyadmin"
+# SQLite（默认依赖已含 aiosqlite）
+DB_URL="sqlite://app_system.sqlite3?busy_timeout=5000"
 
 # MySQL / MariaDB
 DB_URL="mysql://root:password@localhost:3306/fastsoyadmin"
@@ -1210,7 +1210,7 @@ server {
 - `PROXY_HEADERS_ENABLED` / `TRUSTED_HOSTS` — 反代头还原
 - `LOG_INFO_RETENTION` — 日志保留
 
-`.env.docker` 同上，变量为容器视角（`DB_URL` 默认 SQLite、`REDIS_URL=redis://redis:6379/0`）。
+`.env.docker` 同上，变量为容器视角（`DB_URL` 默认指向 compose 内的 PostgreSQL、`REDIS_URL=redis://redis:6379/0`）。
 
 ### 18.2 前端 `.env`
 

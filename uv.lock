@@ -520,7 +520,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "sqids" },
     { name = "starlette" },
-    { name = "tortoise-orm" },
+    { name = "tortoise-orm", extra = ["asyncpg"] },
 ]
 
 [package.optional-dependencies]
@@ -532,9 +532,6 @@ mysql = [
 ]
 oracle = [
     { name = "tortoise-orm", extra = ["asyncodbc"] },
-]
-postgres = [
-    { name = "tortoise-orm", extra = ["asyncpg"] },
 ]
 
 [package.dev-dependencies]
@@ -567,13 +564,12 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.26" },
     { name = "sqids", specifier = ">=0.5.0" },
     { name = "starlette", specifier = "==0.52.1" },
-    { name = "tortoise-orm", specifier = ">=1.1.7" },
     { name = "tortoise-orm", extras = ["asyncmy"], marker = "extra == 'mysql'", specifier = ">=1.1.7" },
     { name = "tortoise-orm", extras = ["asyncodbc"], marker = "extra == 'mssql'", specifier = ">=1.1.7" },
     { name = "tortoise-orm", extras = ["asyncodbc"], marker = "extra == 'oracle'", specifier = ">=1.1.7" },
-    { name = "tortoise-orm", extras = ["asyncpg"], marker = "extra == 'postgres'", specifier = ">=1.1.7" },
+    { name = "tortoise-orm", extras = ["asyncpg"], specifier = ">=1.1.7" },
 ]
-provides-extras = ["mysql", "postgres", "mssql", "oracle"]
+provides-extras = ["mysql", "mssql", "oracle"]
 
 [package.metadata.requires-dev]
 dev = [

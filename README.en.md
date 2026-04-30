@@ -179,12 +179,11 @@ Layers: `api/` → `services/` → `controllers/` → `models + schemas`. Busine
 
 ## Switching databases
 
-Change `DB_URL` in `.env` and run `make initdb`. SQLite / PostgreSQL / MySQL / SQL Server supported.
+Change `DB_URL` in `.env` and run `make initdb`. PostgreSQL / SQLite / MySQL / SQL Server supported.
 
-Only the SQLite driver ships by default; install extras as needed:
+PostgreSQL (`tortoise-orm[asyncpg]`) and SQLite (`aiosqlite`, ships with tortoise-orm) are bundled by default; install extras for other engines:
 
 ```bash
-uv sync --extra postgres     # PostgreSQL (asyncpg)
 uv sync --extra mysql        # MySQL (asyncmy)
 uv sync --extra mssql        # SQL Server (asyncodbc)
 uv sync --extra oracle       # Oracle (asyncodbc)

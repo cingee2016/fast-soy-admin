@@ -30,21 +30,24 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # 数据库连接 URL — Tortoise ORM 原生支持多引擎, 直接在 .env 里覆盖 DB_URL
-    # 即可切换, 无需改代码。URL 格式参考 tortoise-orm 官方文档:
-    #
-    #   sqlite:   sqlite://DB_FILE                    # 相对路径两个斜杠
-    #             sqlite:///data/db.sqlite3           # 绝对路径三个斜杠 (/data/db.sqlite3)
-    #             sqlite://app_system.sqlite3?busy_timeout=5000&journal_mode=WAL
+    # 即可切换, 无需改代码。默认依赖含 PostgreSQL 驱动 (tortoise-orm[asyncpg])
+    # 与 SQLite 驱动 (aiosqlite, tortoise-orm 自带); 切到 MySQL / MSSQL 需安装
+    # 对应 extras: uv sync --extra {mysql|mssql}。
+    # URL 格式参考 tortoise-orm 官方文档:
     #
     #   postgres: postgres://user:password@host:5432/dbname   # 默认走 asyncpg
     #             asyncpg://user:password@host:5432/dbname    # 显式指定 asyncpg
     #             psycopg://user:password@host:5432/dbname    # 显式指定 psycopg
     #
+    #   sqlite:   sqlite://DB_FILE                    # 相对路径两个斜杠
+    #             sqlite:///data/db.sqlite3           # 绝对路径三个斜杠 (/data/db.sqlite3)
+    #             sqlite://app_system.sqlite3?busy_timeout=5000&journal_mode=WAL
+    #
     #   mysql:    mysql://user:password@host:3306/dbname
     #
     #   mssql:    mssql://user:password@host:1433/dbname?driver=ODBC%20Driver%2018%20for%20SQL%20Server
     #             # 可追加 &encrypt=no&trust_server_certificate=yes 等 ODBC 选项
-    DB_URL: str = "sqlite://app_system.sqlite3?busy_timeout=5000"
+    DB_URL: str = "postgres://postgres:password@localhost:5432/fastsoyadmin"
 
     # Tortoise ORM 配置字典 — 由 DB_URL + autodiscover 在 model_validator 里构建,
     # 无需在 .env 中手动设置 (也不要设置: 多行 JSON 会被 VS Code 等工具的

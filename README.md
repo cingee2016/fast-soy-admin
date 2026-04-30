@@ -181,12 +181,11 @@ web/src/
 
 ## 切换数据库
 
-修改 `.env` 中的 `DB_URL`，运行 `make initdb`。支持 SQLite / PostgreSQL / MySQL / SQL Server。
+修改 `.env` 中的 `DB_URL`，运行 `make initdb`。支持 PostgreSQL / SQLite / MySQL / SQL Server。
 
-默认仅装 SQLite 驱动，其他数据库按需安装：
+默认依赖已包含 PostgreSQL（`tortoise-orm[asyncpg]`）与 SQLite（`aiosqlite`，tortoise 自带），其他数据库按需安装：
 
 ```bash
-uv sync --extra postgres     # PostgreSQL (asyncpg)
 uv sync --extra mysql        # MySQL (asyncmy)
 uv sync --extra mssql        # SQL Server (asyncodbc)
 uv sync --extra oracle       # Oracle (asyncodbc)

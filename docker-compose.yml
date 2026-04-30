@@ -19,7 +19,10 @@ services:
       context: .
       dockerfile: deploy/app.Dockerfile
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     restart: always
     volumes:
       - static_data:/opt/fast-soy-admin/static
@@ -38,6 +41,23 @@ services:
       - internal
     volumes:
       - redis_data:/data
+
+  postgres:
+    image: postgres:18.3-alpine
+    environment:
+      POSTGRES_USER: fastsoyadmin
+      POSTGRES_PASSWORD: fastsoyadmin
+      POSTGRES_DB: fastsoyadmin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastsoyadmin -d fastsoyadmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
 
   # 循环重建数据库的 daemon: 每 10 分钟清空所有表并重跑完整初始化。
   # 仅演示/压测用, 默认通过 profile 隔离不启动; 需要时执行:
@@ -61,6 +81,7 @@ services:
 volumes:
   redis_data:
   static_data:
+  postgres_data:
 
 networks:
   internal:
