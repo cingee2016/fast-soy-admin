@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting…</title>
+  <script>
+    (function () {
+      var base = '/fast-soy-admin-docs';
+      var p = location.pathname;
+      // /fast-soy-admin-docs/zh/...  →  /fast-soy-admin-docs/...
+      if (p.indexOf(base + '/zh/') === 0) {
+        location.replace(p.replace(base + '/zh/', base + '/') + location.search + location.hash);
+        return;
+      }
+      if (p === base + '/zh' || p === base + '/zh/') {
+        location.replace(base + '/');
+        return;
+      }
+    })();
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4rem 1rem; text-align: center; color: #213547; }
+    a { color: #3c82f6; }
+  </style>
+</head>
+<body>
+  <h1>404</h1>
+  <p>页面不存在。<a href="/fast-soy-admin-docs/">返回首页</a></p>
+</body>
+</html>
