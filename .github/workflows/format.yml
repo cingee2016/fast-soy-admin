@@ -8,13 +8,16 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   format:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'auto-format'
     name: Run ruff + eslint auto-fix and commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
@@ -37,13 +40,13 @@ jobs:
           uv run ruff check --fix app/
           uv run ruff format app/
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6.0.5
         with:
           version: latest
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
