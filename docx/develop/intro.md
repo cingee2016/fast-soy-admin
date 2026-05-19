@@ -8,7 +8,7 @@
 |------|------|
 | [FastAPI](https://fastapi.tiangolo.com/) ≥ 0.121 | 异步 Web 框架 |
 | [Pydantic v2](https://docs.pydantic.dev/) | 请求/响应校验与序列化 |
-| [Tortoise ORM](https://tortoise.github.io) ≥ 0.25 | 异步 ORM（vendored 副本位于 `/tortoise-orm/`） |
+| [Tortoise ORM](https://tortoise.github.io) ≥ 1.1 | 异步 ORM（通过 `pyproject.toml` 管理依赖） |
 | [Tortoise 内置迁移](https://tortoise.github.io/migration.html) | 手动执行（不在启动时自动迁移） |
 | [Redis](https://redis.io/) | 缓存（fastapi-cache2）+ 多 worker 启动锁 + 角色权限热数据 |
 | [Argon2](https://argon2-cffi.readthedocs.io/) | 密码哈希 |

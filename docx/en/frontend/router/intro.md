@@ -72,8 +72,8 @@ Icon source: [icones.js.org](https://icones.js.org/)
 
 Typical workflow (using the inventory module):
 
-1. Scaffold the backend module: `make cli-init MOD=inventory` → edit models → `make cli-gen MOD=inventory`
-2. Generate the frontend pages: `make cli-gen-web MOD=inventory CN=Inventory`
+1. Scaffold the backend module: `just cli-init inventory` → edit models → `just cli-gen inventory`
+2. Generate the frontend pages: `just cli-gen-web inventory Inventory`
 3. Call `ensure_menu()` in the module's `init_data.py` to register the menu (the generator leaves a template; you fill in the details)
 4. Use `ensure_role()` to grant menus / buttons / APIs to the appropriate roles
 5. Restart the backend; users with that role will see the menu after logging in

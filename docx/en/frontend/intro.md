@@ -64,7 +64,7 @@ pnpm lint         # ESLint + oxlint
 pnpm typecheck    # vue-tsc
 ```
 
-Or use root `make web-dev / web-build / web-lint / web-typecheck` or `make dev` to start backend + frontend together. See [Commands](/en/reference/commands).
+Or use root `just run frontend` / `just build frontend` / `just lint frontend` / `just typecheck frontend` or `just run` to start backend + frontend together. See [Commands](/en/reference/commands).
 
 ## Relationship with the backend
 

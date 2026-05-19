@@ -11,12 +11,12 @@ Monorepo layout: `/app` backend, `/web` frontend, `/deploy` Docker / Nginx.
 
 **AI-native**
 
-- **AI-coding friendly** — ships with `CLAUDE.md` + `llms.txt` / `llms-full.md` so Claude Code / Cursor / Copilot get the full architecture, layering rules, API conventions, response codes, and PR checklist up front; agents produce code that matches project conventions out of the box
-- **Generators as the AI workbench** — `make cli-gen-all` collapses "add one table" into a single command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
+- **AI-coding friendly** — ships with `CLAUDE.md` and full project docs so agents get the architecture, layering rules, API conventions, response codes, and PR checklist up front; generated code matches project conventions out of the box
+- **Generators as the AI workbench** — `just cli-gen-all` collapses "add one table" into a single command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
 
 **Engineering velocity**
 
-- **End-to-end CLI generation** — `make cli-init / cli-gen-all` turns a Tortoise model into full backend + frontend CRUD (schemas / controllers / api + views / service / typings / i18n)
+- **End-to-end CLI generation** — `just cli-init` / `just cli-gen-all` turns a Tortoise model into full backend + frontend CRUD (schemas / controllers / api + views / service / typings / i18n)
 - **CRUDRouter + `@crud.override`** — the factory emits the 6 standard routes; only override diffs. Aggregate roots stay explicit by design, no abstraction bloat
 
 **Extensible architecture**

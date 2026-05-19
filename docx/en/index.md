@@ -22,7 +22,7 @@ hero:
 features:
   - icon: "\U0001F916"
     title: AI-Native Workflow
-    details: CLAUDE.md + llms.txt baked in — agents produce code that follows project conventions.
+    details: CLAUDE.md plus full project docs — agents produce code that follows project conventions.
   - icon: "\U0001F680"
     title: End-to-End CLI Codegen
     details: One command turns a model into full backend + frontend CRUD.

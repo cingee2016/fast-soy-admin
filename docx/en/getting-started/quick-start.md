@@ -6,10 +6,10 @@
 |------|---------|
 | Git | — |
 | Python | ≥ 3.12 |
-| Node.js | ≥ 20.0.0 |
+| Node.js | ≥ 20.19.0 |
 | uv | latest |
 | pnpm | ≥ 10.5 |
-| make | any |
+| just | any |
 
 ## Get the code
 
@@ -21,7 +21,7 @@ cd fast-soy-admin
 ## Option A: Docker (recommended)
 
 ```bash
-make up           # == docker compose up -d
+just up           # == docker compose up -d
 ```
 
 Visit `http://localhost:1880`. Services:
@@ -31,29 +31,29 @@ Visit `http://localhost:1880`. Services:
 - **Redis** (:6379) — cache
 
 ```bash
-make logs                  # follow all logs
-make logs SVC=app          # backend only; SVC=nginx|redis works too, TAIL=N for line count
-make down                  # stop & remove containers
+just logs                  # follow all logs
+just logs app          # backend only; `just logs nginx` / `just logs redis` work too; pass a second argument for line count
+just down                  # stop & remove containers
 ```
 
 ## Option B: Local development
 
 ```bash
-make install-all  # install backend + frontend deps
-make initdb       # first-time DB init (only once)
-make dev          # start backend (:9999) and frontend (:9527) together; Ctrl+C to stop both
+just install  # install backend + frontend deps
+just db-init       # first-time DB init (only once)
+just run          # start backend (:9999) and frontend (:9527) together; Ctrl+C to stop both
 ```
 
 Or run them separately:
 
 ```bash
-make run          # backend only
-make web-dev      # frontend only
+just run backend  # backend only
+just run frontend      # frontend only
 ```
 
 ## Default accounts
 
-After `make initdb`, the seed users (password = `123456`):
+After `just db-init`, the seed users (password = `123456`):
 
 | User | Roles |
 |------|-------|
@@ -66,8 +66,8 @@ The HR demo (auto-loaded by `app/business/hr/init_data.py`) adds 9 more accounts
 
 ## What's next
 
-- [Development guide](/en/getting-started/workflow) — end-to-end CRUD module from `make cli-init` to deployable
-- [Commands reference](/en/reference/commands) — every `make` target
+- [Development guide](/en/getting-started/workflow) — end-to-end CRUD module from `just cli-init` to deployable
+- [Commands reference](/en/reference/commands) — every `just` target
 - [Architecture](/en/getting-started/architecture) — layering, RBAC, lifecycle
 - [Response codes](/en/reference/codes) — the unified business code convention
 
@@ -95,22 +95,23 @@ fast-soy-admin/
 ├── deploy/                       # Docker / Nginx
 ├── migrations/                   # Tortoise migrations
 ├── tests/                        # Backend unit tests
-├── Makefile                      # All common commands
+├── justfile                      # All common commands
 └── docker-compose.yml
 ```
 
 ## Quality checks
 
 ```bash
-make check-all    # full backend + frontend gate (run before pushing)
+just check    # full backend + frontend gate (run before pushing)
 ```
 
 Granular:
 
 ```bash
-make fmt          # backend ruff fix + format
-make typecheck    # backend basedpyright
-make test         # backend pytest
-make web-lint     # frontend eslint + oxlint
-make web-typecheck # frontend vue-tsc
+just fmt backend  # backend ruff fix + format
+just typecheck backend # backend basedpyright
+just test backend # backend pytest
+just lint frontend     # frontend eslint + oxlint
+just typecheck frontend # frontend vue-tsc
+just test frontend     # frontend vitest
 ```

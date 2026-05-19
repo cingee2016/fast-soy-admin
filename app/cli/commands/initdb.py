@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
+import shutil
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import click
+from tortoise import Tortoise, connections
 
 from app.core.config import APP_SETTINGS
 
@@ -97,6 +101,81 @@ def _check_migration_table_generic(_db_url: str) -> str | None:
     return None
 
 
+def _configured_migration_dirs() -> list[Path]:
+    dirs: list[Path] = []
+    apps = APP_SETTINGS.TORTOISE_ORM.get("apps", {})
+    for app_config in apps.values():
+        migration_module = app_config.get("migrations")
+        if not migration_module:
+            continue
+        path = BASE_DIR / Path(str(migration_module).replace(".", "/"))
+        if path not in dirs:
+            dirs.append(path)
+    return dirs
+
+
+def _reset_migration_files() -> None:
+    """清空本地自动生成的迁移文件，保留迁移包目录本身。"""
+    migrations_root = MIGRATIONS_DIR.resolve()
+    for migration_dir in _configured_migration_dirs():
+        resolved = migration_dir.resolve()
+        if not (resolved == migrations_root or resolved.is_relative_to(migrations_root)):
+            raise click.ClickException(f"拒绝清理 migrations 目录外的路径: {migration_dir}")
+
+        migration_dir.mkdir(parents=True, exist_ok=True)
+        for child in migration_dir.iterdir():
+            if child.name == "__init__.py":
+                continue
+            if child.is_dir() and child.name == "__pycache__":
+                shutil.rmtree(child)
+                continue
+            if child.is_file() and child.suffix == ".py":
+                child.unlink()
+
+        (migration_dir / "__init__.py").touch()
+
+    tortoise_last = BASE_DIR / "tortoise_last.txt"
+    if tortoise_last.exists():
+        tortoise_last.unlink()
+
+
+def _reset_sqlite_file(db_url: str) -> bool:
+    sqlite_path = _parse_sqlite_path(db_url)
+    if sqlite_path is None:
+        return False
+
+    for candidate in (sqlite_path, sqlite_path.with_name(f"{sqlite_path.name}-wal"), sqlite_path.with_name(f"{sqlite_path.name}-shm")):
+        if candidate.exists():
+            candidate.unlink()
+    return True
+
+
+async def _reset_database(db_url: str) -> None:
+    """清空 --force 指向的数据库对象，用于重新生成并应用初始迁移。"""
+    if _reset_sqlite_file(db_url):
+        return
+
+    scheme = urlparse(db_url).scheme
+    await Tortoise.init(config=APP_SETTINGS.TORTOISE_ORM)
+    try:
+        conn = connections.get("conn_system")
+        if scheme in {"postgres", "asyncpg", "psycopg"}:
+            await conn.execute_script("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;")
+            return
+
+        if scheme in {"mysql", "asyncmy"}:
+            rows = await conn.execute_query_dict("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
+            table_names = [str(next(iter(row.values()))) for row in rows]
+            if table_names:
+                drops = " ".join(f"DROP TABLE IF EXISTS `{name}`;" for name in table_names)
+                await conn.execute_script(f"SET FOREIGN_KEY_CHECKS=0; {drops} SET FOREIGN_KEY_CHECKS=1;")
+            return
+
+        raise click.ClickException(f"--force 暂不支持清空当前数据库类型: {scheme or '(unknown)'}")
+    finally:
+        await connections.close_all()
+
+
 def _run_tortoise_cmd(args: list[str], *, label: str) -> None:
     """运行 tortoise 子命令，失败时抛出 ClickException。"""
     cmd = [sys.executable, "-m", "tortoise", *args]
@@ -116,14 +195,14 @@ GUIDE_TEXT = """\
 
   启动服务验证：
 
-     \033[36mmake run\033[0m
+     \033[36mjust run\033[0m
 
   首次启动时会自动创建默认用户、菜单、角色等初始化数据。
 """
 
 
 @click.command()
-@click.option("--force", is_flag=True, help="跳过已初始化检查，强制重新执行迁移")
+@click.option("--force", is_flag=True, help="清空当前开发库和本地迁移基线，重新生成并应用初始迁移")
 def initdb(force: bool):
     """初始化数据库 — 生成迁移并应用。
 
@@ -150,8 +229,14 @@ def initdb(force: bool):
                 click.echo(f"    • {msg}")
             click.echo("\n  如需重新初始化，请使用 \033[36m--force\033[0m 选项。")
             click.echo("  如需应用新的模型变更，请直接运行:\n")
-            click.echo("    \033[36mtortoise makemigrations && tortoise migrate\033[0m\n")
+            click.echo("    \033[36mjust mm\033[0m\n")
             raise SystemExit(1)
+
+    if force:
+        click.echo("\n\033[1;33m⚠️  --force 将清空当前 DB_URL 指向的数据库对象，并重建本地迁移基线。\033[0m")
+        click.echo("  \033[1m[0/3]\033[0m 清理旧数据库状态和本地迁移文件...")
+        _reset_migration_files()
+        asyncio.run(_reset_database(db_url))
 
     # ── 执行初始化 ──
     click.echo("\n\033[1m🔧 开始初始化数据库...\033[0m\n")

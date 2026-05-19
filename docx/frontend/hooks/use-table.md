@@ -145,7 +145,7 @@ const {
 
 ## CLI 自动生成
 
-`make cli-gen-web MOD=xxx` 产出的列表页已经接好 `useNaivePaginatedTable` + `useTableOperate`，含搜索表单、抽屉、操作列、批量删除。手写时也建议照抄这个模板。
+`just cli-gen-web xxx` 产出的列表页已经接好 `useNaivePaginatedTable` + `useTableOperate`，含搜索表单、抽屉、操作列、批量删除。手写时也建议照抄这个模板。
 
 ## 相关
 

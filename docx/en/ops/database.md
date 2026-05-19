@@ -1,6 +1,6 @@
 # Switching the database
 
-FastSoyAdmin uses [Tortoise ORM](https://tortoise.github.io), with native support for **PostgreSQL / SQLite / MySQL (MariaDB) / SQL Server**. **Switching DB only requires changing `DB_URL` in `.env`; no code changes**.
+FastSoyAdmin uses [Tortoise ORM](https://tortoise.github.io), with support for **PostgreSQL / SQLite / MySQL (MariaDB) / SQL Server / Oracle**. **Switching DB only requires changing `DB_URL` in `.env`; no code changes**.
 
 ## Quick switch (single DB)
 
@@ -23,13 +23,13 @@ DB_URL="mssql://sa:Password123@localhost:1433/fastsoyadmin?driver=ODBC%20Driver%
 Then init once:
 
 ```bash
-make initdb         # = tortoise init-db + first-time seeds
+just db-init         # = tortoise init-db + first-time seeds
 ```
 
 Subsequent model changes:
 
 ```bash
-make mm             # makemigrations + migrate
+just mm             # makemigrations + migrate
 ```
 
 ## URL syntax cheat sheet
@@ -144,7 +144,7 @@ migrations/
 └── billing/             # standalone billing DB
 ```
 
-`make makemigrations` generates per-app folders.
+`just makemigrations` generates per-app folders.
 
 ## Common pitfalls
 

@@ -92,9 +92,9 @@ async def _run_init_data(_app: FastAPI) -> bool:
                         "\n" + sep + "\n"
                         "数据库尚未初始化：检测到基础表缺失（如 `menus`）。\n"
                         "首次启动请先执行以下命令初始化数据库：\n\n"
-                        "    make initdb            # 全新项目首次建表 + 基础数据\n\n"
+                        "    just db-init            # 全新项目首次建表 + 基础数据\n\n"
                         "若已有模型变更，请执行：\n\n"
-                        "    make mm                # makemigrations + migrate\n\n"
+                        "    just mm                # makemigrations + migrate\n\n"
                         "详见 CLAUDE.md / README 的 “数据库迁移” 一节。\n" + sep
                     )
                     # 通知 granian 主进程停止（避免持续 respawn），并静默退出当前 worker

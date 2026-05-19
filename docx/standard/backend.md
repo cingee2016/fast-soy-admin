@@ -152,10 +152,10 @@ new_emp = await Employee.create(department_id=other.department_id)
 - ✅ 提交前跑：
 
 ```bash
-make fmt          # ruff check --fix + format
-make typecheck    # basedpyright
-make test         # pytest
-make check        # 上面三条一次跑完
+just fmt backend       # ruff check --fix + format
+just typecheck backend # basedpyright
+just test backend      # pytest
+just check backend     # 上面三条一次跑完
 ```
 
 - ✅ 行宽 200，双引号，自动排序 import
@@ -187,7 +187,7 @@ make check        # 上面三条一次跑完
 ## 14. 提交前必跑
 
 ```bash
-make check-all    # 后端 + 前端所有质量检查
+just check    # 后端 + 前端所有质量检查
 ```
 
 包括：`ruff fix + format`、`basedpyright`、`pytest`、`eslint + oxlint`、`vue-tsc`。

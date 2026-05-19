@@ -9,12 +9,12 @@
 启动时**不会**自动建表 / 迁移。首次必须：
 
 ```bash
-make initdb        # 等同 tortoise init-db + 首次种子数据
+just db-init        # 等同 tortoise init-db + 首次种子数据
 # 或
-make mm            # makemigrations + migrate
+just mm            # makemigrations + migrate
 ```
 
-后续模型变更也走 `make mm`。详见 [命令参考](../reference/commands.md)。
+后续模型变更也走 `just mm`。详见 [命令参考](../reference/commands.md)。
 
 ### Redis 连接失败
 
@@ -241,8 +241,8 @@ redis-cli get app:init_done    # 应该是 "1"
 ### 查看后端日志
 
 ```bash
-make logs                        # 全部
-make logs SVC=app                # 仅后端；SVC=nginx|redis 同理，TAIL=N 指定行数
+just logs                        # 全部
+just logs app                # 仅后端；`just logs nginx` / `just logs redis` 同理，第二个参数指定行数
 docker compose logs -f app       # 等价的原生写法
 ```
 
@@ -250,7 +250,7 @@ docker compose logs -f app       # 等价的原生写法
 
 ```bash
 git pull
-make down && make up
+just down && just up
 ```
 
 ### 容器内时区不对

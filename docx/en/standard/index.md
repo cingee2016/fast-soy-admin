@@ -10,21 +10,21 @@ Topics:
 
 | Concern | Tool | Command |
 |---|---|---|
-| Backend lint / format | Ruff (line 200, double-quote, rules E/F/I) | `make fmt` / `make lint` |
-| Backend types | basedpyright (standard mode) | `make typecheck` |
-| Backend tests | pytest | `make test` |
-| Frontend lint | ESLint (`@soybeanjs/eslint-config-vue`) + oxlint | `make web-lint` |
-| Frontend types | vue-tsc | `make web-typecheck` |
-| Full stack | — | `make check-all` |
+| Backend lint / format | Ruff (line 200, double-quote, rules E/F/I) | `just fmt backend` / `just lint backend` |
+| Backend types | basedpyright (standard mode) | `just typecheck backend` |
+| Backend tests | pytest | `just test backend` |
+| Frontend lint | ESLint (`@soybeanjs/eslint-config-vue`) + oxlint | `just lint frontend` |
+| Frontend types | vue-tsc | `just typecheck frontend` |
+| Full stack | — | `just check` |
 | Pre-commit hook | simple-git-hooks | auto-installed via `cd web && pnpm install` |
 
 ## Pre-commit gate
 
 ```bash
-make check-all
+just check
 ```
 
-Or run only the side you touched: `make check` / `make web-check`.
+Or run only the side you touched: `just check backend` / `just check frontend`.
 
 ## Recommended VS Code setup
 

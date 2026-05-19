@@ -1,99 +1,106 @@
 # Commands Reference
 
-A root `Makefile` wraps all common operations. Run `make` (or `make help`) for the full list.
+A root `justfile` wraps all common operations. Run `just` (or `just --list`) for the full list.
 
-> `MOD=xxx` denotes a positional argument: e.g. `make cli-init MOD=inventory`.
+> `xxx` denotes a positional argument, e.g. `just cli-init inventory`.
 
 ## Backend
 
-| Raw | Make | Purpose |
+| Raw | just | Purpose |
 |---|---|---|
-| `uv sync` | `make install` | Install backend deps |
-| `uv run python run.py` | `make run` | Start backend dev server (:9999) |
-| `uv run ruff check app/`<br>`uv run ruff format --check app/` | `make lint` | Ruff lint (no fix) |
-| `uv run ruff check --fix app/`<br>`uv run ruff format app/` | `make fmt` | Ruff fix + format |
-| `uv run basedpyright app` | `make typecheck` | Static type check |
-| `uv run pytest tests/ -v` | `make test` | Unit tests |
-| — | `make check` | fmt + typecheck + test |
+| `uv sync` | `just install backend` | Install backend deps |
+| `uv run python run.py` | `just run backend` | Start backend dev server (:9999) |
+| `uv run ruff check app/`<br>`uv run ruff format --check app/` | `just lint backend` | Ruff lint (no fix) |
+| `uv run ruff check --fix app/`<br>`uv run ruff format app/` | `just fmt backend` | Ruff fix + format |
+| `uv run basedpyright app` | `just typecheck backend` | Static type check |
+| `uv run pytest tests/ -v` | `just test backend` | Unit tests |
+| — | `just check backend` | fmt + typecheck + test |
 
 ## Database
 
-| Raw | Make | Purpose |
+| Raw | just | Purpose |
 |---|---|---|
-| `uv run python -m app.cli initdb` | `make initdb` | First-time DB init (tables + base data) |
-| `uv run tortoise makemigrations` | `make makemigrations` | Generate migration files from model changes |
-| `uv run tortoise migrate` | `make migrate` | Apply pending migrations |
-| — | `make mm` | makemigrations + migrate in one go |
-| `uv run tortoise history` | `make dbhistory` | Migration history |
+| `uv run python -m app.cli initdb` | `just db-init` | First-time DB init (tables + base data) |
+| `uv run python -m app.cli initdb --force` | `just db-reset` | Reset the current dev database and local migration baseline, then initialize again |
+| `uv run tortoise makemigrations` | `just makemigrations` | Generate migration files from model changes |
+| `uv run tortoise migrate` | `just migrate` | Apply pending migrations |
+| — | `just mm` | makemigrations + migrate in one go |
+| `uv run tortoise history` | `just dbhistory` | Migration history |
 
 ## CLI code generation
 
-| Raw | Make | Purpose |
+| Raw | just | Purpose |
 |---|---|---|
-| `uv run python -m app.cli init <MOD>` | `make cli-init MOD=xxx` | Create module skeleton (`models.py` only) |
-| `uv run python -m app.cli gen <MOD>` | `make cli-gen MOD=xxx` | Parse `models.py`, generate backend schemas/controllers/api |
-| `uv run python -m app.cli gen-web <MOD>` | `make cli-gen-web MOD=xxx [CN=Chinese-Name]` | Parse `models.py`, generate frontend service/typings/views/i18n fragments |
-| — | `make cli-gen-all MOD=xxx [CN=Chinese-Name]` | Run `cli-gen` + `cli-gen-web` |
+| `uv run python -m app.cli init <MOD>` | `just cli-init xxx` | Create module skeleton (`models.py` only) |
+| `uv run python -m app.cli gen <MOD>` | `just cli-gen xxx` | Parse `models.py`, generate backend schemas/controllers/api |
+| `uv run python -m app.cli gen-web <MOD>` | `just cli-gen-web xxx [Chinese-Name]` | Parse `models.py`, generate frontend service/typings/views/i18n fragments |
+| — | `just cli-gen-all xxx [Chinese-Name]` | Run `cli-gen` + `cli-gen-web` |
 
 For details see [Development guide](/en/getting-started/workflow).
 
 ## Frontend
 
-| Raw | Make | Purpose |
+| Raw | just | Purpose |
 |---|---|---|
-| `cd web && pnpm install` | `make web-install` | Install frontend deps |
-| `cd web && pnpm dev` | `make web-dev` | Frontend dev server (:9527) |
-| `cd web && pnpm build` | `make web-build` | Production build |
-| `cd web && pnpm lint` | `make web-lint` | ESLint + oxlint |
-| `cd web && pnpm typecheck` | `make web-typecheck` | vue-tsc |
-| — | `make web-check` | web-lint + web-typecheck |
+| `cd web && pnpm install` | `just install frontend` | Install frontend deps |
+| `cd web && pnpm dev` | `just run frontend` | Frontend dev server (:9527) |
+| `cd web && pnpm exec oxlint`<br>`cd web && pnpm exec eslint .` | `just lint frontend` | Frontend lint (no fix) |
+| `cd web && pnpm lint`<br>`cd web && pnpm fmt` | `just fmt frontend` | Frontend fix + format |
+| `cd web && pnpm typecheck` | `just typecheck frontend` | vue-tsc |
+| `cd web && pnpm test` | `just test frontend` | Vitest unit tests |
+| `cd web && pnpm build` | `just build frontend` / `just build` | Production build |
+| — | `just check frontend` | fmt + typecheck + test |
 
 ## Full stack
 
 | Command | Purpose |
 |---|---|
-| `make install-all` | Install backend + frontend deps |
-| `make dev` | Run backend (:9999) + frontend (:9527) together; Ctrl+C stops both |
-| `make check-all` | Run all backend + frontend quality checks |
+| `just install` | Install backend + frontend deps |
+| `just run` | Run backend (:9999) + frontend (:9527) together; Ctrl+C stops both |
+| `just fmt` | Format / fix backend + frontend code |
+| `just test` | Run backend + frontend tests |
+| `just check` | Run all backend + frontend quality checks |
+
+Compatibility aliases are still available: `just install-all`, `just check-all`, `just web-install`, `just web-dev`, `just web-build`, `just web-lint`, `just web-typecheck`, `just web-check`.
 
 ## Docker
 
-| Raw | Make | Purpose |
+| Raw | just | Purpose |
 |---|---|---|
-| `docker compose up -d` | `make up` | Start full stack (nginx :1880 + fastapi :9999 + redis) |
-| `docker compose up -d --build` | `make rebuild` | Rebuild images and recreate containers (after code / Dockerfile changes) |
-| `docker compose down` | `make down` | Stop & remove containers |
-| `docker compose logs -f` | `make logs` | Tail all logs; pass `SVC=app\|nginx\|redis` to filter, `TAIL=N` for line count |
+| `docker compose up -d` | `just up` | Start full stack (nginx :1880 + fastapi :9999 + redis) |
+| `docker compose up -d --build` | `just rebuild` | Rebuild images and recreate containers (after code / Dockerfile changes) |
+| `docker compose down` | `just down` | Stop & remove containers |
+| `docker compose logs -f` | `just logs` | Tail all logs; use `just logs app` to filter by service, `just logs app 200` to set line count |
 
 ## Typical workflow
 
 ```bash
 # 1. install (first time)
-make install-all
+just install
 
 # 2. init DB (first time)
-make initdb
+just db-init
 
 # 3. create module skeleton
-make cli-init MOD=inventory
+just cli-init inventory
 
 # 4. edit app/business/inventory/models.py — define Tortoise models
 
 # 5. generate backend code
-make cli-gen MOD=inventory
+just cli-gen inventory
 
 # 6. generate frontend code
-make cli-gen-web MOD=inventory CN=Inventory
+just cli-gen-web inventory Inventory
 
 # 5+6 in one shot:
-# make cli-gen-all MOD=inventory CN=Inventory
+# just cli-gen-all inventory Inventory
 
 # 7. run migrations
-make mm
+just mm
 
 # 8. start dev servers
-make dev
+just run
 
 # 9. pre-push gate
-make check-all
+just check
 ```

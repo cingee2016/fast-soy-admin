@@ -72,7 +72,7 @@ TRUSTED_HOSTS=["10.0.0.0/8"]
 | `CORS_ALLOW_CREDENTIALS` | `true` | — |
 | `CORS_ALLOW_METHODS` | `["*"]` | — |
 | `CORS_ALLOW_HEADERS` | `["*"]` | — |
-| `DB_URL` | `postgres://postgres:password@localhost:5432/fastsoyadmin` | Tortoise URL; see [Switching DB](/en/ops/database) for SQLite/MySQL/MSSQL |
+| `DB_URL` | `postgres://postgres:password@localhost:5432/fastsoyadmin` | Tortoise URL; see [Switching DB](/en/ops/database) for SQLite/MySQL/MSSQL/Oracle |
 | `TORTOISE_ORM` | auto-built | **don't set manually**; multi-line JSON in `.env` is fragile |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis URL |
 | `JWT_ALGORITHM` | `HS256` | — |

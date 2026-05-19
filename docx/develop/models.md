@@ -160,7 +160,7 @@ DICTIONARY_SEEDS = [
 ## 数据库
 
 - 默认 PostgreSQL（`tortoise-orm[asyncpg]`）；SQLite（`aiosqlite`，tortoise 自带）也开箱即用
-- 通过 `.env` 的 `DB_URL` 切换到 SQLite / MySQL / SQL Server（**无需改代码**），详见 [切换数据库](../ops/database.md)
+- 通过 `.env` 的 `DB_URL` 切换到 SQLite / MySQL / SQL Server / Oracle（**无需改代码**），详见 [切换数据库](../ops/database.md)
 - 业务模块可声明独立 `DB_URL`，自动挂到独立 Tortoise 连接
 
 ## 迁移
@@ -168,7 +168,7 @@ DICTIONARY_SEEDS = [
 启动时**不会**自动建表 / 迁移。模型变更后手动：
 
 ```bash
-make mm     # = tortoise makemigrations + migrate
+just mm     # = tortoise makemigrations + migrate
 ```
 
 迁移文件位于 `migrations/<app_name>/`（系统模型 + 共用主库的业务模型在 `migrations/app_system/`，独立库的业务模块在 `migrations/app_<biz>/`）。

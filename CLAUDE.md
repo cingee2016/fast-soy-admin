@@ -7,22 +7,22 @@ FastSoyAdmin v1.0.0 | FastAPI + Vue3 全栈后台管理模板 | MIT
 文档（**所有约定细节看这里，本文不再重复**）：
 - 在线：https://sleep1223.github.io/fast-soy-admin-docs/
 - 离线：[docx/](docx/) — 与在线一致的 Markdown 镜像
-- 项目说明：[README.md](README.md) / [llms-full.md](llms-full.md)
+- 项目说明：[README.md](README.md) / [docx/](docx/)
 
 ---
 
 ## 重要文件（动手前先看）
 
 - **[.env](.env)** — 运行配置事实来源（`SECRET_KEY` / `DB_URL` / `REDIS_URL` / `JWT_*`）。从 [.env.example](.env.example) 复制；**不要**提交。
-- **[Makefile](Makefile)** — 所有常用命令入口。`make help` 列全部；不要绕过它直调底层命令。
+- **[justfile](justfile)** — 所有常用命令入口。`just --list` 列全部；不要绕过它直调底层命令。
 - **[app/core/](app/core/)** — 框架级代码，影响整个后端。改这里前读 [init_app.py](app/core/init_app.py)、[base_schema.py](app/core/base_schema.py)、[crud.py](app/core/crud.py)、[router.py](app/core/router.py)。
 - **[app/utils/__init__.py](app/utils/__init__.py)** — 业务模块统一 import 入口；新增 core 能力要给 business 用必须在这里 re-export。
 - **[app/system/services/init_helper.py](app/system/services/init_helper.py)** — `ensure_menu` / `ensure_role` / `reconcile_menu_subtree` / `refresh_api_list`。**业务模块允许从这里 import**，是少数显式暴露的 system service。
-- **`DB_URL` 指向的数据库** — 默认依赖含 `tortoise-orm[asyncpg]` + `aiosqlite`，PostgreSQL/SQLite 开箱即用；切 MySQL/MSSQL 需 `uv sync --extra {mysql|mssql}`。**不要**直接 SQL 改它绕过模型/迁移；走 `make mm`。
+- **`DB_URL` 指向的数据库** — 默认依赖含 `tortoise-orm[asyncpg]` + `aiosqlite`，PostgreSQL/SQLite 开箱即用；切 MySQL/MSSQL/Oracle 需 `uv sync --extra {mysql|mssql|oracle}`。**不要**直接 SQL 改它绕过模型/迁移；走 `just mm`。
 
 **Python 工具链** — 后端依赖与脚本一律走 `uv`：`uv sync` / `uv add <pkg>` / `uv run <cmd>`。**不要**直接调 `python` / `pip` / `python -m xxx`，**不要**用系统/pyenv 的 `python`。
 
-> **Trust by verify**：真实状态有时与配置/代码漂移（手工迁移、未跑 `mm`、Redis 缓存未刷新）。动手前用 `make dbhistory`、读 `.env`、看 Redis key、跑 `make check-all` 核对一遍。
+> **Trust by verify**：真实状态有时与配置/代码漂移（手工迁移、未跑 `mm`、Redis 缓存未刷新）。动手前用 `just dbhistory`、读 `.env`、看 Redis key、跑 `just check` 核对一遍。
 
 ---
 
@@ -31,23 +31,23 @@ FastSoyAdmin v1.0.0 | FastAPI + Vue3 全栈后台管理模板 | MIT
 ### 任何修改之前
 
 1. **明确范围**：system 还是 business？哪个模块？影响哪些表 / 路由 / 角色？
-2. **看清现状**：`git status`、`make dbhistory`、读相关 `models.py` / `init_data.py`
+2. **看清现状**：`git status`、`just dbhistory`、读相关 `models.py` / `init_data.py`
 3. **跟规范对齐**：[强制约定清单](#强制约定清单pr-review-checklist) + [docx/standard/](docx/standard/)
 4. **小步推进**：先生成迁移看 SQL 再 apply；改 schema 先单元测试
 
 ### 常用命令
 
 ```bash
-make install-all       # 装后端 (uv sync) + 前端 (pnpm install)
+just install       # 装后端 (uv sync) + 前端 (pnpm install)
 cp .env.example .env   # 首次复制环境变量
-make initdb            # 首次初始化数据库
+just db-init            # 首次初始化数据库
 
-make dev               # 并行启动后端 :9999 + 前端 :9527
-make run / web-dev     # 仅后端 / 仅前端
+just run               # 并行启动后端 :9999 + 前端 :9527
+just run backend / just run frontend     # 仅后端 / 仅前端
 
-make mm                # makemigrations + migrate（启动不会自动迁移）
-make check-all         # 提交前必跑：ruff + basedpyright + pytest + eslint + oxlint + vue-tsc
-make up / logs / down  # docker compose
+just mm                # makemigrations + migrate（启动不会自动迁移）
+just check         # 提交前必跑：ruff + basedpyright + pytest + eslint + oxlint + vue-tsc
+just up / just logs / just down  # docker compose
 ```
 
 完整命令清单见 [docx/reference/commands.md](docx/reference/commands.md)。
@@ -55,10 +55,10 @@ make up / logs / down  # docker compose
 ### 新增业务模块
 
 ```bash
-make cli-init MOD=<name>                # 生成骨架
+just cli-init <name>                # 生成骨架
 # 编辑 app/business/<name>/models.py 定义模型
-make cli-gen-all MOD=<name> CN=<中文名>  # 生成后端 + 前端 CRUD
-make mm && make dev && make check-all
+just cli-gen-all <name> <中文名>  # 生成后端 + 前端 CRUD
+just mm && just run && just check
 ```
 
 业务模块结构、autodiscover 约定见 [docx/develop/autodiscover.md](docx/develop/autodiscover.md)。
@@ -86,18 +86,18 @@ make mm && make dev && make check-all
 
 ### 始终允许（无需确认）
 
-- 读取仓库文件、`.env.example`、`Makefile`、`pyproject.toml`、`web/package.json`
+- 读取仓库文件、`.env.example`、`justfile`、`pyproject.toml`、`web/package.json`
 - 跑只读 / `--check` / dry-run 命令
-- `make help` / `make dbhistory` / `make fmt` / `make typecheck` / `make test` / `make check-all` / `make web-typecheck`
+- `just --list` / `just dbhistory` / `just fmt backend` / `just typecheck backend` / `just test backend` / `just check` / `just typecheck frontend`
 - 查看监控、日志、Radar 面板
 - 读取系统表 / 元数据：`information_schema.*`、Tortoise meta
 
 ### 需要用户确认（先问再做）
 
-- **框架级**：编辑 `app/core/*`、`app/utils/__init__.py` 的对外 re-export、`init_app.py` 全局中间件/异常处理器/路由挂载、`app/core/code.py` 已有响应码（追加新码不需要确认）、`Makefile` 已有 target 语义、`pyproject.toml` / `web/package.json` 主版本依赖升级
+- **框架级**：编辑 `app/core/*`、`app/utils/__init__.py` 的对外 re-export、`init_app.py` 全局中间件/异常处理器/路由挂载、`app/core/code.py` 已有响应码（追加新码不需要确认）、`justfile` 已有 target 语义、`pyproject.toml` / `web/package.json` 主版本依赖升级
 - **数据库**：`migrate`（先给用户看 SQL）、手写迁移文件、改 `BaseModel` / `AuditMixin` / `SoftDeleteMixin` / `TreeMixin`
 - **RBAC / 安全**：改 `init_data.py` 菜单/按钮/角色种子、`R_SUPER` 行为或 `DependPermission` 校验逻辑、`app/core/data_scope.py` 行级规则、`JWT_*` / `GUARD_*` / `CORS_ORIGINS`
-- **部署 / 服务**：改 `deploy/`、`docker-compose.yml`、`nginx.conf`，重启服务、`make up` / `make down`
+- **部署 / 服务**：改 `deploy/`、`docker-compose.yml`、`nginx.conf`，重启服务、`just up` / `just down`
 
 ### 禁止 — 始终需要明确授权
 
@@ -151,7 +151,6 @@ make mm && make dev && make check-all
 11. 不要 `raise HTTPException`；用 `BizError` / `SchemaValidationError`（**不是** `ValueError`）
 12. 业务自有缓存按 `<module>_<resource>:<scope>` 命名，读 → miss → 查 → 写 TTL，变更时主动失效；不要给分页接口加全局 `@cache(...)`
 13. 关键节点 / 权限拒绝用 `radar_log(...)`；高频调试 `log.debug`；不要 `print(...)`
-14. 所有函数加类型注解；`make check-all` 必须全绿
+14. 所有函数加类型注解；`just check` 必须全绿
 15. **`@crud.override` 内禁止**：`in_transaction(...)` / `request.app.state.redis` / 跨模型写（含 `m2m.add` / `m2m.clear`）/ 调其他模块 service / 发事件 / 写审计——这些必须下沉到 `services/`
 16. **CRUDRouter 适用边界**：仅给贫血资源用（字典/标签/部门/分类）。聚合根（用户/角色/订单/工单等带状态、副作用）用显式 `@router.post(...)` + `services/`。判断条件：override ≥ 3、override 内出现事务/Redis/跨模型写、资源是聚合根或带状态机、写操作有副作用（通知/审计/事件/失效缓存）——任一命中立即改写
-

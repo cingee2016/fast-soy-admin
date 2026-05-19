@@ -36,7 +36,7 @@
 
 **AI 驱动**
 
-- **AI Coding 友好** — 内置 [CLAUDE.md](CLAUDE.md) + [llms.txt](llms.txt) / [llms-full.md](llms-full.md)，AI 按项目规范产出代码
+- **AI Coding 友好** — 内置 [CLAUDE.md](CLAUDE.md) 与完整项目文档，AI 按项目规范产出代码
 - **生成器即 AI 工作面** — `cli-gen-all` 一键加表，AI 只关注 `models.py` 与覆写差异
 
 **工程效率**
@@ -77,9 +77,9 @@
 
 - [在线预览](https://fast-soy-admin.sleep0.de/)
 - [项目文档](https://sleep1223.github.io/fast-soy-admin-docs/)
-- [快速开始](https://sleep1223.github.io/fast-soy-admin-docs/guide/quick-start)
-- [开发指南](https://sleep1223.github.io/fast-soy-admin-docs/backend/development)
-- [命令参考](https://sleep1223.github.io/fast-soy-admin-docs/backend/commands)
+- [快速开始](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/quick-start)
+- [开发指南](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/workflow)
+- [命令参考](https://sleep1223.github.io/fast-soy-admin-docs/reference/commands)
 - [Apidog 接口文档](https://fast-soy-admin.apidog.io)
 
 ## 分支说明
@@ -98,65 +98,68 @@
 | 工具             | 版本    |
 | ---------------- | ------- |
 | Python           | >= 3.12 |
-| Node.js          | >= 20   |
-| uv · pnpm · make | 最新    |
+| Node.js          | >= 20.19 |
+| uv · pnpm · just | 最新    |
 
 ### Docker 部署（推荐）
 
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-make up                                                       # docker compose up -d
+just up                                                       # docker compose up -d
 docker compose exec app uv run python -m app.cli initdb       # 首次必须手动建表 + 基础数据
 docker compose restart app
 ```
 
 访问 `http://localhost:1880`。
 
-> 启动**不会**自动迁移；容器内 SQLite **未挂卷**，生产请切外部数据库或挂卷 `app_system.sqlite3`。详见 [部署文档](https://sleep1223.github.io/fast-soy-admin-docs/backend/deployment)。
+> 启动**不会**自动迁移；容器内 SQLite **未挂卷**，生产请切外部数据库或挂卷 `app_system.sqlite3`。详见 [部署文档](https://sleep1223.github.io/fast-soy-admin-docs/ops/deployment)。
 
 ### 本地开发
 
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-make install-all     # 后端 uv sync + 前端 pnpm install
+just install     # 后端 uv sync + 前端 pnpm install
 cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
-make initdb          # 首次建表 + 基础数据
-make dev             # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起停
+just db-init          # 首次建表 + 基础数据
+just run             # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起停
 ```
 
 ## 常用命令
 
-全部命令封装在 `Makefile`，运行 `make help` 查看完整列表。
+全部命令封装在 `justfile`，运行 `just --list` 查看完整列表。
 
 | 命令                                   | 作用                                             |
 | -------------------------------------- | ------------------------------------------------ |
-| `make dev`                             | 同时启动后端 + 前端开发服务器                    |
-| `make check-all`                       | 跑完后端 + 前端所有质量检查（提交前必跑）        |
-| `make mm`                              | `makemigrations` + `migrate`                     |
-| `make cli-init MOD=xxx`                | 创建业务模块骨架                                 |
-| `make cli-gen MOD=xxx`                 | 根据 `models.py` 生成后端代码                    |
-| `make cli-gen-web MOD=xxx CN=中文名`   | 根据 `models.py` 生成前端代码                    |
-| `make cli-gen-all MOD=xxx CN=中文名`   | 一次生成前后端代码                               |
-| `make up` / `make down` / `make logs`  | Docker 启停与日志                                |
+| `just install`                         | 安装后端 + 前端依赖                              |
+| `just run`                             | 同时启动后端 + 前端开发服务器                    |
+| `just run backend` / `just run frontend` | 仅启动后端 / 前端                              |
+| `just check`                           | 跑完后端 + 前端所有质量检查（提交前必跑）        |
+| `just check backend` / `just check frontend` | 仅检查后端 / 前端                         |
+| `just mm`                              | `makemigrations` + `migrate`                     |
+| `just cli-init xxx`                | 创建业务模块骨架                                 |
+| `just cli-gen xxx`                 | 根据 `models.py` 生成后端代码                    |
+| `just cli-gen-web xxx 中文名`   | 根据 `models.py` 生成前端代码                    |
+| `just cli-gen-all xxx 中文名`   | 一次生成前后端代码                               |
+| `just up` / `just down` / `just logs`  | Docker 启停与日志                                |
 
-完整清单参见 [命令参考](https://sleep1223.github.io/fast-soy-admin-docs/backend/commands)。
+完整清单参见 [命令参考](https://sleep1223.github.io/fast-soy-admin-docs/reference/commands)。
 
 ## 新增业务模块
 
 以 `inventory`（库存管理）为例：
 
 ```bash
-make cli-init MOD=inventory                      # 1. 创建模块骨架
+just cli-init inventory                      # 1. 创建模块骨架
 $EDITOR app/business/inventory/models.py         # 2. 定义 Tortoise 模型
-make cli-gen-all MOD=inventory CN=库存管理       # 3. 生成前后端 CRUD（i18n 自动并入）
-make mm                                          # 4. 迁移
-make dev                                         # 5. 启动验证
-make check-all                                   # 6. 提交前检查
+just cli-gen-all inventory 库存管理       # 3. 生成前后端 CRUD（i18n 自动并入）
+just mm                                          # 4. 迁移
+just run                                         # 5. 启动验证
+just check                                   # 6. 提交前检查
 ```
 
-完整流程与字段类型映射见 [开发指南](https://sleep1223.github.io/fast-soy-admin-docs/backend/development)。
+完整流程与字段类型映射见 [开发指南](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/workflow)。
 
 ## 架构
 
@@ -177,11 +180,11 @@ web/src/
 └── locales/       # vue-i18n
 ```
 
-分层：`api/` → `services/` → `controllers/` → `models + schemas`。业务模块**禁止**反向 import `app.system.*`（少数显式暴露的 service 除外），**禁止**互相 import；跨模块走事件总线。详见 [架构](https://sleep1223.github.io/fast-soy-admin-docs/backend/architecture)。
+分层：`api/` → `services/` → `controllers/` → `models + schemas`。业务模块**禁止**反向 import `app.system.*`（少数显式暴露的 service 除外），**禁止**互相 import；跨模块走事件总线。详见 [架构](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/architecture)。
 
 ## 切换数据库
 
-修改 `.env` 中的 `DB_URL`，运行 `make initdb`。支持 PostgreSQL / SQLite / MySQL / SQL Server。
+修改 `.env` 中的 `DB_URL`，运行 `just db-init`。支持 PostgreSQL / SQLite / MySQL / SQL Server / Oracle。
 
 默认依赖已包含 PostgreSQL（`tortoise-orm[asyncpg]`）与 SQLite（`aiosqlite`，tortoise 自带），其他数据库按需安装：
 
@@ -191,7 +194,7 @@ uv sync --extra mssql        # SQL Server (asyncodbc)
 uv sync --extra oracle       # Oracle (asyncodbc)
 ```
 
-业务模块可在自己的 `config.py` 声明独立 `DB_URL`，autodiscover 会注册为 `conn_<biz>`；跨模型事务用 `get_db_conn(Model)` 取连接名。详见 [切换数据库](https://sleep1223.github.io/fast-soy-admin-docs/backend/database)。
+业务模块可在自己的 `config.py` 声明独立 `DB_URL`，autodiscover 会注册为 `conn_<biz>`；跨模型事务用 `get_db_conn(Model)` 取连接名。详见 [切换数据库](https://sleep1223.github.io/fast-soy-admin-docs/ops/database)。
 
 ## 响应码
 
@@ -209,7 +212,7 @@ uv sync --extra oracle       # Oracle (asyncodbc)
 | `26xx`      | Schema 必填兜底                     | 显示错误消息             |
 | `4000–9999` | 用户自定义（业务模块从 `4000` 起）   | 业务自行处理             |
 
-详细码表见 [响应码文档](https://sleep1223.github.io/fast-soy-admin-docs/backend/codes)。
+详细码表见 [响应码文档](https://sleep1223.github.io/fast-soy-admin-docs/reference/codes)。
 
 ## 前端代码同步
 

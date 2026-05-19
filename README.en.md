@@ -36,7 +36,7 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 
 **AI-native**
 
-- **AI-coding friendly** — ships with [CLAUDE.md](CLAUDE.md) + [llms.txt](llms.txt) / [llms-full.md](llms-full.md) feeding Claude Code / Cursor / Copilot the full architecture, layering rules, API conventions, response codes and PR checklist; agents produce code that matches project conventions out of the box
+- **AI-coding friendly** — ships with [CLAUDE.md](CLAUDE.md) and full project docs so agents produce code that matches project conventions out of the box
 - **Generator as the AI workbench** — `cli-gen-all` collapses "add a table" into one command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
 
 **Engineering velocity**
@@ -77,9 +77,9 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 
 - [Live preview](https://fast-soy-admin.sleep0.de/)
 - [Documentation](https://sleep1223.github.io/fast-soy-admin-docs/en/)
-- [Quick start](https://sleep1223.github.io/fast-soy-admin-docs/en/guide/quick-start)
-- [Development guide](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/development)
-- [Commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/commands)
+- [Quick start](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/quick-start)
+- [Development guide](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/workflow)
+- [Commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/reference/commands)
 - [Apidog API docs](https://fast-soy-admin.apidog.io)
 
 ## Branches
@@ -98,63 +98,66 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 | Tool             | Version |
 | ---------------- | ------- |
 | Python           | >= 3.12 |
-| Node.js          | >= 20   |
-| uv · pnpm · make | latest  |
+| Node.js          | >= 20.19 |
+| uv · pnpm · just | latest  |
 
 ### Docker (recommended)
 
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-make up                                                       # docker compose up -d
+just up                                                       # docker compose up -d
 docker compose exec app uv run python -m app.cli initdb       # first-run: create tables + seed
 docker compose restart app
 ```
 
 Open `http://localhost:1880`.
 
-> Migrations do **not** run automatically; the container's SQLite is **not** volume-mounted by default. For production, switch to an external DB or mount a volume for `app_system.sqlite3`. See the [deployment guide](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/deployment).
+> Migrations do **not** run automatically; the container's SQLite is **not** volume-mounted by default. For production, switch to an external DB or mount a volume for `app_system.sqlite3`. See the [deployment guide](https://sleep1223.github.io/fast-soy-admin-docs/en/ops/deployment).
 
 ### Local development
 
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-make install-all     # uv sync + pnpm install
+just install     # uv sync + pnpm install
 cp .env.example .env # copy env template; update SECRET_KEY / DB_URL / REDIS_URL as needed
-make initdb          # first-time: create tables + seed
-make dev             # backend (:9999) + frontend (:9527) in parallel, Ctrl+C stops both
+just db-init          # first-time: create tables + seed
+just run             # backend (:9999) + frontend (:9527) in parallel, Ctrl+C stops both
 ```
 
 ## Common Commands
 
-All commands are wrapped in `Makefile`. Run `make help` for the full list.
+All commands are wrapped in `justfile`. Run `just --list` for the full list.
 
 | Command                                | Purpose                                               |
 | -------------------------------------- | ----------------------------------------------------- |
-| `make dev`                             | Run backend + frontend dev servers together           |
-| `make check-all`                       | Run all backend + frontend quality gates (pre-commit) |
-| `make mm`                              | `makemigrations` + `migrate`                          |
-| `make cli-init MOD=xxx`                | Scaffold a new business module                        |
-| `make cli-gen MOD=xxx`                 | Generate backend code from `models.py`                |
-| `make cli-gen-web MOD=xxx CN=name`     | Generate frontend code from `models.py`               |
-| `make cli-gen-all MOD=xxx CN=name`     | Generate both at once                                 |
-| `make up` / `make down` / `make logs`  | Docker lifecycle                                      |
+| `just install`                         | Install backend + frontend dependencies               |
+| `just run`                             | Run backend + frontend dev servers together           |
+| `just run backend` / `just run frontend` | Run backend / frontend only                         |
+| `just check`                           | Run all backend + frontend quality gates (pre-commit) |
+| `just check backend` / `just check frontend` | Check backend / frontend only                  |
+| `just mm`                              | `makemigrations` + `migrate`                          |
+| `just cli-init xxx`                | Scaffold a new business module                        |
+| `just cli-gen xxx`                 | Generate backend code from `models.py`                |
+| `just cli-gen-web xxx name`     | Generate frontend code from `models.py`               |
+| `just cli-gen-all xxx name`     | Generate both at once                                 |
+| `just up` / `just down` / `just logs`  | Docker lifecycle                                      |
 
-See the [commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/commands) for the complete list.
+See the [commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/reference/commands) for the complete list.
 
 ## Adding a new business module
 
 ```bash
-make cli-init MOD=inventory                       # 1. scaffold the module
+just cli-init inventory                       # 1. scaffold the module
 $EDITOR app/business/inventory/models.py          # 2. define Tortoise models
-make cli-gen-all MOD=inventory CN=Inventory       # 3. generate backend + frontend CRUD (i18n auto-merged)
-make mm                                           # 4. run migrations
-make dev                                          # 5. verify
-make check-all                                    # 6. pre-commit
+just cli-gen-all inventory Inventory       # 3. generate backend + frontend CRUD (i18n auto-merged)
+just mm                                           # 4. run migrations
+just run                                          # 5. verify
+just check                                    # 6. pre-commit
 ```
 
-Walkthrough and field type mappings: [Development guide](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/development).
+Walkthrough and field type mappings: [Development guide](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/workflow).
 
 ## Architecture
 
@@ -175,11 +178,11 @@ web/src/
 └── locales/       # vue-i18n
 ```
 
-Layers: `api/` → `services/` → `controllers/` → `models + schemas`. Business modules **must not** reverse-import `app.system.*` (except a few explicitly exposed services) and **must not** import sibling modules — cross-module talk uses the event bus. See [architecture](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/architecture).
+Layers: `api/` → `services/` → `controllers/` → `models + schemas`. Business modules **must not** reverse-import `app.system.*` (except a few explicitly exposed services) and **must not** import sibling modules — cross-module talk uses the event bus. See [architecture](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/architecture).
 
 ## Switching databases
 
-Change `DB_URL` in `.env` and run `make initdb`. PostgreSQL / SQLite / MySQL / SQL Server supported.
+Change `DB_URL` in `.env` and run `just db-init`. PostgreSQL / SQLite / MySQL / SQL Server / Oracle are supported.
 
 PostgreSQL (`tortoise-orm[asyncpg]`) and SQLite (`aiosqlite`, ships with tortoise-orm) are bundled by default; install extras for other engines:
 
@@ -189,7 +192,7 @@ uv sync --extra mssql        # SQL Server (asyncodbc)
 uv sync --extra oracle       # Oracle (asyncodbc)
 ```
 
-A module can declare its own `DB_URL` in `config.py`; autodiscover registers it as `conn_<biz>`. For cross-model transactions, use `get_db_conn(Model)` to pick the connection. See [switch database](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/database).
+A module can declare its own `DB_URL` in `config.py`; autodiscover registers it as `conn_<biz>`. For cross-model transactions, use `get_db_conn(Model)` to pick the connection. See [switch database](https://sleep1223.github.io/fast-soy-admin-docs/en/ops/database).
 
 ## Response Codes
 
@@ -207,7 +210,7 @@ All endpoints return `{"code": "xxxx", "msg": "...", "data": ...}` with HTTP sta
 | `26xx`      | Schema required-field fallback           | Show error toast                    |
 | `4000–9999` | User-defined (modules start at `4000`)   | Handled by callers                  |
 
-See [response codes](https://sleep1223.github.io/fast-soy-admin-docs/en/backend/codes).
+See [response codes](https://sleep1223.github.io/fast-soy-admin-docs/en/reference/codes).
 
 ## Frontend sync
 

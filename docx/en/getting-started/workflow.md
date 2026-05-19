@@ -7,8 +7,8 @@ End-to-end flow for adding a business module. The CLI only asks you to write `mo
 Run all commands from the project root. First-time setup:
 
 ```bash
-make install-all    # backend + frontend deps
-make initdb         # first-time DB init (only once)
+just install    # backend + frontend deps
+just db-init         # first-time DB init (only once)
 ```
 
 ## Walkthrough: `inventory` (warehouse management)
@@ -16,7 +16,7 @@ make initdb         # first-time DB init (only once)
 ### 1. Create the module skeleton
 
 ```bash
-make cli-init MOD=inventory
+just cli-init inventory
 # Will prompt for the Chinese name, e.g. "Inventory"
 ```
 
@@ -82,7 +82,7 @@ Conventions:
 ### 3. Generate backend code
 
 ```bash
-make cli-gen MOD=inventory
+just cli-gen inventory
 ```
 
 Interactively select fuzzy-search fields (Enter accepts all). Generates:
@@ -105,10 +105,10 @@ Auto runs `ruff check --fix` + `ruff format`.
 ### 4. Generate frontend code
 
 ```bash
-make cli-gen-web MOD=inventory CN=Inventory
+just cli-gen-web inventory Inventory
 ```
 
-> Or `make cli-gen-all MOD=inventory CN=Inventory` to do steps 3 + 4 in one shot.
+> Or `just cli-gen-all inventory Inventory` to do steps 3 + 4 in one shot.
 
 Pick list-display and search fields per model. Generates:
 
@@ -153,13 +153,13 @@ Foreign keys / custom enums in the frontend can't auto-derive their dropdown sou
 ### 7. Migrate the database
 
 ```bash
-make mm         # = makemigrations + migrate
+just mm         # = makemigrations + migrate
 ```
 
 ### 8. Run + verify
 
 ```bash
-make dev        # both servers
+just run        # both servers
 ```
 
 Visit `http://localhost:9527`, log in, navigate to `/inventory/warehouse` and `/inventory/product` to verify CRUD.
@@ -167,7 +167,7 @@ Visit `http://localhost:9527`, log in, navigate to `/inventory/warehouse` and `/
 ### 9. Pre-push gate
 
 ```bash
-make check-all  # backend + frontend full check
+just check  # backend + frontend full check
 ```
 
 ## Field-type cheat sheet

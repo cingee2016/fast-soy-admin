@@ -19,14 +19,14 @@ docker compose up -d
 ```bash
 docker compose logs -f          # all services
 docker compose logs -f app      # backend only
-make logs                       # Makefile entry; supports SVC=app|nginx|redis, TAIL=N
+just logs                       # justfile entry; supports `just logs app` for service filtering and `just logs app 200` for line count
 ```
 
 ### Update
 
 ```bash
 git pull
-docker compose down && docker compose up -d --build   # add --build for code changes (or `make rebuild`)
+docker compose down && docker compose up -d --build   # add --build for code changes (or `just rebuild`)
 ```
 
 ## Manual deployment
@@ -84,7 +84,7 @@ server {
 - [ ] `PROXY_HEADERS_ENABLED=true` + `TRUSTED_HOSTS` if behind nginx / gateway
 - [ ] `CORS_ORIGINS` restricted to actual frontend origins
 - [ ] Logs rotated / shipped (default goes to `logs/`, retention 30 days)
-- [ ] Migrations applied: `make mm` after deploy
+- [ ] Migrations applied: `just mm` after deploy
 - [ ] Multi-worker setup verified: only the leader writes seeds (check `app:init_done` in Redis)
 
 ## See also

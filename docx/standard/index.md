@@ -10,21 +10,21 @@
 
 | 项 | 工具 | 命令 |
 |---|---|---|
-| 后端 lint / format | Ruff（行宽 200，双引号，规则 E/F/I） | `make fmt` / `make lint` |
-| 后端类型 | basedpyright（standard 模式） | `make typecheck` |
-| 后端测试 | pytest | `make test` |
-| 前端 lint | ESLint（`@soybeanjs/eslint-config-vue`）+ oxlint | `make web-lint` |
-| 前端类型 | vue-tsc | `make web-typecheck` |
-| 全栈一键 | — | `make check-all` |
+| 后端 lint / format | Ruff（行宽 200，双引号，规则 E/F/I） | `just fmt backend` / `just lint backend` |
+| 后端类型 | basedpyright（standard 模式） | `just typecheck backend` |
+| 后端测试 | pytest | `just test backend` |
+| 前端 lint | ESLint（`@soybeanjs/eslint-config-vue`）+ oxlint | `just lint frontend` |
+| 前端类型 | vue-tsc | `just typecheck frontend` |
+| 全栈一键 | — | `just check` |
 | 提交前钩子 | simple-git-hooks | `cd web && pnpm install` 自动安装 |
 
 ## 提交前必跑
 
 ```bash
-make check-all
+just check
 ```
 
-只动了后端 / 前端时，可分别跑 `make check` / `make web-check`。
+只动了后端 / 前端时，可分别跑 `just check backend` / `just check frontend`。
 
 ## VS Code 推荐配置
 

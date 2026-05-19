@@ -64,7 +64,7 @@ pnpm lint         # ESLint + oxlint
 pnpm typecheck    # vue-tsc
 ```
 
-也可以从项目根目录走 `make web-dev / web-build / web-lint / web-typecheck` 或一键 `make dev`（同时起前后端）。详见 [命令参考](../reference/commands.md)。
+也可以从项目根目录走 `just run frontend` / `just build frontend` / `just lint frontend` / `just typecheck frontend` 或一键 `just run`（同时起前后端）。详见 [命令参考](../reference/commands.md)。
 
 ## 与后端的关系
 

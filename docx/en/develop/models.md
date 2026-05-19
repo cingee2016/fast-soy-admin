@@ -158,8 +158,8 @@ DICTIONARY_SEEDS = [
 
 ## Database
 
-- Default: SQLite (`app_system.sqlite3`)
-- Switch to PostgreSQL / MySQL / SQL Server via `.env` `DB_URL` (**no code change**), see [Switching DB](/en/ops/database)
+- Default: PostgreSQL (`tortoise-orm[asyncpg]`); SQLite (`aiosqlite`) also works out of the box
+- Switch to SQLite / MySQL / SQL Server / Oracle via `.env` `DB_URL` (**no code change**), see [Switching DB](/en/ops/database)
 - Business modules can declare a standalone `DB_URL`; autodiscover registers a separate Tortoise connection
 
 ## Migrations
@@ -167,7 +167,7 @@ DICTIONARY_SEEDS = [
 Tables are **not** auto-created at startup. After model changes:
 
 ```bash
-make mm     # = tortoise makemigrations + migrate
+just mm     # = tortoise makemigrations + migrate
 ```
 
 Migrations live in `migrations/<app_name>/` (system + shared business in `migrations/app_system/`; standalone-DB modules in `migrations/app_<biz>/`).

@@ -5,11 +5,11 @@ Business pages go live in three steps: create file → CLI generates → backend
 ## Recommended: one-shot CLI
 
 ```bash
-make cli-init MOD=inventory                 # backend module skeleton
+just cli-init inventory                 # backend module skeleton
 # edit app/business/inventory/models.py to define models
-make cli-gen-all MOD=inventory CN=Inventory  # generate frontend + backend
-make mm                                      # migrate
-make dev                                     # restart
+just cli-gen-all inventory Inventory  # generate frontend + backend
+just mm                                      # migrate
+just run                                     # restart
 ```
 
 The CLI produces:

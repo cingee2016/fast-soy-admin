@@ -22,7 +22,7 @@ hero:
 features:
   - icon: "\U0001F916"
     title: AI 驱动开发
-    details: 内置 CLAUDE.md + llms.txt，AI Agent 按项目规范产出代码。
+    details: 内置 CLAUDE.md 与完整项目文档，AI Agent 按项目规范产出代码。
   - icon: "\U0001F680"
     title: CLI 端到端生成
     details: 一条命令从模型生成前后端 CRUD，分钟级交付一张表。

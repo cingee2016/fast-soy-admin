@@ -145,7 +145,7 @@ Full sample: [HR employee list](../../../web/src/views/hr/employee/index.vue).
 
 ## CLI auto-generation
 
-`make cli-gen-web MOD=xxx` produces a list page wired with `useNaivePaginatedTable` + `useTableOperate`, including search form, drawer, action column, and batch delete. Manual code should follow the same template.
+`just cli-gen-web xxx` produces a list page wired with `useNaivePaginatedTable` + `useTableOperate`, including search form, drawer, action column, and batch delete. Manual code should follow the same template.
 
 ## See also
 

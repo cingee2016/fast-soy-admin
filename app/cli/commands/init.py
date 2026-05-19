@@ -16,7 +16,7 @@ MODELS_TEMPLATE = '''\
 
 在此文件中定义 Tortoise ORM 模型，完成后运行:
 
-    make cli-gen-all MOD={module_name} CN={cn_name}
+    just cli-gen-all {module_name} {cn_name}
 
 即可一次生成后端 schemas / controllers / api 及前端 service / views / i18n 等文件。
 """
@@ -72,18 +72,18 @@ GUIDE_TEXT = """\
 
   \033[1m2.\033[0m 模型写好后，运行代码生成（后端 + 前端 CRUD 一次生成）：
 
-     \033[36mmake cli-gen-all MOD={module_name} CN={cn_name}\033[0m
+     \033[36mjust cli-gen-all {module_name} {cn_name}\033[0m
 
      将自动生成后端 schemas.py / controllers.py / services.py / api/，
      以及前端 service / typings / views / i18n 等文件。
 
   \033[1m3.\033[0m 生成后执行数据库迁移：
 
-     \033[36mmake mm\033[0m
+     \033[36mjust mm\033[0m
 
   \033[1m4.\033[0m 启动服务验证：
 
-     \033[36mmake run\033[0m
+     \033[36mjust run\033[0m
 """
 
 

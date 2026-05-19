@@ -1,6 +1,6 @@
 # Startup Init & Reconciliation
 
-Business modules declare menus, roles, buttons, and seed data via `init_data.py`. On every startup, autodiscover invokes each module's `init()`. Below: the sync semantics for each data category and how to make a module the single source of truth for its subtree.
+Business modules declare menus, roles, buttons, and seed data via `init_data.py`. On every startup, autodiscover invokes each module's `init()`. Below: the sync semantics for each data category and how a module becomes the single source of truth for its subtree.
 
 ## Startup flow
 

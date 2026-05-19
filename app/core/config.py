@@ -31,8 +31,8 @@ class Settings(BaseSettings):
 
     # 数据库连接 URL — Tortoise ORM 原生支持多引擎, 直接在 .env 里覆盖 DB_URL
     # 即可切换, 无需改代码。默认依赖含 PostgreSQL 驱动 (tortoise-orm[asyncpg])
-    # 与 SQLite 驱动 (aiosqlite, tortoise-orm 自带); 切到 MySQL / MSSQL 需安装
-    # 对应 extras: uv sync --extra {mysql|mssql}。
+    # 与 SQLite 驱动 (aiosqlite, tortoise-orm 自带); 切到 MySQL / MSSQL / Oracle 需安装
+    # 对应 extras: uv sync --extra {mysql|mssql|oracle}。
     # URL 格式参考 tortoise-orm 官方文档:
     #
     #   postgres: postgres://user:password@host:5432/dbname   # 默认走 asyncpg

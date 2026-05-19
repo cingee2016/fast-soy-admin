@@ -7,9 +7,9 @@
 所有命令在项目根目录执行。首次使用先装依赖、建表：
 
 ```bash
-make install-all     # 后端 + 前端依赖
+just install     # 后端 + 前端依赖
 cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
-make initdb          # 首次建表 + 基础数据
+just db-init          # 首次建表 + 基础数据
 ```
 
 ## 创建新模块：以 `inventory`（库存管理）为例
@@ -17,7 +17,7 @@ make initdb          # 首次建表 + 基础数据
 ### 1. 创建模块骨架
 
 ```bash
-make cli-init MOD=inventory
+just cli-init inventory
 # 执行过程中会要求输入模块中文名，如"库存管理"
 ```
 
@@ -84,7 +84,7 @@ class Product(BaseModel, AuditMixin):
 ### 3. 生成后端代码
 
 ```bash
-make cli-gen MOD=inventory
+just cli-gen inventory
 ```
 
 交互式地选择每个模型的模糊搜索字段（可直接回车全选），生成：
@@ -107,10 +107,10 @@ app/business/inventory/
 ### 4. 生成前端代码
 
 ```bash
-make cli-gen-web MOD=inventory CN=库存管理
+just cli-gen-web inventory 库存管理
 ```
 
-> 也可以用 `make cli-gen-all MOD=inventory CN=库存管理` 一次跑完步骤 3 和 4。
+> 也可以用 `just cli-gen-all inventory 库存管理` 一次跑完步骤 3 和 4。
 
 选择每个模型的**列表展示字段**和**搜索字段**后，生成：
 
@@ -155,13 +155,13 @@ web/
 ### 7. 迁移数据库
 
 ```bash
-make mm         # == makemigrations + migrate
+just mm         # == makemigrations + migrate
 ```
 
 ### 8. 启动并验证
 
 ```bash
-make dev        # 同时起前后端
+just run        # 同时起前后端
 ```
 
 访问 `http://localhost:9527` 登录，进入 `/inventory/warehouse`、`/inventory/product` 验证 CRUD。
@@ -169,7 +169,7 @@ make dev        # 同时起前后端
 ### 9. 提交前质量检查
 
 ```bash
-make check-all  # 后端 + 前端全部质量检查
+just check  # 后端 + 前端全部质量检查
 ```
 
 ## 字段类型映射速查
@@ -397,4 +397,4 @@ async def init():
 - [API 路由约定](../develop/api.md) — URL / 方法 / 命名
 - [启动初始化与对账](../develop/init-data.md) — 菜单 / 角色 / API 的同步语义
 - [切换后端数据库](../ops/database.md) — SQLite / Postgres / MySQL 切换，业务模块独立库
-- [命令参考](../reference/commands.md) — 所有 `make` 命令
+- [命令参考](../reference/commands.md) — 所有 `just` 命令

@@ -9,12 +9,12 @@ Grouped by scenario: startup, modules, permissions, routing, API IDs, and deploy
 Tables are **not** auto-created at startup. First-time setup:
 
 ```bash
-make initdb        # equivalent to tortoise init-db + first-time seeds
+just db-init        # equivalent to tortoise init-db + first-time seeds
 # or
-make mm            # makemigrations + migrate
+just mm            # makemigrations + migrate
 ```
 
-For ongoing model changes, use `make mm`. See [Commands](/en/reference/commands).
+For ongoing model changes, use `just mm`. See [Commands](/en/reference/commands).
 
 ### Redis connection fails
 
@@ -236,8 +236,8 @@ redis-cli get app:init_done    # should be "1"
 ### View backend logs
 
 ```bash
-make logs                        # all
-make logs SVC=app                # backend only; SVC=nginx|redis, TAIL=N for line count
+just logs                        # all
+just logs app                # backend only; `just logs nginx` / `just logs redis`; pass a second argument for line count
 docker compose logs -f app       # equivalent native form
 ```
 
@@ -245,7 +245,7 @@ docker compose logs -f app       # equivalent native form
 
 ```bash
 git pull
-make down && make up
+just down && just up
 ```
 
 ### Wrong timezone in container

@@ -8,7 +8,7 @@ A layered, modular **FastAPI** backend. Code is split into "system" and "busines
 |------|---------|
 | [FastAPI](https://fastapi.tiangolo.com/) ≥ 0.121 | Async web framework |
 | [Pydantic v2](https://docs.pydantic.dev/) | Request / response validation & serialization |
-| [Tortoise ORM](https://tortoise.github.io) ≥ 0.25 | Async ORM (vendored copy at `/tortoise-orm/`) |
+| [Tortoise ORM](https://tortoise.github.io) ≥ 1.1 | Async ORM managed through `pyproject.toml` |
 | [Tortoise built-in migrations](https://tortoise.github.io/migration.html) | Manual (not auto-run at startup) |
 | [Redis](https://redis.io/) | Cache (fastapi-cache2) + multi-worker init lock + RBAC hot data |
 | [Argon2](https://argon2-cffi.readthedocs.io/) | Password hashing |

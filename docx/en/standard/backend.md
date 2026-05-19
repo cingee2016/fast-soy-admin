@@ -111,10 +111,10 @@ See [Naming](/en/standard/naming).
 - ✅ Pre-push:
 
 ```bash
-make fmt          # ruff check --fix + format
-make typecheck    # basedpyright
-make test         # pytest
-make check        # all three above
+just fmt backend       # ruff check --fix + format
+just typecheck backend # basedpyright
+just test backend      # pytest
+just check backend     # all three above
 ```
 
 - ✅ Line 200, double-quote, sorted imports
@@ -146,7 +146,7 @@ See [Cache](/en/ops/cache).
 ## 14. Pre-push gate
 
 ```bash
-make check-all    # backend + frontend full quality check
+just check    # backend + frontend full quality check
 ```
 
 Includes: `ruff fix + format`, `basedpyright`, `pytest`, `eslint + oxlint`, `vue-tsc`.

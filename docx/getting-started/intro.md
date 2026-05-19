@@ -11,12 +11,12 @@ monorepo 结构：`/app` 后端，`/web` 前端，`/deploy` Docker / Nginx。
 
 **AI 驱动**
 
-- **AI Coding 友好** — 仓库内置 `CLAUDE.md` + `llms.txt` / `llms-full.md`，把架构约定、分层职责、API 规范、响应码表、PR checklist 一次喂给 Claude Code / Cursor / Copilot，AI 直接按项目规范产出代码
-- **生成器即 AI 工作面** — `make cli-gen-all` 把"加一张表"压缩成单条命令，AI 只关注 `models.py` 业务建模与覆写差异，剩余 90% 模板由 CLI 完成
+- **AI Coding 友好** — 仓库内置 `CLAUDE.md` 与完整项目文档，把架构约定、分层职责、API 规范、响应码表、PR checklist 集中给 AI Agent，直接按项目规范产出代码
+- **生成器即 AI 工作面** — `just cli-gen-all` 把"加一张表"压缩成单条命令，AI 只关注 `models.py` 业务建模与覆写差异，剩余 90% 模板由 CLI 完成
 
 **工程效率**
 
-- **CLI 端到端生成** — `make cli-init / cli-gen-all` 从 Tortoise 模型一键产出前后端 CRUD（schemas / controllers / api + views / service / typings / i18n）
+- **CLI 端到端生成** — `just cli-init` / `just cli-gen-all` 从 Tortoise 模型一键产出前后端 CRUD（schemas / controllers / api + views / service / typings / i18n）
 - **CRUDRouter + `@crud.override`** — 标准 6 路由由工厂统一生成，差异部分按需覆写，并显式划定"聚合根禁用"边界，避免抽象上瘾
 
 **可扩展架构**

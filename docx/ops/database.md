@@ -1,6 +1,6 @@
 # 切换后端数据库
 
-FastSoyAdmin 的 ORM 层用 [Tortoise ORM](https://tortoise.github.io)，原生支持 **PostgreSQL / SQLite / MySQL(MariaDB) / SQL Server** 四种引擎。**切换数据库只需改一个环境变量 `DB_URL`，不需要动代码**。
+FastSoyAdmin 的 ORM 层用 [Tortoise ORM](https://tortoise.github.io)，支持 **PostgreSQL / SQLite / MySQL(MariaDB) / SQL Server / Oracle**。**切换数据库只需改一个环境变量 `DB_URL`，不需要动代码**。
 
 ## 快速切换（单数据库）
 
@@ -23,13 +23,13 @@ DB_URL="mssql://sa:Password123@localhost:1433/fastsoyadmin?driver=ODBC%20Driver%
 切换完成后执行一次首次初始化：
 
 ```bash
-make initdb         # 等同 tortoise init-db + 首次种子数据
+just db-init         # 等同 tortoise init-db + 首次种子数据
 ```
 
 后续模型变更照旧：
 
 ```bash
-make mm             # makemigrations + migrate
+just mm             # makemigrations + migrate
 ```
 
 ## URL 语法速查
@@ -146,7 +146,7 @@ migrations/
 └── billing/             # billing 模块独立库
 ```
 
-`make makemigrations` 会为每个 app 生成对应目录。
+`just makemigrations` 会为每个 app 生成对应目录。
 
 ## 常见坑位
 
