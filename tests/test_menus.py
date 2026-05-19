@@ -2,6 +2,8 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.code import Code
+from app.core.sqids import encode_id
+from app.system.models import Button, Menu, MenuType, StatusType
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -27,10 +29,47 @@ class TestMenuList:
         assert data["code"] == "0000"
 
     async def test_get_menu_buttons_tree(self, auth_client: AsyncClient):
+        menu = await Menu.create(
+            menu_name="ButtonTreeMenu",
+            menu_type=MenuType.menu,
+            route_name="button_tree_menu",
+            route_path="/button-tree-menu",
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        button = await Button.create(button_code="B_TEST_TREE_ACTION", button_desc="测试按钮名")
+        await menu.by_menu_buttons.add(button)
+
         resp = await auth_client.get("/api/v1/system-manage/menus/buttons/tree")
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
+
+        def collect_leaf_nodes(nodes: list[dict]) -> list[dict]:
+            leaves: list[dict] = []
+            for node in nodes:
+                children = node.get("children") or []
+                if children:
+                    leaves.extend(collect_leaf_nodes(children))
+                elif not str(node["id"]).startswith("parent$"):
+                    leaves.append(node)
+            return leaves
+
+        leaf_nodes = collect_leaf_nodes(data["data"])
+
+        def collect_leaf_labels(nodes: list[dict]) -> list[str]:
+            labels: list[str] = []
+            for node in nodes:
+                children = node.get("children") or []
+                if children:
+                    labels.extend(collect_leaf_labels(children))
+                elif not str(node["id"]).startswith("parent$"):
+                    labels.append(node["label"])
+            return labels
+
+        assert "测试按钮名" in collect_leaf_labels(data["data"])
+        assert "B_TEST_TREE_ACTION" not in collect_leaf_labels(data["data"])
+        assert any(node["id"] == encode_id(button.id) for node in leaf_nodes)
 
 
 class TestMenuCRUD:

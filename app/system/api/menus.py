@@ -150,7 +150,7 @@ async def _():
     for menu in all_menus:
         buttons = await menu.by_menu_buttons.all()
         if buttons:
-            menu_button_map[menu.id] = [{"id": b.id, "label": b.button_code, "pId": menu.id} for b in buttons]
+            menu_button_map[menu.id] = [{"id": encode_id(b.id), "label": b.button_desc, "pId": menu.id} for b in buttons]
 
     if not menu_button_map:
         return Success(data=[])

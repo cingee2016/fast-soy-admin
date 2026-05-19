@@ -106,7 +106,7 @@ async def _(role_id: SqidPath):
     else:
         button_objs = await role_obj.by_role_buttons
 
-    return Success(data={"byRoleButtonIds": [b.id for b in button_objs]})
+    return Success(data={"byRoleButtonIds": [encode_id(b.id) for b in button_objs]})
 
 
 @router.patch("/roles/{role_id}/buttons", summary="更新角色按钮")
@@ -120,7 +120,8 @@ async def _(role_id: SqidPath, role_in: RoleUpdateAuthrization, request: Request
                 await role_obj.by_role_buttons.add(button_obj)
 
     await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
-    return Success(msg="更新成功", data={"byRoleButtonIds": role_in.by_role_button_ids})
+    button_ids = [encode_id(button_id) for button_id in role_in.by_role_button_ids] if role_in.by_role_button_ids else []
+    return Success(msg="更新成功", data={"byRoleButtonIds": button_ids})
 
 
 # ---- 扩展：角色 API 管理 ----

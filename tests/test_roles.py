@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 from app.core.code import Code
 from app.core.sqids import encode_id
-from app.system.models import Menu
+from app.system.models import Button, Menu
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -123,3 +123,34 @@ class TestRoleCRUD:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == Code.INVALID_TOKEN
+
+
+class TestRoleButtonAuth:
+    async def test_role_button_ids_use_sqid(self, auth_client: AsyncClient, home_menu_id: str):
+        create_resp = await auth_client.post(
+            "/api/v1/system-manage/roles",
+            json={
+                "roleName": "按钮权限角色",
+                "roleCode": "R_BUTTON_AUTH_TEST",
+                "roleDesc": "按钮权限角色",
+                "byRoleHomeId": home_menu_id,
+            },
+        )
+        role_id = create_resp.json()["data"]["createdId"]
+        button = await Button.create(button_code="B_ROLE_BUTTON_AUTH", button_desc="角色按钮权限")
+        button_id = encode_id(button.id)
+
+        update_resp = await auth_client.patch(
+            f"/api/v1/system-manage/roles/{role_id}/buttons",
+            json={"byRoleButtonIds": [button_id]},
+        )
+        assert update_resp.status_code == 200
+        update_data = update_resp.json()
+        assert update_data["code"] == "0000"
+        assert update_data["data"]["byRoleButtonIds"] == [button_id]
+
+        get_resp = await auth_client.get(f"/api/v1/system-manage/roles/{role_id}/buttons")
+        assert get_resp.status_code == 200
+        get_data = get_resp.json()
+        assert get_data["code"] == "0000"
+        assert get_data["data"]["byRoleButtonIds"] == [button_id]
