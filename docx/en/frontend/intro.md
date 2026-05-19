@@ -23,27 +23,27 @@ Built on [SoybeanAdmin](https://github.com/soybeanjs/soybean-admin): Vue3 + Vite
 ```
 web/
 ├── src/
-│   ├── views/                # Pages (Elegant Router scans this)
-│   ├── service/              # HTTP layer (factory + API functions)
-│   │   ├── api/              # fetchXxx, one file per backend module
-│   │   └── request/          # interceptors / codes / token refresh
-│   ├── typings/              # TS types
-│   │   ├── api/              # interfaces matching backend schemas
+│   ├── views/                 # Pages (Elegant Router scans this)
+│   ├── service/               # HTTP layer (factory + API functions)
+│   │   ├── api/               # fetchXxx, one file per backend module
+│   │   └── request/           # interceptors / codes / token refresh
+│   ├── typings/               # TS types
+│   │   ├── api/               # interfaces matching backend schemas
 │   │   ├── app.d.ts
 │   │   └── router.d.ts
-│   ├── store/                # Pinia
+│   ├── store/                 # Pinia
 │   │   └── modules/{auth,route,tab,theme,...}/
-│   ├── router/               # vue-router wrapper
-│   │   ├── elegant/          # auto-generation + transform
-│   │   ├── guard/            # guard chain (auth / dynamic / permission)
-│   │   └── routes/builtin.ts # public routes (login / error pages)
-│   ├── hooks/                # composables (useTable / useAuth / ...)
-│   ├── components/           # global components
-│   ├── layouts/              # layout components
-│   ├── theme/                # theme source (settings.ts / types / utils)
-│   ├── locales/              # i18n (zh-CN / en-US)
-│   └── assets/svg-icon/      # local SVG icons
-├── packages/                 # internal subpackages
+│   ├── router/                # vue-router wrapper
+│   │   ├── elegant/           # auto-generation + transform
+│   │   ├── guard/             # guard chain (auth / dynamic / permission)
+│   │   └── routes/builtin.ts  # public routes (login / error pages)
+│   ├── hooks/                 # composables (useTable / useAuth / ...)
+│   ├── components/            # global components
+│   ├── layouts/               # layout components
+│   ├── theme/                 # theme source (settings.ts / types / utils)
+│   ├── locales/               # i18n (zh-CN / en-US)
+│   └── assets/svg-icon/       # local SVG icons
+├── packages/                  # internal subpackages
 │   ├── alova/
 │   ├── axios/
 │   ├── hooks/
@@ -57,11 +57,11 @@ web/
 
 ```bash
 cd web
-pnpm install      # install deps
-pnpm dev          # dev server (:9527)
-pnpm build        # production build
-pnpm lint         # ESLint + oxlint
-pnpm typecheck    # vue-tsc
+pnpm install    # install deps
+pnpm dev        # dev server (:9527)
+pnpm build      # production build
+pnpm lint       # ESLint + oxlint
+pnpm typecheck  # vue-tsc
 ```
 
 Or use root `just run frontend` / `just build frontend` / `just lint frontend` / `just typecheck frontend` or `just run` to start backend + frontend together. See [Commands](/en/reference/commands).

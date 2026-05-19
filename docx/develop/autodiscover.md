@@ -26,17 +26,17 @@
 ```
 app/business/<name>/
 ├── __init__.py
-├── config.py          # 可选 — BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
-├── ctx.py             # 可选 — 模块上下文变量
-├── dependency.py      # 可选 — 模块 FastAPI 依赖
-├── models.py          # Tortoise 模型
-├── schemas.py         # Pydantic schema
-├── controllers.py     # CRUDBase 子类
-├── services.py        # 多模型编排、缓存、状态机
-├── cache_utils.py     # 可选 — 模块自有缓存失效辅助
-├── init_data.py       # async def init()
+├── config.py        # 可选 — BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
+├── ctx.py           # 可选 — 模块上下文变量
+├── dependency.py    # 可选 — 模块 FastAPI 依赖
+├── models.py        # Tortoise 模型
+├── schemas.py       # Pydantic schema
+├── controllers.py   # CRUDBase 子类
+├── services.py      # 多模型编排、缓存、状态机
+├── cache_utils.py   # 可选 — 模块自有缓存失效辅助
+├── init_data.py     # async def init()
 └── api/
-    ├── __init__.py    # 必须导出 router
+    ├── __init__.py  # 必须导出 router
     ├── manage.py
     ├── dept.py
     └── my.py
@@ -46,14 +46,14 @@ app/business/<name>/
 
 ```
 Settings._build_tortoise_orm()
-  ├─ discover_business_models()           # 收集 app.business.*.models
-  └─ discover_business_db_configs()       # 找含 DB_URL 的 config.py
+  ├─ discover_business_models()            # 收集 app.business.*.models
+  └─ discover_business_db_configs()        # 找含 DB_URL 的 config.py
        │
        ▼
   TORTOISE_ORM = {
     "connections": {
       "conn_system":  APP_SETTINGS.DB_URL,
-      "conn_billing": "postgres://...",   # 仅当业务模块声明独立 DB
+      "conn_billing": "postgres://...",    # 仅当业务模块声明独立 DB
     },
     "apps": {
       "app_system":  {"models": [..., "app.business.hr.models", ...], "default_connection": "conn_system"},

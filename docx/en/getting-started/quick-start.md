@@ -21,7 +21,7 @@ cd fast-soy-admin
 ## Option A: Docker (recommended)
 
 ```bash
-just up           # == docker compose up -d
+just up  # == docker compose up -d
 ```
 
 Visit `http://localhost:1880`. Services:
@@ -31,24 +31,24 @@ Visit `http://localhost:1880`. Services:
 - **Redis** (:6379) — cache
 
 ```bash
-just logs                  # follow all logs
-just logs app          # backend only; `just logs nginx` / `just logs redis` work too; pass a second argument for line count
-just down                  # stop & remove containers
+just logs      # follow all logs
+just logs app  # backend only; `just logs nginx` / `just logs redis` work too; pass a second argument for line count
+just down      # stop & remove containers
 ```
 
 ## Option B: Local development
 
 ```bash
 just install  # install backend + frontend deps
-just db-init       # first-time DB init (only once)
-just run          # start backend (:9999) and frontend (:9527) together; Ctrl+C to stop both
+just db-init  # first-time DB init (only once)
+just run      # start backend (:9999) and frontend (:9527) together; Ctrl+C to stop both
 ```
 
 Or run them separately:
 
 ```bash
-just run backend  # backend only
-just run frontend      # frontend only
+just run backend   # backend only
+just run frontend  # frontend only
 ```
 
 ## Default accounts
@@ -75,43 +75,43 @@ The HR demo (auto-loaded by `app/business/hr/init_data.py`) adds 9 more accounts
 
 ```
 fast-soy-admin/
-├── app/                          # Backend (FastAPI)
-│   ├── __init__.py               # App factory, middleware, lifespan
-│   ├── core/                     # Framework infrastructure
-│   ├── system/                   # Built-in modules (auth/users/roles/menus/...)
-│   ├── business/                 # Business modules (autodiscovered)
-│   │   └── hr/                   #   reference: employees / departments / tags
-│   ├── cli/                      # Code generators
-│   └── utils/                    # Stable import facade for business modules
-├── web/                          # Frontend (Vue3 + Vite + NaiveUI)
+├── app/                  # Backend (FastAPI)
+│   ├── __init__.py       # App factory, middleware, lifespan
+│   ├── core/             # Framework infrastructure
+│   ├── system/           # Built-in modules (auth/users/roles/menus/...)
+│   ├── business/         # Business modules (autodiscovered)
+│   │   └── hr/           #   reference: employees / departments / tags
+│   ├── cli/              # Code generators
+│   └── utils/            # Stable import facade for business modules
+├── web/                  # Frontend (Vue3 + Vite + NaiveUI)
 │   └── src/
-│       ├── views/                # Pages
-│       ├── service/api/          # API request wrappers
-│       ├── typings/api/          # TS types matching backend schemas
-│       ├── locales/              # i18n (zh-CN / en-US)
-│       ├── router/               # Dynamic router (server-issued)
-│       ├── store/                # Pinia
-│       └── hooks/                # Composables
-├── deploy/                       # Docker / Nginx
-├── migrations/                   # Tortoise migrations
-├── tests/                        # Backend unit tests
-├── justfile                      # All common commands
+│       ├── views/        # Pages
+│       ├── service/api/  # API request wrappers
+│       ├── typings/api/  # TS types matching backend schemas
+│       ├── locales/      # i18n (zh-CN / en-US)
+│       ├── router/       # Dynamic router (server-issued)
+│       ├── store/        # Pinia
+│       └── hooks/        # Composables
+├── deploy/               # Docker / Nginx
+├── migrations/           # Tortoise migrations
+├── tests/                # Backend unit tests
+├── justfile              # All common commands
 └── docker-compose.yml
 ```
 
 ## Quality checks
 
 ```bash
-just check    # full backend + frontend gate (run before pushing)
+just check  # full backend + frontend gate (run before pushing)
 ```
 
 Granular:
 
 ```bash
-just fmt backend  # backend ruff fix + format
-just typecheck backend # backend basedpyright
-just test backend # backend pytest
-just lint frontend     # frontend eslint + oxlint
-just typecheck frontend # frontend vue-tsc
-just test frontend     # frontend vitest
+just fmt backend         # backend ruff fix + format
+just typecheck backend   # backend basedpyright
+just test backend        # backend pytest
+just lint frontend       # frontend eslint + oxlint
+just typecheck frontend  # frontend vue-tsc
+just test frontend       # frontend vitest
 ```

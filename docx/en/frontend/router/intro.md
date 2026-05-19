@@ -38,10 +38,10 @@ Pages live under `web/src/views/<module>/<entity>/`. Typical structure:
 
 ```
 web/src/views/inventory/warehouse/
-├── index.vue                          # list page
+├── index.vue                         # list page
 └── modules/
-    ├── warehouse-search.vue           # search form
-    └── warehouse-operate-drawer.vue   # add / edit drawer
+    ├── warehouse-search.vue          # search form
+    └── warehouse-operate-drawer.vue  # add / edit drawer
 ```
 
 The `component` field stored in the DB (for example `view.inventory_warehouse`) is resolved by the router guard to `src/views/inventory/warehouse/index.vue`.

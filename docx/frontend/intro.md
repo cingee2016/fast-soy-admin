@@ -23,27 +23,27 @@
 ```
 web/
 ├── src/
-│   ├── views/                # 页面（Elegant Router 据此生成路由）
-│   ├── service/              # HTTP 层（请求工厂 + API 函数）
-│   │   ├── api/              # fetchXxx，按后端模块分文件
-│   │   └── request/          # 拦截器 / 错误码 / token 刷新
-│   ├── typings/              # TS 类型
-│   │   ├── api/              # 与后端 schema 对应的接口类型
+│   ├── views/                 # 页面（Elegant Router 据此生成路由）
+│   ├── service/               # HTTP 层（请求工厂 + API 函数）
+│   │   ├── api/               # fetchXxx，按后端模块分文件
+│   │   └── request/           # 拦截器 / 错误码 / token 刷新
+│   ├── typings/               # TS 类型
+│   │   ├── api/               # 与后端 schema 对应的接口类型
 │   │   ├── app.d.ts
 │   │   └── router.d.ts
-│   ├── store/                # Pinia
+│   ├── store/                 # Pinia
 │   │   └── modules/{auth,route,tab,theme,...}/
-│   ├── router/               # vue-router 包装层
-│   │   ├── elegant/          # 自动生成与转换
-│   │   ├── guard/            # 守卫链（认证 / 动态路由 / 权限）
-│   │   └── routes/builtin.ts # 公共路由（登录 / 错误页）
-│   ├── hooks/                # 组合式函数（useTable / useAuth / ...）
-│   ├── components/           # 全局组件
-│   ├── layouts/              # 布局组件
-│   ├── theme/                # 主题源（settings.ts / 类型 / 工具）
-│   ├── locales/              # 国际化（zh-CN / en-US）
-│   └── assets/svg-icon/      # 本地 SVG 图标
-├── packages/                 # 内部子包
+│   ├── router/                # vue-router 包装层
+│   │   ├── elegant/           # 自动生成与转换
+│   │   ├── guard/             # 守卫链（认证 / 动态路由 / 权限）
+│   │   └── routes/builtin.ts  # 公共路由（登录 / 错误页）
+│   ├── hooks/                 # 组合式函数（useTable / useAuth / ...）
+│   ├── components/            # 全局组件
+│   ├── layouts/               # 布局组件
+│   ├── theme/                 # 主题源（settings.ts / 类型 / 工具）
+│   ├── locales/               # 国际化（zh-CN / en-US）
+│   └── assets/svg-icon/       # 本地 SVG 图标
+├── packages/                  # 内部子包
 │   ├── alova/
 │   ├── axios/
 │   ├── hooks/
@@ -57,11 +57,11 @@ web/
 
 ```bash
 cd web
-pnpm install      # 安装依赖
-pnpm dev          # 启动开发服务器（:9527）
-pnpm build        # 生产构建
-pnpm lint         # ESLint + oxlint
-pnpm typecheck    # vue-tsc
+pnpm install    # 安装依赖
+pnpm dev        # 启动开发服务器（:9527）
+pnpm build      # 生产构建
+pnpm lint       # ESLint + oxlint
+pnpm typecheck  # vue-tsc
 ```
 
 也可以从项目根目录走 `just run frontend` / `just build frontend` / `just lint frontend` / `just typecheck frontend` 或一键 `just run`（同时起前后端）。详见 [命令参考](../reference/commands.md)。

@@ -6,12 +6,12 @@ HTTP layer built on [Alova](https://alova.js.org/) (business requests) + Axios (
 
 ```
 web/src/service/
-├── api/                    # per-module fetchXxx functions
+├── api/      # per-module fetchXxx functions
 │   ├── auth.ts
 │   ├── system-manage.ts
 │   ├── hr-manage.ts
 │   └── ...
-└── request/                # generic request layer (interceptors, codes, refresh)
+└── request/  # generic request layer (interceptors, codes, refresh)
     └── index.ts
 ```
 

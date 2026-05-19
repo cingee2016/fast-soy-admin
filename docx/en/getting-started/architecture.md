@@ -59,23 +59,23 @@ Business code should never `from app.system.xxx import ...` (except services sys
 
 ```
 create_app()
-  ├─ register_db(app)                  # Tortoise.init(config=TORTOISE_ORM)
-  ├─ register_exceptions(app)          # BizError / DoesNotExist / IntegrityError / ValidationError handlers
-  ├─ register_routers(app, prefix="/api")   # system /api/v1/...
-  ├─ discover_business_routers()       # /api/v1/business/<name>/...
-  └─ setup_radar(app)                  # optional
+  ├─ register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
+  ├─ register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError handlers
+  ├─ register_routers(app, prefix="/api")  # system /api/v1/...
+  ├─ discover_business_routers()           # /api/v1/business/<name>/...
+  └─ setup_radar(app)                      # optional
 
 lifespan(app)
   ├─ init_redis() → app.state.redis
   ├─ FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
   ├─ delete _INIT_LOCK_KEY / _INIT_DONE_KEY
-  ├─ _run_init_data(app)               # leader-only with multi-worker
-  │    ├─ init_menus()                 # system menu seeds (only when Menu table is empty)
-  │    ├─ refresh_api_list()           # FastAPI routes ↔ Api table reconciliation
-  │    ├─ init_users()                 # system roles + default users + dictionary
-  │    ├─ for each business init():    # business modules' init_data.init()
-  │    └─ refresh_all_cache()          # role permissions / constant routes → Redis
-  ├─ startup_radar()                   # optional
+  ├─ _run_init_data(app)                   # leader-only with multi-worker
+  │    ├─ init_menus()                     # system menu seeds (only when Menu table is empty)
+  │    ├─ refresh_api_list()               # FastAPI routes ↔ Api table reconciliation
+  │    ├─ init_users()                     # system roles + default users + dictionary
+  │    ├─ for each business init():        # business modules' init_data.init()
+  │    └─ refresh_all_cache()              # role permissions / constant routes → Redis
+  ├─ startup_radar()                       # optional
   └─ yield
        ↓ shutdown
   └─ close_redis()

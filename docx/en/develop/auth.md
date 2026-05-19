@@ -43,7 +43,7 @@ POST /api/v1/auth/login  { userName, password }
    ▼
 login_with_credentials()
    ├─ User.filter(user_name=...).first()
-   ├─ verify_password(plain, hash)        # Argon2
+   ├─ verify_password(plain, hash)  # Argon2
    ├─ check status_type ≠ disable
    ├─ update_last_login()
    ├─ token_version = redis.get("token_version:{uid}") ?? 0
@@ -73,7 +73,7 @@ The issued token carries `impersonatorId`. `/user-info` returns `{"impersonating
 ```
 POST /api/v1/auth/refresh-token  { refreshToken }
    │
-   ├─ check_token(refreshToken)              # signature + exp
+   ├─ check_token(refreshToken)  # signature + exp
    ├─ data["tokenType"] == "refreshToken"   else 2105
    ├─ user.status_type ≠ disable             else 2102
    ├─ tokenVersion ≥ redis.token_version    else 2106

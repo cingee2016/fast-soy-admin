@@ -168,7 +168,7 @@ DICTIONARY_SEEDS = [
 启动时**不会**自动建表 / 迁移。模型变更后手动：
 
 ```bash
-just mm     # = tortoise makemigrations + migrate
+just mm  # = tortoise makemigrations + migrate
 ```
 
 迁移文件位于 `migrations/<app_name>/`（系统模型 + 共用主库的业务模型在 `migrations/app_system/`，独立库的业务模块在 `migrations/app_<biz>/`）。

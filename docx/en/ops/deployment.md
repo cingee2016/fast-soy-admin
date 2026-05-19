@@ -17,16 +17,16 @@ docker compose up -d
 ### Logs
 
 ```bash
-docker compose logs -f          # all services
-docker compose logs -f app      # backend only
-just logs                       # justfile entry; supports `just logs app` for service filtering and `just logs app 200` for line count
+docker compose logs -f      # all services
+docker compose logs -f app  # backend only
+just logs                   # justfile entry; supports `just logs app` for service filtering and `just logs app 200` for line count
 ```
 
 ### Update
 
 ```bash
 git pull
-docker compose down && docker compose up -d --build   # add --build for code changes (or `just rebuild`)
+docker compose down && docker compose up -d --build  # add --build for code changes (or `just rebuild`)
 ```
 
 ## Manual deployment

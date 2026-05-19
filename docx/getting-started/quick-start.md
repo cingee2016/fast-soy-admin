@@ -21,7 +21,7 @@ cd fast-soy-admin
 ## 方式一：Docker 部署（推荐）
 
 ```bash
-just up           # == docker compose up -d
+just up  # == docker compose up -d
 ```
 
 访问 `http://localhost:1880`，服务包括：
@@ -31,25 +31,25 @@ just up           # == docker compose up -d
 - **Redis** (:6379) — 缓存
 
 ```bash
-just logs                  # 实时查看所有服务日志
-just logs app          # 仅后端；可用 `just logs nginx` / `just logs redis` 过滤服务，第二个参数指定行数
-just down                  # 停止并移除容器
+just logs      # 实时查看所有服务日志
+just logs app  # 仅后端；可用 `just logs nginx` / `just logs redis` 过滤服务，第二个参数指定行数
+just down      # 停止并移除容器
 ```
 
 ## 方式二：本地开发
 
 ```bash
-just install     # 一次性安装后端 + 前端依赖
-cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
+just install          # 一次性安装后端 + 前端依赖
+cp .env.example .env  # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
 just db-init          # 首次初始化数据库（之后不再需要）
-just run             # 并行启动后端(:9999) 和前端(:9527)，Ctrl+C 一起停
+just run              # 并行启动后端(:9999) 和前端(:9527)，Ctrl+C 一起停
 ```
 
 分开启动也可以：
 
 ```bash
-just run backend  # 仅后端
-just run frontend      # 仅前端
+just run backend   # 仅后端
+just run frontend  # 仅前端
 ```
 
 ## 下一步
@@ -63,43 +63,43 @@ just run frontend      # 仅前端
 
 ```
 fast-soy-admin/
-├── app/                          # 后端 (FastAPI)
-│   ├── __init__.py               # App 工厂、中间件、生命周期
-│   ├── core/                     # 分层公共设施（CRUD、dep、中间件）
-│   ├── system/                   # 内置系统模块（auth / user / role / menu）
-│   ├── business/                 # 业务模块（autodiscover 自动加载）
-│   │   └── hr/                   #   示例：员工/部门/标签
-│   ├── cli/                      # CLI 代码生成器
-│   └── utils/                    # 业务开发者的统一导入入口
-├── web/                          # 前端 (Vue3 + Vite + NaiveUI)
+├── app/                  # 后端 (FastAPI)
+│   ├── __init__.py       # App 工厂、中间件、生命周期
+│   ├── core/             # 分层公共设施（CRUD、dep、中间件）
+│   ├── system/           # 内置系统模块（auth / user / role / menu）
+│   ├── business/         # 业务模块（autodiscover 自动加载）
+│   │   └── hr/           #   示例：员工/部门/标签
+│   ├── cli/              # CLI 代码生成器
+│   └── utils/            # 业务开发者的统一导入入口
+├── web/                  # 前端 (Vue3 + Vite + NaiveUI)
 │   └── src/
-│       ├── views/                # 页面组件
-│       ├── service/api/          # API 请求封装
-│       ├── typings/api/          # TS 类型声明
-│       ├── locales/              # i18n (zh-CN / en-US)
-│       ├── router/               # 动态路由（后端下发）
-│       ├── store/                # Pinia
-│       └── hooks/                # Vue 组合式函数
-├── deploy/                       # Docker / Nginx 配置
-├── migrations/                   # Tortoise 迁移文件
-├── tests/                        # 后端单元测试
-├── justfile                      # 所有常用命令的统一入口
+│       ├── views/        # 页面组件
+│       ├── service/api/  # API 请求封装
+│       ├── typings/api/  # TS 类型声明
+│       ├── locales/      # i18n (zh-CN / en-US)
+│       ├── router/       # 动态路由（后端下发）
+│       ├── store/        # Pinia
+│       └── hooks/        # Vue 组合式函数
+├── deploy/               # Docker / Nginx 配置
+├── migrations/           # Tortoise 迁移文件
+├── tests/                # 后端单元测试
+├── justfile              # 所有常用命令的统一入口
 └── docker-compose.yml
 ```
 
 ## 质量检查
 
 ```bash
-just check    # 后端 + 前端所有质量检查（提交前跑）
+just check  # 后端 + 前端所有质量检查（提交前跑）
 ```
 
 细分命令：
 
 ```bash
-just fmt backend       # 后端 ruff fix + format
-just typecheck backend # 后端 basedpyright
-just test backend      # 后端 pytest
-just lint frontend      # 前端 eslint + oxlint
-just typecheck frontend # 前端 vue-tsc
-just test frontend      # 前端 vitest
+just fmt backend         # 后端 ruff fix + format
+just typecheck backend   # 后端 basedpyright
+just test backend        # 后端 pytest
+just lint frontend       # 前端 eslint + oxlint
+just typecheck frontend  # 前端 vue-tsc
+just test frontend       # 前端 vitest
 ```

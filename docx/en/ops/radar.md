@@ -30,7 +30,7 @@ Data lands in Radar's lightweight DB (separate from the main DB), browsable from
 
 ```bash
 # .env
-RADAR_ENABLED=true       # default true
+RADAR_ENABLED=true  # default true
 ```
 
 When false, `setup_radar` / `startup_radar` skip; the menu still exists but endpoints return empty data.
@@ -76,11 +76,11 @@ Third-party per-request rate limit + auto-ban.
 
 ```bash
 # .env
-GUARD_ENABLED=true              # default true
-GUARD_RATE_LIMIT=100            # requests per window
-GUARD_RATE_LIMIT_WINDOW=60      # window size (seconds)
-GUARD_AUTO_BAN_THRESHOLD=10     # violations before auto-ban
-GUARD_AUTO_BAN_DURATION=21600   # ban duration (seconds, 6 hours)
+GUARD_ENABLED=true             # default true
+GUARD_RATE_LIMIT=100           # requests per window
+GUARD_RATE_LIMIT_WINDOW=60     # window size (seconds)
+GUARD_AUTO_BAN_THRESHOLD=10    # violations before auto-ban
+GUARD_AUTO_BAN_DURATION=21600  # ban duration (seconds, 6 hours)
 ```
 
 Returns:
@@ -97,7 +97,7 @@ Enable `PROXY_HEADERS_ENABLED=true` so granian reconciles `X-Forwarded-For` / `X
 
 ```bash
 PROXY_HEADERS_ENABLED=true
-TRUSTED_HOSTS=["127.0.0.1", "10.0.0.0/8"]   # trusted upstreams
+TRUSTED_HOSTS=["127.0.0.1", "10.0.0.0/8"]  # trusted upstreams
 ```
 
 ### Banned — what to do

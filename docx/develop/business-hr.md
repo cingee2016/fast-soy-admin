@@ -27,21 +27,21 @@ HR 模块管理三类资源：
 ```
 app/business/hr/
 ├── __init__.py
-├── config.py          # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
-├── ctx.py             # 模块上下文变量（如 get_department_id）
-├── dependency.py      # 模块 FastAPI 依赖（DependEmployee / DependManager）
-├── models.py          # Tortoise 模型 + 状态枚举
-├── schemas.py         # Pydantic schema（继承 SchemaBase）
-├── controllers.py     # CRUDBase 子类（单资源 CRUD）
-├── services.py        # 多模型编排、缓存、状态机
-├── events.py          # 模块事件订阅
-├── init_data.py       # async def init() — 菜单 / 角色 / 按钮 / 种子
+├── config.py        # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
+├── ctx.py           # 模块上下文变量（如 get_department_id）
+├── dependency.py    # 模块 FastAPI 依赖（DependEmployee / DependManager）
+├── models.py        # Tortoise 模型 + 状态枚举
+├── schemas.py       # Pydantic schema（继承 SchemaBase）
+├── controllers.py   # CRUDBase 子类（单资源 CRUD）
+├── services.py      # 多模型编排、缓存、状态机
+├── events.py        # 模块事件订阅
+├── init_data.py     # async def init() — 菜单 / 角色 / 按钮 / 种子
 └── api/
-    ├── __init__.py    # 必须导出汇总后的 router
-    ├── manage.py      # 系统管理路由（HR 总管）
-    ├── team.py        # 部门主管路由（管理下属）
-    ├── my.py          # 员工自助路由
-    └── public.py      # 公开常量路由示例
+    ├── __init__.py  # 必须导出汇总后的 router
+    ├── manage.py    # 系统管理路由（HR 总管）
+    ├── team.py      # 部门主管路由（管理下属）
+    ├── my.py        # 员工自助路由
+    └── public.py    # 公开常量路由示例
 ```
 
 `autodiscover` 在启动时扫描 `app/business/<name>/`，按以下约定加载（详见 [app/core/autodiscover.py](../../../app/core/autodiscover.py)）：

@@ -24,39 +24,39 @@
 
 ```
 app/
-├── __init__.py            # FastAPI 应用工厂、lifespan、多 worker init 协调
-├── core/                  # 框架基础设施（业务模块通过 app.utils 间接使用）
-│   ├── autodiscover.py    # 业务模块发现（models/api/init_data/独立 DB）
-│   ├── base_model.py      # BaseModel / AuditMixin / TreeMixin / 枚举
-│   ├── base_schema.py     # SchemaBase / PageQueryBase / Success / Fail / SuccessExtra
-│   ├── code.py            # 全应用响应码
-│   ├── config.py          # APP_SETTINGS（pydantic-settings + DB_URL → TORTOISE_ORM）
-│   ├── crud.py            # CRUDBase + get_db_conn
-│   ├── router.py          # CRUDRouter 工厂 + SearchFieldConfig
-│   ├── ctx.py             # ContextVars（CTX_USER_ID / CTX_ROLE_CODES / ...）
-│   ├── dependency.py      # DependAuth / DependPermission / require_buttons / require_roles
-│   ├── data_scope.py      # 行级数据权限
-│   ├── cache.py           # Redis 缓存（角色权限、常量路由、token_version）
-│   ├── soft_delete.py     # SoftDeleteMixin（透明 deleted_at IS NULL）
-│   ├── sqids.py           # int ↔ sqid 字符串
-│   ├── state_machine.py   # 轻量状态机
-│   ├── events.py          # 进程内事件总线（emit/on）
-│   ├── exceptions.py      # BizError + 全局异常处理器
-│   ├── middlewares.py     # 请求 ID / 后台任务 / 异常美化
-│   └── types.py           # Int16/32/64 / SqidId / SqidPath
-├── system/                # 系统模块（认证、RBAC、用户、菜单、API、字典、监控）
-│   ├── api/               # 路由：auth/users/roles/menus/apis/route/dictionary/health
-│   ├── controllers/       # CRUDBase 子类
-│   ├── services/          # 多模型编排（auth/captcha/user/init_helper/monitor）
-│   ├── models/            # admin.py（User/Role/Menu/Api/Button） + dictionary.py
-│   ├── schemas/           # admin/users/login/dictionary
-│   ├── radar/             # 内置 Radar 监控（请求/SQL/异常/埋点 Dashboard）
-│   ├── security.py        # Argon2 + JWT 工具
-│   └── init_data.py       # 系统菜单/角色/用户/字典种子
-├── business/              # 业务模块（autodiscover 自动加载）
-│   └── hr/                # 参考实现：员工 / 部门 / 标签
-├── cli/                   # 代码生成器（init / gen / gen-web / initdb）
-└── utils/                 # 业务开发者的统一导入入口（重新导出 core/system 常用符号）
+├── __init__.py           # FastAPI 应用工厂、lifespan、多 worker init 协调
+├── core/                 # 框架基础设施（业务模块通过 app.utils 间接使用）
+│   ├── autodiscover.py   # 业务模块发现（models/api/init_data/独立 DB）
+│   ├── base_model.py     # BaseModel / AuditMixin / TreeMixin / 枚举
+│   ├── base_schema.py    # SchemaBase / PageQueryBase / Success / Fail / SuccessExtra
+│   ├── code.py           # 全应用响应码
+│   ├── config.py         # APP_SETTINGS（pydantic-settings + DB_URL → TORTOISE_ORM）
+│   ├── crud.py           # CRUDBase + get_db_conn
+│   ├── router.py         # CRUDRouter 工厂 + SearchFieldConfig
+│   ├── ctx.py            # ContextVars（CTX_USER_ID / CTX_ROLE_CODES / ...）
+│   ├── dependency.py     # DependAuth / DependPermission / require_buttons / require_roles
+│   ├── data_scope.py     # 行级数据权限
+│   ├── cache.py          # Redis 缓存（角色权限、常量路由、token_version）
+│   ├── soft_delete.py    # SoftDeleteMixin（透明 deleted_at IS NULL）
+│   ├── sqids.py          # int ↔ sqid 字符串
+│   ├── state_machine.py  # 轻量状态机
+│   ├── events.py         # 进程内事件总线（emit/on）
+│   ├── exceptions.py     # BizError + 全局异常处理器
+│   ├── middlewares.py    # 请求 ID / 后台任务 / 异常美化
+│   └── types.py          # Int16/32/64 / SqidId / SqidPath
+├── system/               # 系统模块（认证、RBAC、用户、菜单、API、字典、监控）
+│   ├── api/              # 路由：auth/users/roles/menus/apis/route/dictionary/health
+│   ├── controllers/      # CRUDBase 子类
+│   ├── services/         # 多模型编排（auth/captcha/user/init_helper/monitor）
+│   ├── models/           # admin.py（User/Role/Menu/Api/Button） + dictionary.py
+│   ├── schemas/          # admin/users/login/dictionary
+│   ├── radar/            # 内置 Radar 监控（请求/SQL/异常/埋点 Dashboard）
+│   ├── security.py       # Argon2 + JWT 工具
+│   └── init_data.py      # 系统菜单/角色/用户/字典种子
+├── business/             # 业务模块（autodiscover 自动加载）
+│   └── hr/               # 参考实现：员工 / 部门 / 标签
+├── cli/                  # 代码生成器（init / gen / gen-web / initdb）
+└── utils/                # 业务开发者的统一导入入口（重新导出 core/system 常用符号）
 ```
 
 ## 分层

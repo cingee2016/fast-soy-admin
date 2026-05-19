@@ -9,9 +9,9 @@
 启动时**不会**自动建表 / 迁移。首次必须：
 
 ```bash
-just db-init        # 等同 tortoise init-db + 首次种子数据
+just db-init  # 等同 tortoise init-db + 首次种子数据
 # 或
-just mm            # makemigrations + migrate
+just mm       # makemigrations + migrate
 ```
 
 后续模型变更也走 `just mm`。详见 [命令参考](../reference/commands.md)。
@@ -19,7 +19,7 @@ just mm            # makemigrations + migrate
 ### Redis 连接失败
 
 ```
-redis-cli ping     # 应返回 PONG
+redis-cli ping  # 应返回 PONG
 ```
 
 或临时用本地 Redis：
@@ -221,9 +221,9 @@ redis-cli --scan --pattern "fastapi_guard:*" | xargs redis-cli del
 主库引擎没装对应驱动：
 
 ```bash
-uv add asyncpg          # postgres
-uv add asyncmy          # mysql
-uv add asyncodbc        # mssql
+uv add asyncpg    # postgres
+uv add asyncmy    # mysql
+uv add asyncodbc  # mssql
 ```
 
 详见 [切换数据库 / 驱动安装](../ops/database.md#驱动安装)。
@@ -233,7 +233,7 @@ uv add asyncodbc        # mssql
 不会。`_run_init_data` 通过 Redis 锁 `app:init_lock` 选 leader，只有 leader 跑 init。
 
 ```bash
-redis-cli get app:init_done    # 应该是 "1"
+redis-cli get app:init_done  # 应该是 "1"
 ```
 
 ## Docker
@@ -241,9 +241,9 @@ redis-cli get app:init_done    # 应该是 "1"
 ### 查看后端日志
 
 ```bash
-just logs                        # 全部
-just logs app                # 仅后端；`just logs nginx` / `just logs redis` 同理，第二个参数指定行数
-docker compose logs -f app       # 等价的原生写法
+just logs                   # 全部
+just logs app               # 仅后端；`just logs nginx` / `just logs redis` 同理，第二个参数指定行数
+docker compose logs -f app  # 等价的原生写法
 ```
 
 ### 更新部署

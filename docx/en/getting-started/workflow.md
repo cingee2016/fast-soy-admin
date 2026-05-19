@@ -7,8 +7,8 @@ End-to-end flow for adding a business module. The CLI only asks you to write `mo
 Run all commands from the project root. First-time setup:
 
 ```bash
-just install    # backend + frontend deps
-just db-init         # first-time DB init (only once)
+just install  # backend + frontend deps
+just db-init  # first-time DB init (only once)
 ```
 
 ## Walkthrough: `inventory` (warehouse management)
@@ -25,7 +25,7 @@ Generates:
 ```
 app/business/inventory/
 ├── __init__.py
-└── models.py          # only common imports + sample comments
+└── models.py  # only common imports + sample comments
 ```
 
 ### 2. Edit `models.py`
@@ -91,13 +91,13 @@ Interactively select fuzzy-search fields (Enter accepts all). Generates:
 app/business/inventory/
 ├── __init__.py
 ├── models.py
-├── schemas.py          # Pydantic Create/Update/Search
-├── controllers.py      # CRUDBase instances
-├── services.py         # business orchestration placeholder
-├── init_data.py        # menu / role / seed placeholder
+├── schemas.py      # Pydantic Create/Update/Search
+├── controllers.py  # CRUDBase instances
+├── services.py     # business orchestration placeholder
+├── init_data.py    # menu / role / seed placeholder
 └── api/
     ├── __init__.py
-    └── manage.py       # CRUDRouter generates 6 standard endpoints
+    └── manage.py   # CRUDRouter generates 6 standard endpoints
 ```
 
 Auto runs `ruff check --fix` + `ruff format`.
@@ -114,17 +114,17 @@ Pick list-display and search fields per model. Generates:
 
 ```
 web/
-├── src/service/api/inventory-manage.ts        # CRUD calls
-├── src/typings/api/inventory-manage.d.ts      # TS types
+├── src/service/api/inventory-manage.ts    # CRUD calls
+├── src/typings/api/inventory-manage.d.ts  # TS types
 ├── src/views/inventory/<entity>/
-│   ├── index.vue                              # list page
+│   ├── index.vue                          # list page
 │   └── modules/
-│       ├── <entity>-search.vue                # search form
-│       └── <entity>-operate-drawer.vue        # add / edit drawer
+│       ├── <entity>-search.vue            # search form
+│       └── <entity>-operate-drawer.vue    # add / edit drawer
 └── src/locales/langs/_generated/inventory/
-    ├── zh-cn.ts                               # i18n messages (auto-merged, no manual step)
-    ├── en-us.ts                               # i18n messages (auto-merged)
-    └── types.d.ts                             # GeneratedPages augmentation (auto via declaration merging)
+    ├── zh-cn.ts                           # i18n messages (auto-merged, no manual step)
+    ├── en-us.ts                           # i18n messages (auto-merged)
+    └── types.d.ts                         # GeneratedPages augmentation (auto via declaration merging)
 ```
 
 `web/src/service/api/index.ts` auto-appends `export * from './inventory-manage';` (idempotent).
@@ -153,13 +153,13 @@ Foreign keys / custom enums in the frontend can't auto-derive their dropdown sou
 ### 7. Migrate the database
 
 ```bash
-just mm         # = makemigrations + migrate
+just mm  # = makemigrations + migrate
 ```
 
 ### 8. Run + verify
 
 ```bash
-just run        # both servers
+just run  # both servers
 ```
 
 Visit `http://localhost:9527`, log in, navigate to `/inventory/warehouse` and `/inventory/product` to verify CRUD.
@@ -199,14 +199,14 @@ CLI maps Tortoise field types to TS / form widgets:
 
 ```
 app/business/inventory/
-├── models.py           # Tortoise models — only schema
-├── schemas.py          # Pydantic — request / response DTO
-├── controllers.py      # CRUDBase instances — single-resource CRUD entry
-├── services.py         # business logic — cross-resource orchestration, transactions, cache
-├── init_data.py        # menu / role / seed declarations (idempotent)
+├── models.py        # Tortoise models — only schema
+├── schemas.py       # Pydantic — request / response DTO
+├── controllers.py   # CRUDBase instances — single-resource CRUD entry
+├── services.py      # business logic — cross-resource orchestration, transactions, cache
+├── init_data.py     # menu / role / seed declarations (idempotent)
 └── api/
-    ├── __init__.py     # aggregates sub-routers
-    └── manage.py       # admin endpoints (CRUDRouter + custom endpoints)
+    ├── __init__.py  # aggregates sub-routers
+    └── manage.py    # admin endpoints (CRUDRouter + custom endpoints)
 ```
 
 | Layer | Write | Don't write |

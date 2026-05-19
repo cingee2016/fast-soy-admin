@@ -23,13 +23,13 @@ DB_URL="mssql://sa:Password123@localhost:1433/fastsoyadmin?driver=ODBC%20Driver%
 切换完成后执行一次首次初始化：
 
 ```bash
-just db-init         # 等同 tortoise init-db + 首次种子数据
+just db-init  # 等同 tortoise init-db + 首次种子数据
 ```
 
 后续模型变更照旧：
 
 ```bash
-just mm             # makemigrations + migrate
+just mm  # makemigrations + migrate
 ```
 
 ## URL 语法速查
@@ -64,15 +64,15 @@ oracle = ["tortoise-orm[asyncodbc]>=1.1.7"]
 
 ::: code-group
 ```bash [MySQL / MariaDB]
-uv sync --extra mysql       # asyncmy
+uv sync --extra mysql  # asyncmy
 ```
 
 ```bash [SQL Server]
-uv sync --extra mssql       # asyncodbc，另需 OS 层安装 ODBC Driver 18
+uv sync --extra mssql  # asyncodbc，另需 OS 层安装 ODBC Driver 18
 ```
 
 ```bash [Oracle]
-uv sync --extra oracle      # asyncodbc
+uv sync --extra oracle  # asyncodbc
 ```
 :::
 
@@ -142,8 +142,8 @@ async with in_transaction(get_db_conn(Invoice)):
 
 ```
 migrations/
-├── app_system/          # 主库（系统 + 共用主库的业务模块）
-└── billing/             # billing 模块独立库
+├── app_system/  # 主库（系统 + 共用主库的业务模块）
+└── billing/     # billing 模块独立库
 ```
 
 `just makemigrations` 会为每个 app 生成对应目录。

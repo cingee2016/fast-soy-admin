@@ -22,7 +22,7 @@
 ### Iconify 离线
 
 ```bash
-cd web && pnpm add @iconify/json   # 下载所有图标集（一次性 ~ 90MB）
+cd web && pnpm add @iconify/json  # 下载所有图标集（一次性 ~ 90MB）
 ```
 
 Vite 构建时把用到的图标内联进 bundle，运行时不走网络。生产环境推荐。

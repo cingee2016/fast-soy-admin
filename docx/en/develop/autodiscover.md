@@ -25,17 +25,17 @@ Mirrors `app/business/hr/`:
 ```
 app/business/<name>/
 ├── __init__.py
-├── config.py          # optional — BIZ_SETTINGS (per-module Pydantic Settings)
-├── ctx.py             # optional — module ContextVars
-├── dependency.py      # optional — module FastAPI dependencies
-├── models.py          # Tortoise models
-├── schemas.py         # Pydantic schemas
-├── controllers.py     # CRUDBase subclasses
-├── services.py        # multi-model orchestration / cache / FSM
-├── cache_utils.py     # optional — cache invalidation helpers
-├── init_data.py       # async def init()
+├── config.py        # optional — BIZ_SETTINGS (per-module Pydantic Settings)
+├── ctx.py           # optional — module ContextVars
+├── dependency.py    # optional — module FastAPI dependencies
+├── models.py        # Tortoise models
+├── schemas.py       # Pydantic schemas
+├── controllers.py   # CRUDBase subclasses
+├── services.py      # multi-model orchestration / cache / FSM
+├── cache_utils.py   # optional — cache invalidation helpers
+├── init_data.py     # async def init()
 └── api/
-    ├── __init__.py    # must export router
+    ├── __init__.py  # must export router
     ├── manage.py
     ├── dept.py
     └── my.py
@@ -45,14 +45,14 @@ app/business/<name>/
 
 ```
 Settings._build_tortoise_orm()
-  ├─ discover_business_models()           # collect app.business.*.models
-  └─ discover_business_db_configs()       # find config.py with DB_URL
+  ├─ discover_business_models()            # collect app.business.*.models
+  └─ discover_business_db_configs()        # find config.py with DB_URL
        │
        ▼
   TORTOISE_ORM = {
     "connections": {
       "conn_system":  APP_SETTINGS.DB_URL,
-      "conn_billing": "postgres://...",   # only if a module declared standalone DB
+      "conn_billing": "postgres://...",    # only if a module declared standalone DB
     },
     "apps": {
       "app_system":  {"models": [..., "app.business.hr.models", ...], "default_connection": "conn_system"},

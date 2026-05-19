@@ -23,13 +23,13 @@ DB_URL="mssql://sa:Password123@localhost:1433/fastsoyadmin?driver=ODBC%20Driver%
 Then init once:
 
 ```bash
-just db-init         # = tortoise init-db + first-time seeds
+just db-init  # = tortoise init-db + first-time seeds
 ```
 
 Subsequent model changes:
 
 ```bash
-just mm             # makemigrations + migrate
+just mm  # makemigrations + migrate
 ```
 
 ## URL syntax cheat sheet
@@ -64,15 +64,15 @@ Install the matching extra for MySQL / MSSQL / Oracle:
 
 ::: code-group
 ```bash [MySQL / MariaDB]
-uv sync --extra mysql       # asyncmy
+uv sync --extra mysql  # asyncmy
 ```
 
 ```bash [SQL Server]
-uv sync --extra mssql       # asyncodbc, also needs OS-level ODBC Driver 18
+uv sync --extra mssql  # asyncodbc, also needs OS-level ODBC Driver 18
 ```
 
 ```bash [Oracle]
-uv sync --extra oracle      # asyncodbc
+uv sync --extra oracle  # asyncodbc
 ```
 :::
 
@@ -140,8 +140,8 @@ Each connection has its own migration folder:
 
 ```
 migrations/
-├── app_system/          # main (system + business sharing main)
-└── billing/             # standalone billing DB
+├── app_system/  # main (system + business sharing main)
+└── billing/     # standalone billing DB
 ```
 
 `just makemigrations` generates per-app folders.

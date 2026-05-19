@@ -27,21 +27,21 @@ Four sets of endpoints:
 ```
 app/business/hr/
 ├── __init__.py
-├── config.py          # BIZ_SETTINGS (per-module Pydantic Settings)
-├── ctx.py             # module ContextVars (e.g. get_department_id)
-├── dependency.py      # module FastAPI deps (DependEmployee / DependManager)
-├── models.py          # Tortoise models + state enums
-├── schemas.py         # Pydantic schemas (extend SchemaBase)
-├── controllers.py     # CRUDBase subclasses (single-resource CRUD)
-├── services.py        # multi-model orchestration, cache, FSM
-├── events.py          # module event subscriptions
-├── init_data.py       # async def init() — menus / roles / buttons / seeds
+├── config.py        # BIZ_SETTINGS (per-module Pydantic Settings)
+├── ctx.py           # module ContextVars (e.g. get_department_id)
+├── dependency.py    # module FastAPI deps (DependEmployee / DependManager)
+├── models.py        # Tortoise models + state enums
+├── schemas.py       # Pydantic schemas (extend SchemaBase)
+├── controllers.py   # CRUDBase subclasses (single-resource CRUD)
+├── services.py      # multi-model orchestration, cache, FSM
+├── events.py        # module event subscriptions
+├── init_data.py     # async def init() — menus / roles / buttons / seeds
 └── api/
-    ├── __init__.py    # must export the aggregated router
-    ├── manage.py      # admin routes (HR director)
-    ├── team.py        # dept-manager routes (manage subordinates)
-    ├── my.py          # self-service routes
-    └── public.py      # public constant-route demo
+    ├── __init__.py  # must export the aggregated router
+    ├── manage.py    # admin routes (HR director)
+    ├── team.py      # dept-manager routes (manage subordinates)
+    ├── my.py        # self-service routes
+    └── public.py    # public constant-route demo
 ```
 
 `autodiscover` scans `app/business/<name>/` at startup with these rules (see `app/core/autodiscover.py`):

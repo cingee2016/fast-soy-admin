@@ -38,10 +38,10 @@
 
 ```
 web/src/views/inventory/warehouse/
-├── index.vue                          # 列表页
+├── index.vue                         # 列表页
 └── modules/
-    ├── warehouse-search.vue           # 搜索表单
-    └── warehouse-operate-drawer.vue   # 新增 / 编辑抽屉
+    ├── warehouse-search.vue          # 搜索表单
+    └── warehouse-operate-drawer.vue  # 新增 / 编辑抽屉
 ```
 
 `component` 字段（数据库里）形如 `view.inventory_warehouse`，前端路由守卫会将其映射到 `src/views/inventory/warehouse/index.vue`。

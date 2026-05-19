@@ -7,16 +7,16 @@ Every navigation goes through guards in `web/src/router/guard/`: auth → dynami
 ```
 beforeEach (route.ts)
    │
-   ├─ initRoute(to)                 # first entry: fetch user-info / user-routes / constant-routes, mount routes
+   ├─ initRoute(to)       # first entry: fetch user-info / user-routes / constant-routes, mount routes
    ├─ already logged in but going to /login → return to root
    ├─ meta.constant=true → pass
    ├─ not logged in → /login?redirect=<original url>
    ├─ logged in but meta.roles mismatch → /403
    └─ otherwise → handleRouteSwitch (cache update / tab push / multi-tab dedup)
 
-beforeEach (progress.ts)            # start NProgress
-afterEach  (progress.ts)            # finish NProgress
-afterEach  (title.ts)               # document.title = i18n(meta.title)
+beforeEach (progress.ts)  # start NProgress
+afterEach  (progress.ts)  # finish NProgress
+afterEach  (title.ts)     # document.title = i18n(meta.title)
 ```
 
 Source: [src/router/guard/](../../../web/src/router/guard/).

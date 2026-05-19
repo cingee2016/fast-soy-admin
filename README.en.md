@@ -106,8 +106,8 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just up                                                       # docker compose up -d
-docker compose exec app uv run python -m app.cli initdb       # first-run: create tables + seed
+just up                                                  # docker compose up -d
+docker compose exec app uv run python -m app.cli initdb  # first-run: create tables + seed
 docker compose restart app
 ```
 
@@ -120,10 +120,10 @@ Open `http://localhost:1880`.
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just install     # uv sync + pnpm install
-cp .env.example .env # copy env template; update SECRET_KEY / DB_URL / REDIS_URL as needed
+just install          # uv sync + pnpm install
+cp .env.example .env  # copy env template; update SECRET_KEY / DB_URL / REDIS_URL as needed
 just db-init          # first-time: create tables + seed
-just run             # backend (:9999) + frontend (:9527) in parallel, Ctrl+C stops both
+just run              # backend (:9999) + frontend (:9527) in parallel, Ctrl+C stops both
 ```
 
 ## Common Commands
@@ -149,12 +149,12 @@ See the [commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/
 ## Adding a new business module
 
 ```bash
-just cli-init inventory                       # 1. scaffold the module
-$EDITOR app/business/inventory/models.py          # 2. define Tortoise models
-just cli-gen-all inventory Inventory       # 3. generate backend + frontend CRUD (i18n auto-merged)
-just mm                                           # 4. run migrations
-just run                                          # 5. verify
-just check                                    # 6. pre-commit
+just cli-init inventory                   # 1. scaffold the module
+$EDITOR app/business/inventory/models.py  # 2. define Tortoise models
+just cli-gen-all inventory Inventory      # 3. generate backend + frontend CRUD (i18n auto-merged)
+just mm                                   # 4. run migrations
+just run                                  # 5. verify
+just check                                # 6. pre-commit
 ```
 
 Walkthrough and field type mappings: [Development guide](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/workflow).
@@ -163,19 +163,19 @@ Walkthrough and field type mappings: [Development guide](https://sleep1223.githu
 
 ```
 app/
-├── core/          # Framework infra (CRUDBase / CRUDRouter / Schema / auth / cache / events / Sqids)
-├── system/        # System modules (auth / user / role / menu / api / dictionary / radar)
-├── business/      # Business modules (autodiscovered)
-│   └── hr/        #   Reference module
-├── cli/           # Code generator
-└── utils/         # Unified re-export surface for business modules
+├── core/           # Framework infra (CRUDBase / CRUDRouter / Schema / auth / cache / events / Sqids)
+├── system/         # System modules (auth / user / role / menu / api / dictionary / radar)
+├── business/       # Business modules (autodiscovered)
+│   └── hr/         #   Reference module
+├── cli/            # Code generator
+└── utils/          # Unified re-export surface for business modules
 web/src/
-├── views/         # Pages (Elegant Router source)
-├── service/api/   # Alova HTTP wrappers
-├── typings/api/   # TS types
-├── store/modules/ # Pinia
-├── router/        # Elegant Router + guards
-└── locales/       # vue-i18n
+├── views/          # Pages (Elegant Router source)
+├── service/api/    # Alova HTTP wrappers
+├── typings/api/    # TS types
+├── store/modules/  # Pinia
+├── router/         # Elegant Router + guards
+└── locales/        # vue-i18n
 ```
 
 Layers: `api/` → `services/` → `controllers/` → `models + schemas`. Business modules **must not** reverse-import `app.system.*` (except a few explicitly exposed services) and **must not** import sibling modules — cross-module talk uses the event bus. See [architecture](https://sleep1223.github.io/fast-soy-admin-docs/en/getting-started/architecture).
@@ -187,9 +187,9 @@ Change `DB_URL` in `.env` and run `just db-init`. PostgreSQL / SQLite / MySQL / 
 PostgreSQL (`tortoise-orm[asyncpg]`) and SQLite (`aiosqlite`, ships with tortoise-orm) are bundled by default; install extras for other engines:
 
 ```bash
-uv sync --extra mysql        # MySQL (asyncmy)
-uv sync --extra mssql        # SQL Server (asyncodbc)
-uv sync --extra oracle       # Oracle (asyncodbc)
+uv sync --extra mysql   # MySQL (asyncmy)
+uv sync --extra mssql   # SQL Server (asyncodbc)
+uv sync --extra oracle  # Oracle (asyncodbc)
 ```
 
 A module can declare its own `DB_URL` in `config.py`; autodiscover registers it as `conn_<biz>`. For cross-model transactions, use `get_db_conn(Model)` to pick the connection. See [switch database](https://sleep1223.github.io/fast-soy-admin-docs/en/ops/database).

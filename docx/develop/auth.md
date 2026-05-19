@@ -43,11 +43,11 @@ POST /api/v1/auth/login  { userName, password }
    ▼
 login_with_credentials()
    ├─ User.filter(user_name=...).first()
-   ├─ verify_password(plain, hash)        # Argon2
+   ├─ verify_password(plain, hash)       # Argon2
    ├─ 检查 status_type ≠ disable
    ├─ update_last_login()
    ├─ token_version = redis.get("token_version:{uid}") ?? 0
-   └─ build_tokens(user, token_version)   # access + refresh
+   └─ build_tokens(user, token_version)  # access + refresh
    │
    ▼
 返回 { token, refreshToken, mustChangePassword }
@@ -73,7 +73,7 @@ POST /api/v1/auth/impersonate/{userId}
 ```
 POST /api/v1/auth/refresh-token  { refreshToken }
    │
-   ├─ check_token(refreshToken)              # 签名 + exp
+   ├─ check_token(refreshToken)  # 签名 + exp
    ├─ data["tokenType"] == "refreshToken"   else 2105
    ├─ user.status_type ≠ disable             else 2102
    ├─ tokenVersion ≥ redis.token_version    else 2106

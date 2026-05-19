@@ -167,7 +167,7 @@ DICTIONARY_SEEDS = [
 Tables are **not** auto-created at startup. After model changes:
 
 ```bash
-just mm     # = tortoise makemigrations + migrate
+just mm  # = tortoise makemigrations + migrate
 ```
 
 Migrations live in `migrations/<app_name>/` (system + shared business in `migrations/app_system/`; standalone-DB modules in `migrations/app_<biz>/`).

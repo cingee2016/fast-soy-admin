@@ -22,7 +22,7 @@ Nothing to install — browse [icones.js.org](https://icones.js.org/), pick `mdi
 ### Offline Iconify
 
 ```bash
-cd web && pnpm add @iconify/json   # download all sets (~90MB, one-time)
+cd web && pnpm add @iconify/json  # download all sets (~90MB, one-time)
 ```
 
 Vite then inlines the icons you actually use into the bundle — no network at runtime. Strongly recommended for production.

@@ -7,8 +7,8 @@
 所有命令在项目根目录执行。首次使用先装依赖、建表：
 
 ```bash
-just install     # 后端 + 前端依赖
-cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
+just install          # 后端 + 前端依赖
+cp .env.example .env  # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
 just db-init          # 首次建表 + 基础数据
 ```
 
@@ -93,13 +93,13 @@ just cli-gen inventory
 app/business/inventory/
 ├── __init__.py
 ├── models.py
-├── schemas.py          # Pydantic Create/Update/Search
-├── controllers.py      # CRUDBase 实例
-├── services.py         # 业务逻辑占位
-├── init_data.py        # 菜单 / 角色 / 种子数据占位
+├── schemas.py      # Pydantic Create/Update/Search
+├── controllers.py  # CRUDBase 实例
+├── services.py     # 业务逻辑占位
+├── init_data.py    # 菜单 / 角色 / 种子数据占位
 └── api/
     ├── __init__.py
-    └── manage.py       # CRUDRouter 自动生成 6 个标准路由
+    └── manage.py   # CRUDRouter 自动生成 6 个标准路由
 ```
 
 生成后会自动跑 `ruff check --fix` + `ruff format`。
@@ -116,17 +116,17 @@ just cli-gen-web inventory 库存管理
 
 ```
 web/
-├── src/service/api/inventory-manage.ts        # CRUD API 调用
-├── src/typings/api/inventory-manage.d.ts      # TS 类型定义
+├── src/service/api/inventory-manage.ts    # CRUD API 调用
+├── src/typings/api/inventory-manage.d.ts  # TS 类型定义
 ├── src/views/inventory/<entity>/
-│   ├── index.vue                              # 列表页
+│   ├── index.vue                          # 列表页
 │   └── modules/
-│       ├── <entity>-search.vue                # 搜索表单
-│       └── <entity>-operate-drawer.vue        # 新增/编辑抽屉
+│       ├── <entity>-search.vue            # 搜索表单
+│       └── <entity>-operate-drawer.vue    # 新增/编辑抽屉
 └── src/locales/langs/_generated/inventory/
-    ├── zh-cn.ts                               # i18n 中文消息（自动合并，无需手动操作）
-    ├── en-us.ts                               # i18n 英文消息（自动合并）
-    └── types.d.ts                             # GeneratedPages 类型扩展（declare 合并自动生效）
+    ├── zh-cn.ts                           # i18n 中文消息（自动合并，无需手动操作）
+    ├── en-us.ts                           # i18n 英文消息（自动合并）
+    └── types.d.ts                         # GeneratedPages 类型扩展（declare 合并自动生效）
 ```
 
 `web/src/service/api/index.ts` 会自动追加 `export * from './inventory-manage';`（幂等）。
@@ -155,13 +155,13 @@ web/
 ### 7. 迁移数据库
 
 ```bash
-just mm         # == makemigrations + migrate
+just mm  # == makemigrations + migrate
 ```
 
 ### 8. 启动并验证
 
 ```bash
-just run        # 同时起前后端
+just run  # 同时起前后端
 ```
 
 访问 `http://localhost:9527` 登录，进入 `/inventory/warehouse`、`/inventory/product` 验证 CRUD。
@@ -203,14 +203,14 @@ CLI 生成后的业务模块严格分层，每层职责不同：
 
 ```
 app/business/inventory/
-├── models.py           # Tortoise 模型 — 只描述表结构
-├── schemas.py          # Pydantic — 请求 / 响应 DTO
-├── controllers.py      # CRUDBase 实例 — 单资源 CRUD 的入口
-├── services.py         # 业务逻辑 — 跨资源编排、事务、缓存
-├── init_data.py        # 菜单 / 角色 / 种子数据声明（幂等）
+├── models.py        # Tortoise 模型 — 只描述表结构
+├── schemas.py       # Pydantic — 请求 / 响应 DTO
+├── controllers.py   # CRUDBase 实例 — 单资源 CRUD 的入口
+├── services.py      # 业务逻辑 — 跨资源编排、事务、缓存
+├── init_data.py     # 菜单 / 角色 / 种子数据声明（幂等）
 └── api/
-    ├── __init__.py     # 汇总子路由
-    └── manage.py       # 管理端路由（CRUDRouter + 自定义端点）
+    ├── __init__.py  # 汇总子路由
+    └── manage.py    # 管理端路由（CRUDRouter + 自定义端点）
 ```
 
 | 层 | 写什么 | 不写什么 |

@@ -59,23 +59,23 @@
 
 ```
 create_app()
-  ├─ register_db(app)                       # Tortoise.init(config=TORTOISE_ORM)
-  ├─ register_exceptions(app)               # BizError / DoesNotExist / IntegrityError / ValidationError 处理器
-  ├─ register_routers(app, prefix="/api")   # 系统模块 /api/v1/...
-  ├─ discover_business_routers()            # /api/v1/business/<name>/...
-  └─ setup_radar(app)                       # 可选
+  ├─ register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
+  ├─ register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError 处理器
+  ├─ register_routers(app, prefix="/api")  # 系统模块 /api/v1/...
+  ├─ discover_business_routers()           # /api/v1/business/<name>/...
+  └─ setup_radar(app)                      # 可选
 
 lifespan(app)
   ├─ init_redis() → app.state.redis
   ├─ FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
   ├─ delete _INIT_LOCK_KEY / _INIT_DONE_KEY
-  ├─ _run_init_data(app)               # 多 worker 中仅 leader 执行
-  │    ├─ init_menus()                 # 系统菜单种子（仅在 Menu 表为空时插入）
-  │    ├─ refresh_api_list()           # FastAPI 路由 ↔ Api 表全量对账
-  │    ├─ init_users()                 # 系统角色 + 默认账号 + 字典
-  │    ├─ for each business init():    # 业务模块 init_data.init()
-  │    └─ refresh_all_cache()          # 角色权限 / 常量路由刷到 Redis
-  ├─ startup_radar()                   # 可选
+  ├─ _run_init_data(app)                   # 多 worker 中仅 leader 执行
+  │    ├─ init_menus()                     # 系统菜单种子（仅在 Menu 表为空时插入）
+  │    ├─ refresh_api_list()               # FastAPI 路由 ↔ Api 表全量对账
+  │    ├─ init_users()                     # 系统角色 + 默认账号 + 字典
+  │    ├─ for each business init():        # 业务模块 init_data.init()
+  │    └─ refresh_all_cache()              # 角色权限 / 常量路由刷到 Redis
+  ├─ startup_radar()                       # 可选
   └─ yield
        ↓ shutdown
   └─ close_redis()

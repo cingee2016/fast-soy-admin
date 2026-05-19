@@ -30,7 +30,7 @@
 
 ```bash
 # .env
-RADAR_ENABLED=true       # 默认 true
+RADAR_ENABLED=true  # 默认 true
 ```
 
 关闭后 `setup_radar` / `startup_radar` 都会跳过，前端菜单仍在但接口返回空数据。
@@ -76,11 +76,11 @@ radar_log("仅 radar，不落文件日志", log_to_file=False)
 
 ```bash
 # .env
-GUARD_ENABLED=true              # 默认 true
-GUARD_RATE_LIMIT=100            # 每窗口内允许的请求数
-GUARD_RATE_LIMIT_WINDOW=60      # 窗口大小（秒）
-GUARD_AUTO_BAN_THRESHOLD=10     # 触发封禁的违规次数
-GUARD_AUTO_BAN_DURATION=21600   # 封禁时长（秒，6 小时）
+GUARD_ENABLED=true             # 默认 true
+GUARD_RATE_LIMIT=100           # 每窗口内允许的请求数
+GUARD_RATE_LIMIT_WINDOW=60     # 窗口大小（秒）
+GUARD_AUTO_BAN_THRESHOLD=10    # 触发封禁的违规次数
+GUARD_AUTO_BAN_DURATION=21600  # 封禁时长（秒，6 小时）
 ```
 
 触发后返回：
@@ -97,7 +97,7 @@ GUARD_AUTO_BAN_DURATION=21600   # 封禁时长（秒，6 小时）
 
 ```bash
 PROXY_HEADERS_ENABLED=true
-TRUSTED_HOSTS=["127.0.0.1", "10.0.0.0/8"]   # 信任的上游
+TRUSTED_HOSTS=["127.0.0.1", "10.0.0.0/8"]  # 信任的上游
 ```
 
 ### 排查"被封了怎么办"

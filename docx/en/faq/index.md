@@ -9,9 +9,9 @@ Grouped by scenario: startup, modules, permissions, routing, API IDs, and deploy
 Tables are **not** auto-created at startup. First-time setup:
 
 ```bash
-just db-init        # equivalent to tortoise init-db + first-time seeds
+just db-init  # equivalent to tortoise init-db + first-time seeds
 # or
-just mm            # makemigrations + migrate
+just mm       # makemigrations + migrate
 ```
 
 For ongoing model changes, use `just mm`. See [Commands](/en/reference/commands).
@@ -19,7 +19,7 @@ For ongoing model changes, use `just mm`. See [Commands](/en/reference/commands)
 ### Redis connection fails
 
 ```
-redis-cli ping     # should return PONG
+redis-cli ping  # should return PONG
 ```
 
 Or temporarily point to a local instance:
@@ -216,9 +216,9 @@ Or temporarily set `GUARD_ENABLED=false` and restart.
 The driver isn't installed:
 
 ```bash
-uv add asyncpg          # postgres
-uv add asyncmy          # mysql
-uv add asyncodbc        # mssql
+uv add asyncpg    # postgres
+uv add asyncmy    # mysql
+uv add asyncodbc  # mssql
 ```
 
 See [Switching DB / drivers](/en/ops/database).
@@ -228,7 +228,7 @@ See [Switching DB / drivers](/en/ops/database).
 No — `_run_init_data` uses Redis lock `app:init_lock` to elect a leader. Only the leader runs init.
 
 ```bash
-redis-cli get app:init_done    # should be "1"
+redis-cli get app:init_done  # should be "1"
 ```
 
 ## Docker
@@ -236,9 +236,9 @@ redis-cli get app:init_done    # should be "1"
 ### View backend logs
 
 ```bash
-just logs                        # all
-just logs app                # backend only; `just logs nginx` / `just logs redis`; pass a second argument for line count
-docker compose logs -f app       # equivalent native form
+just logs                   # all
+just logs app               # backend only; `just logs nginx` / `just logs redis`; pass a second argument for line count
+docker compose logs -f app  # equivalent native form
 ```
 
 ### Update deployment

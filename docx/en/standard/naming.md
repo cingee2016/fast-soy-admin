@@ -47,8 +47,8 @@
 ## Business codes
 
 ```
-B_<MODULE>_<RESOURCE>_<ACTION>      # Button code
-R_<UPPER>                           # Role code
+B_<MODULE>_<RESOURCE>_<ACTION>  # Button code
+R_<UPPER>                       # Role code
 ```
 
 | Example | Meaning |
@@ -62,8 +62,8 @@ R_<UPPER>                           # Role code
 ## Route name (menu route_name)
 
 ```
-<module>            # top-level catalog
-<module>_<page>     # second-level page
+<module>               # top-level catalog
+<module>_<page>        # second-level page
 <module>_<page>_<sub>  # third level
 ```
 
@@ -80,9 +80,9 @@ R_<UPPER>                           # Role code
 ## i18n key
 
 ```
-route.<route_name>             # route / menu title
-page.<module>.<key>            # in-page text
-common.<key>                   # global
+route.<route_name>   # route / menu title
+page.<module>.<key>  # in-page text
+common.<key>         # global
 ```
 
 ## Cache key
@@ -96,7 +96,7 @@ common.<key>                   # global
 ## Event name
 
 ```
-<aggregate>.<verb>           # lowercase + dot
+<aggregate>.<verb>  # lowercase + dot
 ```
 
 | Example | Meaning |

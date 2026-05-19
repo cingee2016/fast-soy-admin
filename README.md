@@ -106,8 +106,8 @@
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just up                                                       # docker compose up -d
-docker compose exec app uv run python -m app.cli initdb       # 首次必须手动建表 + 基础数据
+just up                                                  # docker compose up -d
+docker compose exec app uv run python -m app.cli initdb  # 首次必须手动建表 + 基础数据
 docker compose restart app
 ```
 
@@ -120,10 +120,10 @@ docker compose restart app
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just install     # 后端 uv sync + 前端 pnpm install
-cp .env.example .env # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
+just install          # 后端 uv sync + 前端 pnpm install
+cp .env.example .env  # 复制环境变量模板，按需修改 SECRET_KEY / DB_URL / REDIS_URL 等
 just db-init          # 首次建表 + 基础数据
-just run             # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起停
+just run              # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起停
 ```
 
 ## 常用命令
@@ -151,12 +151,12 @@ just run             # 并行启动后端(:9999) + 前端(:9527)，Ctrl+C 一起
 以 `inventory`（库存管理）为例：
 
 ```bash
-just cli-init inventory                      # 1. 创建模块骨架
-$EDITOR app/business/inventory/models.py         # 2. 定义 Tortoise 模型
+just cli-init inventory                   # 1. 创建模块骨架
+$EDITOR app/business/inventory/models.py  # 2. 定义 Tortoise 模型
 just cli-gen-all inventory 库存管理       # 3. 生成前后端 CRUD（i18n 自动并入）
-just mm                                          # 4. 迁移
-just run                                         # 5. 启动验证
-just check                                   # 6. 提交前检查
+just mm                                   # 4. 迁移
+just run                                  # 5. 启动验证
+just check                                # 6. 提交前检查
 ```
 
 完整流程与字段类型映射见 [开发指南](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/workflow)。
@@ -165,19 +165,19 @@ just check                                   # 6. 提交前检查
 
 ```
 app/
-├── core/          # 框架基础设施（CRUDBase / CRUDRouter / Schema / 鉴权 / 缓存 / 事件 / Sqids）
-├── system/        # 系统模块（auth / user / role / menu / api / dictionary / radar）
-├── business/      # 业务模块（autodiscover 自动加载）
-│   └── hr/        #   参考实现
-├── cli/           # 代码生成器
-└── utils/         # 业务模块对外统一 import 入口
+├── core/           # 框架基础设施（CRUDBase / CRUDRouter / Schema / 鉴权 / 缓存 / 事件 / Sqids）
+├── system/         # 系统模块（auth / user / role / menu / api / dictionary / radar）
+├── business/       # 业务模块（autodiscover 自动加载）
+│   └── hr/         #   参考实现
+├── cli/            # 代码生成器
+└── utils/          # 业务模块对外统一 import 入口
 web/src/
-├── views/         # 页面（Elegant Router 源）
-├── service/api/   # Alova HTTP 封装
-├── typings/api/   # TS 类型
-├── store/modules/ # Pinia
-├── router/        # Elegant Router + 守卫
-└── locales/       # vue-i18n
+├── views/          # 页面（Elegant Router 源）
+├── service/api/    # Alova HTTP 封装
+├── typings/api/    # TS 类型
+├── store/modules/  # Pinia
+├── router/         # Elegant Router + 守卫
+└── locales/        # vue-i18n
 ```
 
 分层：`api/` → `services/` → `controllers/` → `models + schemas`。业务模块**禁止**反向 import `app.system.*`（少数显式暴露的 service 除外），**禁止**互相 import；跨模块走事件总线。详见 [架构](https://sleep1223.github.io/fast-soy-admin-docs/getting-started/architecture)。
@@ -189,9 +189,9 @@ web/src/
 默认依赖已包含 PostgreSQL（`tortoise-orm[asyncpg]`）与 SQLite（`aiosqlite`，tortoise 自带），其他数据库按需安装：
 
 ```bash
-uv sync --extra mysql        # MySQL (asyncmy)
-uv sync --extra mssql        # SQL Server (asyncodbc)
-uv sync --extra oracle       # Oracle (asyncodbc)
+uv sync --extra mysql   # MySQL (asyncmy)
+uv sync --extra mssql   # SQL Server (asyncodbc)
+uv sync --extra oracle  # Oracle (asyncodbc)
 ```
 
 业务模块可在自己的 `config.py` 声明独立 `DB_URL`，autodiscover 会注册为 `conn_<biz>`；跨模型事务用 `get_db_conn(Model)` 取连接名。详见 [切换数据库](https://sleep1223.github.io/fast-soy-admin-docs/ops/database)。

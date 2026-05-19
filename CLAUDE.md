@@ -38,16 +38,16 @@ FastSoyAdmin v1.0.0 | FastAPI + Vue3 全栈后台管理模板 | MIT
 ### 常用命令
 
 ```bash
-just install       # 装后端 (uv sync) + 前端 (pnpm install)
-cp .env.example .env   # 首次复制环境变量
-just db-init            # 首次初始化数据库
+just install                          # 装后端 (uv sync) + 前端 (pnpm install)
+cp .env.example .env                  # 首次复制环境变量
+just db-init                          # 首次初始化数据库
 
-just run               # 并行启动后端 :9999 + 前端 :9527
-just run backend / just run frontend     # 仅后端 / 仅前端
+just run                              # 并行启动后端 :9999 + 前端 :9527
+just run backend / just run frontend  # 仅后端 / 仅前端
 
-just mm                # makemigrations + migrate（启动不会自动迁移）
-just check         # 提交前必跑：ruff + basedpyright + pytest + eslint + oxlint + vue-tsc
-just up / just logs / just down  # docker compose
+just mm                               # makemigrations + migrate（启动不会自动迁移）
+just check                            # 提交前必跑：ruff + basedpyright + pytest + eslint + oxlint + vue-tsc
+just up / just logs / just down       # docker compose
 ```
 
 完整命令清单见 [docx/reference/commands.md](docx/reference/commands.md)。
@@ -55,7 +55,7 @@ just up / just logs / just down  # docker compose
 ### 新增业务模块
 
 ```bash
-just cli-init <name>                # 生成骨架
+just cli-init <name>              # 生成骨架
 # 编辑 app/business/<name>/models.py 定义模型
 just cli-gen-all <name> <中文名>  # 生成后端 + 前端 CRUD
 just mm && just run && just check

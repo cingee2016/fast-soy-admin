@@ -24,39 +24,39 @@ A layered, modular **FastAPI** backend. Code is split into "system" and "busines
 
 ```
 app/
-├── __init__.py            # FastAPI app factory, lifespan, multi-worker init coordination
-├── core/                  # Framework infrastructure (business uses it via app.utils)
-│   ├── autodiscover.py    # business module discovery (models / api / init_data / standalone DB)
-│   ├── base_model.py      # BaseModel / AuditMixin / TreeMixin / enums
-│   ├── base_schema.py     # SchemaBase / PageQueryBase / Success / Fail / SuccessExtra
-│   ├── code.py            # All response codes
-│   ├── config.py          # APP_SETTINGS (pydantic-settings + DB_URL → TORTOISE_ORM)
-│   ├── crud.py            # CRUDBase + get_db_conn
-│   ├── router.py          # CRUDRouter factory + SearchFieldConfig
-│   ├── ctx.py             # ContextVars (CTX_USER_ID / CTX_ROLE_CODES / ...)
-│   ├── dependency.py      # DependAuth / DependPermission / require_buttons / require_roles
-│   ├── data_scope.py      # row-level data scope
-│   ├── cache.py           # Redis cache (role permissions, constant routes, token_version)
-│   ├── soft_delete.py     # SoftDeleteMixin (transparent deleted_at IS NULL)
-│   ├── sqids.py           # int ↔ sqid string
-│   ├── state_machine.py   # lightweight FSM
-│   ├── events.py          # in-process event bus (emit/on)
-│   ├── exceptions.py      # BizError + global exception handlers
-│   ├── middlewares.py     # request id / background tasks / pretty errors
-│   └── types.py           # Int16/32/64 / SqidId / SqidPath
-├── system/                # Built-in modules (auth, RBAC, users, menus, APIs, dictionary, monitoring)
-│   ├── api/               # routes: auth/users/roles/menus/apis/route/dictionary/health
-│   ├── controllers/       # CRUDBase subclasses
-│   ├── services/          # multi-model orchestration (auth/captcha/user/init_helper/monitor)
-│   ├── models/            # admin.py (User/Role/Menu/Api/Button) + dictionary.py
-│   ├── schemas/           # admin/users/login/dictionary
-│   ├── radar/             # In-house Radar monitoring (request/SQL/exception/instrumentation)
-│   ├── security.py        # Argon2 + JWT helpers
-│   └── init_data.py       # System menus / roles / users / dictionary seeds
-├── business/              # Business modules (autodiscovered)
-│   └── hr/                # reference: employees / departments / tags
-├── cli/                   # Code generators (init / gen / gen-web / initdb)
-└── utils/                 # Stable import facade for business code (re-exports core/system)
+├── __init__.py           # FastAPI app factory, lifespan, multi-worker init coordination
+├── core/                 # Framework infrastructure (business uses it via app.utils)
+│   ├── autodiscover.py   # business module discovery (models / api / init_data / standalone DB)
+│   ├── base_model.py     # BaseModel / AuditMixin / TreeMixin / enums
+│   ├── base_schema.py    # SchemaBase / PageQueryBase / Success / Fail / SuccessExtra
+│   ├── code.py           # All response codes
+│   ├── config.py         # APP_SETTINGS (pydantic-settings + DB_URL → TORTOISE_ORM)
+│   ├── crud.py           # CRUDBase + get_db_conn
+│   ├── router.py         # CRUDRouter factory + SearchFieldConfig
+│   ├── ctx.py            # ContextVars (CTX_USER_ID / CTX_ROLE_CODES / ...)
+│   ├── dependency.py     # DependAuth / DependPermission / require_buttons / require_roles
+│   ├── data_scope.py     # row-level data scope
+│   ├── cache.py          # Redis cache (role permissions, constant routes, token_version)
+│   ├── soft_delete.py    # SoftDeleteMixin (transparent deleted_at IS NULL)
+│   ├── sqids.py          # int ↔ sqid string
+│   ├── state_machine.py  # lightweight FSM
+│   ├── events.py         # in-process event bus (emit/on)
+│   ├── exceptions.py     # BizError + global exception handlers
+│   ├── middlewares.py    # request id / background tasks / pretty errors
+│   └── types.py          # Int16/32/64 / SqidId / SqidPath
+├── system/               # Built-in modules (auth, RBAC, users, menus, APIs, dictionary, monitoring)
+│   ├── api/              # routes: auth/users/roles/menus/apis/route/dictionary/health
+│   ├── controllers/      # CRUDBase subclasses
+│   ├── services/         # multi-model orchestration (auth/captcha/user/init_helper/monitor)
+│   ├── models/           # admin.py (User/Role/Menu/Api/Button) + dictionary.py
+│   ├── schemas/          # admin/users/login/dictionary
+│   ├── radar/            # In-house Radar monitoring (request/SQL/exception/instrumentation)
+│   ├── security.py       # Argon2 + JWT helpers
+│   └── init_data.py      # System menus / roles / users / dictionary seeds
+├── business/             # Business modules (autodiscovered)
+│   └── hr/               # reference: employees / departments / tags
+├── cli/                  # Code generators (init / gen / gen-web / initdb)
+└── utils/                # Stable import facade for business code (re-exports core/system)
 ```
 
 ## Layering

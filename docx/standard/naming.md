@@ -47,8 +47,8 @@
 ## 业务码
 
 ```
-B_<MODULE>_<RESOURCE>_<ACTION>      # 按钮编码
-R_<UPPER>                           # 角色编码
+B_<MODULE>_<RESOURCE>_<ACTION>  # 按钮编码
+R_<UPPER>                       # 角色编码
 ```
 
 | 例 | 含义 |
@@ -80,9 +80,9 @@ R_<UPPER>                           # 角色编码
 ## i18n key
 
 ```
-route.<route_name>             # 路由 / 菜单标题
-page.<module>.<key>            # 页面内文案
-common.<key>                   # 全局通用
+route.<route_name>   # 路由 / 菜单标题
+page.<module>.<key>  # 页面内文案
+common.<key>         # 全局通用
 ```
 
 ## 缓存键
@@ -96,7 +96,7 @@ common.<key>                   # 全局通用
 ## 事件名
 
 ```
-<aggregate>.<verb>           # 小写 + 点
+<aggregate>.<verb>  # 小写 + 点
 ```
 
 | 例 | 含义 |

@@ -7,16 +7,16 @@
 ```
 beforeEach (route.ts)
    │
-   ├─ initRoute(to)                 # 首次进入：拉 user-info / user-routes / constant-routes，挂动态路由
+   ├─ initRoute(to)       # 首次进入：拉 user-info / user-routes / constant-routes，挂动态路由
    ├─ 已登录但去 login 页 → 回根
    ├─ 路由 meta.constant=true → 放行
    ├─ 未登录 → /login?redirect=<原 url>
    ├─ 已登录但 meta.roles 不匹配 → /403
    └─ 否则 → handleRouteSwitch（缓存更新 / tab push / multi-tab dedup）
 
-beforeEach (progress.ts)            # 启动 NProgress
-afterEach  (progress.ts)            # 完成 NProgress
-afterEach  (title.ts)               # document.title = i18n(meta.title)
+beforeEach (progress.ts)  # 启动 NProgress
+afterEach  (progress.ts)  # 完成 NProgress
+afterEach  (title.ts)     # document.title = i18n(meta.title)
 ```
 
 源码：[src/router/guard/](../../../web/src/router/guard/)。
