@@ -8,6 +8,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Get-ChildProcessIds {
     param(
@@ -134,6 +136,9 @@ function Start-DevProcess {
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
     $startInfo.Environment["FORCE_COLOR"] = "1"
+    $startInfo.Environment["PYTHONIOENCODING"] = "utf-8"
+    $startInfo.Environment["PYTHONUTF8"] = "1"
+    $startInfo.Environment["UV_NO_WRAP"] = "1"
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
