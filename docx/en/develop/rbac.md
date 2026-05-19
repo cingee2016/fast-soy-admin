@@ -5,11 +5,13 @@ Classic RBAC: User ↔ Role ↔ {Menu / Button / API}; `R_SUPER` bypasses every 
 ## Relationships
 
 ```
-User ──M2M─→ Role ──M2M─→ Menu      (frontend-visible routes)
-                  ──M2M─→ Button    (in-page actionable buttons)
-                  ──M2M─→ Api       (callable backend endpoints)
-                  ──FK──→ Menu      (default landing page)
-                  field   data_scope
+User
+`-- M2M --> Role
+    |-- M2M --> Menu        frontend-visible routes
+    |-- M2M --> Button      in-page actionable buttons
+    |-- M2M --> Api         callable backend endpoints
+    |-- FK  --> Menu        default landing page
+    `-- field: data_scope
 ```
 
 Source models: `app/system/models/admin.py`.

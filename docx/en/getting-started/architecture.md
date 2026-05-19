@@ -3,25 +3,18 @@
 ## Overview
 
 ```
-                ┌──────────────────────────────────────────────┐
-                │              FastAPI App                      │
-                │  ┌──────────────────────────────────────┐    │
-                │  │  Middleware: CORS / RequestID /      │    │
-                │  │  BackgroundTask / Guard / Radar      │    │
-                │  └──────────────────────────────────────┘    │
-                │                                                │
-                │  /api/v1/auth                  (system)        │
-                │  /api/v1/route                 (system)        │
-                │  /api/v1/system-manage/*       (system)        │
-                │  /api/v1/business/<module>/*   (business)      │
-                │                                                │
-                │   api → services → controllers → models        │
-                └──────────────────────────────────────────────┘
-                                  │
-              ┌───────────────────┼───────────────────┐
-              ▼                   ▼                   ▼
-         Tortoise ORM           Redis             Sqids/JWT
-         (SQLite/PG/MySQL)      (cache + lock)    (encode/sign)
+FastAPI App
+|-- Middleware: CORS / RequestID / BackgroundTask / Guard / Radar
+|-- /api/v1/auth                 (system)
+|-- /api/v1/route                (system)
+|-- /api/v1/system-manage/*      (system)
+|-- /api/v1/business/<module>/*  (business)
+`-- api -> services -> controllers -> models
+
+Runtime dependencies
+|-- Tortoise ORM  (SQLite / PostgreSQL / MySQL)
+|-- Redis         (cache + startup lock)
+`-- Sqids / JWT   (ID encoding + token signing)
 ```
 
 ## Module boundaries
@@ -59,26 +52,25 @@ Business code should never `from app.system.xxx import ...` (except services sys
 
 ```
 create_app()
-  ├─ register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
-  ├─ register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError handlers
-  ├─ register_routers(app, prefix="/api")  # system /api/v1/...
-  ├─ discover_business_routers()           # /api/v1/business/<name>/...
-  └─ setup_radar(app)                      # optional
+  |-- register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
+  |-- register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError handlers
+  |-- register_routers(app, prefix="/api")  # system /api/v1/...
+  |-- discover_business_routers()           # /api/v1/business/<name>/...
+  `-- setup_radar(app)                      # optional
 
 lifespan(app)
-  ├─ init_redis() → app.state.redis
-  ├─ FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
-  ├─ delete _INIT_LOCK_KEY / _INIT_DONE_KEY
-  ├─ _run_init_data(app)                   # leader-only with multi-worker
-  │    ├─ init_menus()                     # system menu seeds (only when Menu table is empty)
-  │    ├─ refresh_api_list()               # FastAPI routes ↔ Api table reconciliation
-  │    ├─ init_users()                     # system roles + default users + dictionary
-  │    ├─ for each business init():        # business modules' init_data.init()
-  │    └─ refresh_all_cache()              # role permissions / constant routes → Redis
-  ├─ startup_radar()                       # optional
-  └─ yield
-       ↓ shutdown
-  └─ close_redis()
+  |-- init_redis() -> app.state.redis
+  |-- FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+  |-- delete _INIT_LOCK_KEY / _INIT_DONE_KEY
+  |-- _run_init_data(app)                   # leader-only with multi-worker
+  |   |-- init_menus()                      # system menu seeds (only when Menu table is empty)
+  |   |-- refresh_api_list()                # FastAPI routes <-> Api table reconciliation
+  |   |-- init_users()                      # system roles + default users + dictionary
+  |   |-- for each business init():         # business modules' init_data.init()
+  |   `-- refresh_all_cache()               # role permissions / constant routes -> Redis
+  |-- startup_radar()                       # optional
+  |-- yield
+  `-- close_redis()                         # shutdown
 ```
 
 For semantics see [Startup init & reconciliation](/en/develop/init-data).
@@ -86,11 +78,13 @@ For semantics see [Startup init & reconciliation](/en/develop/init-data).
 ## RBAC data model
 
 ```
-User ←M2M→ Role ←M2M→ Menu      (frontend-visible routes)
-                ←M2M→ Button    (in-page actionable buttons)
-                ←M2M→ Api       (callable backend endpoints)
-                FK    Menu      (role's default home page; by_role_home)
-              field   data_scope (row-level scope: all / department / self / custom)
+User
+`-- M2M --> Role
+    |-- M2M --> Menu        frontend-visible routes
+    |-- M2M --> Button      in-page actionable buttons
+    |-- M2M --> Api         callable backend endpoints
+    |-- FK  --> Menu        role's default home page; by_role_home
+    `-- field: data_scope   row-level scope: all / department / self / custom
 ```
 
 - The super-admin role `R_SUPER` (`app.core.constants.SUPER_ADMIN_ROLE`) bypasses every check

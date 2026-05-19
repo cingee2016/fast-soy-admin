@@ -6,13 +6,12 @@
 
 ```
 beforeEach (route.ts)
-   │
-   ├─ initRoute(to)       # 首次进入：拉 user-info / user-routes / constant-routes，挂动态路由
-   ├─ 已登录但去 login 页 → 回根
-   ├─ 路由 meta.constant=true → 放行
-   ├─ 未登录 → /login?redirect=<原 url>
-   ├─ 已登录但 meta.roles 不匹配 → /403
-   └─ 否则 → handleRouteSwitch（缓存更新 / tab push / multi-tab dedup）
+   |-- initRoute(to)       # 首次进入：拉 user-info / user-routes / constant-routes，挂动态路由
+   |-- 已登录但去 login 页 -> 回根
+   |-- 路由 meta.constant=true -> 放行
+   |-- 未登录 -> /login?redirect=<原 url>
+   |-- 已登录但 meta.roles 不匹配 -> /403
+   `-- 否则 -> handleRouteSwitch（缓存更新 / tab push / multi-tab dedup）
 
 beforeEach (progress.ts)  # 启动 NProgress
 afterEach  (progress.ts)  # 完成 NProgress
@@ -33,27 +32,19 @@ afterEach  (title.ts)     # document.title = i18n(meta.title)
 ## 守卫流程图
 
 ```
-                  ┌─────────────────┐
-路由跳转 ───────→  │  meta.constant?  │ ─Yes→ 放行
-                  └────────┬────────┘
-                           │No
-                           ▼
-                  ┌─────────────────┐
-                  │  已登录?         │ ─No→  /login?redirect=...
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                  ┌─────────────────┐
-                  │  动态路由已加载?  │ ─No→  GET /user-routes，挂载
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                  ┌─────────────────┐
-                  │  meta.roles ⊂?  │ ─No→  /403
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                       放行 + tab push
+1. 路由跳转
+2. meta.constant?
+   Yes -> 放行
+   No  -> 继续
+3. 已登录?
+   No  -> /login?redirect=...
+   Yes -> 继续
+4. 动态路由已加载?
+   No  -> GET /user-routes，挂载
+   Yes -> 继续
+5. meta.roles 匹配?
+   No  -> /403
+   Yes -> 放行 + tab push
 ```
 
 ## 常量路由

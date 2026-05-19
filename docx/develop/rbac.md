@@ -5,11 +5,13 @@
 ## 关系图
 
 ```
-User ──M2M─→ Role ──M2M─→ Menu      （前端可见的路由）
-                  ──M2M─→ Button    （页面内可执行的按钮）
-                  ──M2M─→ Api       （后端可调用的接口）
-                  ──FK──→ Menu      （角色登录后默认首页）
-                  field   data_scope
+User
+`-- M2M --> Role
+    |-- M2M --> Menu        前端可见的路由
+    |-- M2M --> Button      页面内可执行的按钮
+    |-- M2M --> Api         后端可调用的接口
+    |-- FK  --> Menu        角色登录后默认首页
+    `-- field: data_scope
 ```
 
 源模型：[`app/system/models/admin.py`](../../../app/system/models/admin.py)。

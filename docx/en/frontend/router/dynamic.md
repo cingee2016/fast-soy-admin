@@ -22,18 +22,16 @@ In `static` mode, "permission" is just UI hiding — direct URL access still ren
 ## Workflow
 
 ```
-┌──────────────────────────────────────────────────┐
-│ 1. POST /api/v1/auth/login                        │
-│ 2. Save token + refreshToken in localStorage     │
-│ 3. GET /api/v1/auth/user-info                    │
-│      → roles, buttons, mustChangePassword         │
-│ 4. GET /api/v1/route/constant-routes              │
-│      → public routes (login / 403 / 404 / 500 / home) │
-│ 5. GET /api/v1/route/user-routes                  │
-│      → menu tree visible to current user + home   │
-│ 6. Frontend transforms and mounts to vue-router   │
-│ 7. Navigate to home or `redirect` query           │
-└──────────────────────────────────────────────────┘
+1. POST /api/v1/auth/login
+2. Save token + refreshToken in localStorage
+3. GET /api/v1/auth/user-info
+   returns roles, buttons, mustChangePassword
+4. GET /api/v1/route/constant-routes
+   returns public routes (login / 403 / 404 / 500 / home)
+5. GET /api/v1/route/user-routes
+   returns the current user's menu tree + home
+6. Frontend transforms and mounts routes to vue-router
+7. Navigate to home or `redirect` query
 ```
 
 Implementation in [src/router/guard/route.ts](../../../web/src/router/guard/route.ts) and backend [RBAC](/en/develop/rbac).

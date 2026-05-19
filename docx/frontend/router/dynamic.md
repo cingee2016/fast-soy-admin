@@ -22,18 +22,16 @@ VITE_AUTH_ROUTE_MODE=dynamic       # 默认；推荐
 ## 动态路由工作流
 
 ```
-┌──────────────────────────────────────────────────┐
-│ 1. 用户提交账号密码 → POST /api/v1/auth/login     │
-│ 2. 拿到 token + refreshToken，存 localStorage    │
-│ 3. GET /api/v1/auth/user-info                    │
-│      → roles, buttons, mustChangePassword         │
-│ 4. GET /api/v1/route/constant-routes              │
-│      → 公共路由 (login / 403 / 404 / 500 / home)  │
-│ 5. GET /api/v1/route/user-routes                  │
-│      → 当前用户能看到的菜单树 + 默认首页 home      │
-│ 6. 前端 transform 后挂到 vue-router               │
-│ 7. 跳转到 home 或 redirect query                  │
-└──────────────────────────────────────────────────┘
+1. 用户提交账号密码 -> POST /api/v1/auth/login
+2. 拿到 token + refreshToken，存 localStorage
+3. GET /api/v1/auth/user-info
+   返回 roles, buttons, mustChangePassword
+4. GET /api/v1/route/constant-routes
+   返回公共路由 (login / 403 / 404 / 500 / home)
+5. GET /api/v1/route/user-routes
+   返回当前用户能看到的菜单树 + 默认首页 home
+6. 前端 transform 后挂到 vue-router
+7. 跳转到 home 或 redirect query
 ```
 
 后端实现要点见 [src/router/guard/route.ts](../../../web/src/router/guard/route.ts) 与后端 [RBAC](../../develop/rbac.md)。

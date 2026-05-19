@@ -6,13 +6,12 @@ Every navigation goes through guards in `web/src/router/guard/`: auth → dynami
 
 ```
 beforeEach (route.ts)
-   │
-   ├─ initRoute(to)       # first entry: fetch user-info / user-routes / constant-routes, mount routes
-   ├─ already logged in but going to /login → return to root
-   ├─ meta.constant=true → pass
-   ├─ not logged in → /login?redirect=<original url>
-   ├─ logged in but meta.roles mismatch → /403
-   └─ otherwise → handleRouteSwitch (cache update / tab push / multi-tab dedup)
+   |-- initRoute(to)       # first entry: fetch user-info / user-routes / constant-routes, mount routes
+   |-- already logged in but going to /login -> return to root
+   |-- meta.constant=true -> pass
+   |-- not logged in -> /login?redirect=<original url>
+   |-- logged in but meta.roles mismatch -> /403
+   `-- otherwise -> handleRouteSwitch (cache update / tab push / multi-tab dedup)
 
 beforeEach (progress.ts)  # start NProgress
 afterEach  (progress.ts)  # finish NProgress
@@ -33,27 +32,19 @@ Source: [src/router/guard/](../../../web/src/router/guard/).
 ## Flow chart
 
 ```
-                  ┌─────────────────┐
-navigation ─────→ │  meta.constant?  │ ─Yes→ pass
-                  └────────┬────────┘
-                           │No
-                           ▼
-                  ┌─────────────────┐
-                  │  logged in?      │ ─No→  /login?redirect=...
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                  ┌─────────────────┐
-                  │  routes loaded?  │ ─No→  GET /user-routes, mount
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                  ┌─────────────────┐
-                  │  meta.roles ⊂?  │ ─No→  /403
-                  └────────┬────────┘
-                           │Yes
-                           ▼
-                       pass + tab push
+1. navigation
+2. meta.constant?
+   Yes -> pass
+   No  -> continue
+3. logged in?
+   No  -> /login?redirect=...
+   Yes -> continue
+4. routes loaded?
+   No  -> GET /user-routes, mount
+   Yes -> continue
+5. meta.roles match?
+   No  -> /403
+   Yes -> pass + tab push
 ```
 
 ## Constant routes

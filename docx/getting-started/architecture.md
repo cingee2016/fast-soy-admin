@@ -3,25 +3,18 @@
 ## 总览
 
 ```
-                ┌──────────────────────────────────────────────┐
-                │              FastAPI App                      │
-                │  ┌──────────────────────────────────────┐    │
-                │  │  Middleware: CORS / RequestID /      │    │
-                │  │  BackgroundTask / Guard / Radar      │    │
-                │  └──────────────────────────────────────┘    │
-                │                                                │
-                │  /api/v1/auth                  (system)        │
-                │  /api/v1/route                 (system)        │
-                │  /api/v1/system-manage/*       (system)        │
-                │  /api/v1/business/<module>/*   (business)      │
-                │                                                │
-                │   api → services → controllers → models        │
-                └──────────────────────────────────────────────┘
-                                  │
-              ┌───────────────────┼───────────────────┐
-              ▼                   ▼                   ▼
-         Tortoise ORM           Redis             Sqids/JWT
-         (SQLite/PG/MySQL)      (cache + lock)    (encode/sign)
+FastAPI App
+|-- Middleware: CORS / RequestID / BackgroundTask / Guard / Radar
+|-- /api/v1/auth                 (system)
+|-- /api/v1/route                (system)
+|-- /api/v1/system-manage/*      (system)
+|-- /api/v1/business/<module>/*  (business)
+`-- api -> services -> controllers -> models
+
+Runtime dependencies
+|-- Tortoise ORM  (SQLite / PostgreSQL / MySQL)
+|-- Redis         (cache + startup lock)
+`-- Sqids / JWT   (ID encoding + token signing)
 ```
 
 ## 模块边界
@@ -59,26 +52,25 @@
 
 ```
 create_app()
-  ├─ register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
-  ├─ register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError 处理器
-  ├─ register_routers(app, prefix="/api")  # 系统模块 /api/v1/...
-  ├─ discover_business_routers()           # /api/v1/business/<name>/...
-  └─ setup_radar(app)                      # 可选
+  |-- register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
+  |-- register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError 处理器
+  |-- register_routers(app, prefix="/api")  # 系统模块 /api/v1/...
+  |-- discover_business_routers()           # /api/v1/business/<name>/...
+  `-- setup_radar(app)                      # 可选
 
 lifespan(app)
-  ├─ init_redis() → app.state.redis
-  ├─ FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
-  ├─ delete _INIT_LOCK_KEY / _INIT_DONE_KEY
-  ├─ _run_init_data(app)                   # 多 worker 中仅 leader 执行
-  │    ├─ init_menus()                     # 系统菜单种子（仅在 Menu 表为空时插入）
-  │    ├─ refresh_api_list()               # FastAPI 路由 ↔ Api 表全量对账
-  │    ├─ init_users()                     # 系统角色 + 默认账号 + 字典
-  │    ├─ for each business init():        # 业务模块 init_data.init()
-  │    └─ refresh_all_cache()              # 角色权限 / 常量路由刷到 Redis
-  ├─ startup_radar()                       # 可选
-  └─ yield
-       ↓ shutdown
-  └─ close_redis()
+  |-- init_redis() -> app.state.redis
+  |-- FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+  |-- delete _INIT_LOCK_KEY / _INIT_DONE_KEY
+  |-- _run_init_data(app)                   # 多 worker 中仅 leader 执行
+  |   |-- init_menus()                      # 系统菜单种子（仅在 Menu 表为空时插入）
+  |   |-- refresh_api_list()                # FastAPI 路由 <-> Api 表全量对账
+  |   |-- init_users()                      # 系统角色 + 默认账号 + 字典
+  |   |-- for each business init():         # 业务模块 init_data.init()
+  |   `-- refresh_all_cache()               # 角色权限 / 常量路由刷到 Redis
+  |-- startup_radar()                       # 可选
+  |-- yield
+  `-- close_redis()                         # shutdown
 ```
 
 详细同步语义见 [启动初始化与对账](../develop/init-data.md)。
@@ -86,11 +78,13 @@ lifespan(app)
 ## RBAC 数据模型
 
 ```
-User ←M2M→ Role ←M2M→ Menu      (菜单权限：决定前端可见的路由)
-                ←M2M→ Button    (按钮权限：决定页面内可执行的操作)
-                ←M2M→ Api       (接口权限：决定可调用的后端接口)
-                FK    Menu      (角色首页 by_role_home)
-              field   data_scope (行级数据范围: all / department / self / custom)
+User
+`-- M2M --> Role
+    |-- M2M --> Menu        菜单权限：决定前端可见的路由
+    |-- M2M --> Button      按钮权限：决定页面内可执行的操作
+    |-- M2M --> Api         接口权限：决定可调用的后端接口
+    |-- FK  --> Menu        角色首页 by_role_home
+    `-- field: data_scope   行级数据范围: all / department / self / custom
 ```
 
 - 超级管理员 `R_SUPER`（[`app.core.constants.SUPER_ADMIN_ROLE`](../../../app/core/constants.py)）跳过所有权限校验
