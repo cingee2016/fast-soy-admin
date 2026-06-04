@@ -241,7 +241,7 @@ async def reconcile_menu_subtree(
           会被删除（级联清理 Menu/Role 的多对多关系）。传 None 表示不处理按钮。
 
     Args:
-        root_route: 业务模块菜单子树根的 route_name，例如 HR 模块传 "hr"。
+        root_route: 业务模块菜单子树根的 route_name，例如 demo 模块传 "demo"。
         declared_route_names: 当前声明保留的子路由名集合（不含 root 本身）。
         declared_button_codes: 当前声明保留的按钮 code 集合；传 None 表示跳过按钮对账。
 

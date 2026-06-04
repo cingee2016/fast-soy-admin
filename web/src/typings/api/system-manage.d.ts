@@ -307,7 +307,7 @@ declare namespace Api {
     /** dictionary */
     type Dictionary = Omit<
       Common.CommonRecord<{
-        /** dict type, e.g. `tag_category` */
+        /** dict type, e.g. `category` */
         dictType: string;
         /** display label */
         label: string;

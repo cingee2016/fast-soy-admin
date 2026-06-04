@@ -5,7 +5,7 @@ from app.system.schemas.users import UserCreate
 
 
 async def _ensure_home_menu() -> Menu:
-    """Create a minimal 'home' menu for role FK requirement."""
+    """Create a minimal home menu for role FK requirement."""
     menu = await Menu.filter(route_name="home").first()
     if menu:
         return menu
@@ -14,6 +14,7 @@ async def _ensure_home_menu() -> Menu:
         menu_type=MenuType.menu,
         route_name="home",
         route_path="/home",
+        component="layout.base$view.home",
         status_type=StatusType.enable,
         constant=False,
     )

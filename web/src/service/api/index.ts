@@ -2,5 +2,3 @@ export * from './auth';
 export * from './radar';
 export * from './route';
 export * from './system-manage';
-export * from './hr-manage';
-export * from './hr-personal';

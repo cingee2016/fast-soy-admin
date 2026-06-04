@@ -154,3 +154,47 @@ just mm && just run && just check
 14. 所有函数加类型注解；`just check` 必须全绿
 15. **`@crud.override` 内禁止**：`in_transaction(...)` / `request.app.state.redis` / 跨模型写（含 `m2m.add` / `m2m.clear`）/ 调其他模块 service / 发事件 / 写审计——这些必须下沉到 `services/`
 16. **CRUDRouter 适用边界**：仅给贫血资源用（字典/标签/部门/分类）。聚合根（用户/角色/订单/工单等带状态、副作用）用显式 `@router.post(...)` + `services/`。判断条件：override ≥ 3、override 内出现事务/Redis/跨模型写、资源是聚合根或带状态机、写操作有副作用（通知/审计/事件/失效缓存）——任一命中立即改写
+
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
+
+This project is indexed by GitNexus as **fast-soy-admin** (8509 symbols, 14093 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+
+## Always Do
+
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+## Never Do
+
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Resources
+
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/fast-soy-admin/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/fast-soy-admin/clusters` | All functional areas |
+| `gitnexus://repo/fast-soy-admin/processes` | All execution flows |
+| `gitnexus://repo/fast-soy-admin/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->
