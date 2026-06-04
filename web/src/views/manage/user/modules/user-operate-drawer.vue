@@ -155,7 +155,11 @@ watch(visible, () => {
             v-model:value="model.password"
             type="password"
             show-password-on="click"
-            :placeholder="operateType === 'edit' ? $t('page.manage.user.form.passwordEditHint') : $t('page.manage.user.form.password')"
+            :placeholder="
+              operateType === 'edit'
+                ? $t('page.manage.user.form.passwordEditHint')
+                : $t('page.manage.user.form.password')
+            "
           />
         </NFormItem>
         <NFormItem :label="$t('page.manage.user.userGender')" path="userGender">

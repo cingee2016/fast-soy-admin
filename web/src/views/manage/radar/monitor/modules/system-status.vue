@@ -11,9 +11,7 @@ defineProps<{
     <NDescriptions v-if="data" label-placement="left" bordered :column="1" size="small">
       <NDescriptionsItem :label="$t('page.manage.radar.monitor.systemLoad')">
         {{ data.load_1min }} / {{ data.load_5min }} / {{ data.load_15min }}
-        <span class="ml-8px text-11px text-gray-400">
-          ({{ $t('page.manage.radar.monitor.loadAvg') }})
-        </span>
+        <span class="ml-8px text-11px text-gray-400">({{ $t('page.manage.radar.monitor.loadAvg') }})</span>
       </NDescriptionsItem>
       <NDescriptionsItem :label="$t('page.manage.radar.monitor.uptime')">
         {{ data.uptime }}

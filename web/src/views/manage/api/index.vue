@@ -123,12 +123,7 @@ function resetSearchParams() {
     <ApiSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getData" />
     <NCard :title="$t('page.manage.api.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
-        <TableHeaderOperation
-          v-model:columns="columnChecks"
-          :loading="loading"
-          table-id="api"
-          @refresh="getData"
-        >
+        <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" table-id="api" @refresh="getData">
           <template #default>
             <span></span>
           </template>

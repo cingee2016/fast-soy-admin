@@ -170,25 +170,13 @@ loadData();
         <NCollapseItem :title="$t('common.search')" name="exception-search">
           <NForm label-placement="left" :label-width="100">
             <NGrid responsive="screen" item-responsive>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.requests.path')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.requests.path')" class="pr-24px">
                 <NInput v-model:value="searchParams.path_filter" clearable />
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.exceptions.errorType')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.exceptions.errorType')" class="pr-24px">
                 <NInput v-model:value="searchParams.error_type" clearable />
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.exceptions.status')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.exceptions.status')" class="pr-24px">
                 <NSelect
                   v-model:value="(searchParams.resolved as any)"
                   clearable
@@ -219,7 +207,12 @@ loadData();
         </NCollapseItem>
       </NCollapse>
     </NCard>
-    <NCard :title="$t('page.manage.radar.exceptions.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
+    <NCard
+      :title="$t('page.manage.radar.exceptions.title')"
+      :bordered="false"
+      size="small"
+      class="card-wrapper sm:flex-1-hidden"
+    >
       <template #header-extra>
         <NButton size="small" :disabled="loading" @click="loadData">
           <template #icon>

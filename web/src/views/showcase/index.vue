@@ -51,7 +51,9 @@ onMounted(loadData);
           </div>
         </template>
         <p class="text-14px text-#888">
-          本页由常量路由提供，未登录即可访问。数据来自 <code>GET /api/v1/business/hr/public/showcase</code>。
+          本页由常量路由提供，未登录即可访问。数据来自
+          <code>GET /api/v1/business/hr/public/showcase</code>
+          。
         </p>
       </NCard>
 
@@ -96,12 +98,7 @@ onMounted(loadData);
         </NCard>
 
         <NCard title="部门员工分布" class="mt-16px" :bordered="false">
-          <NDataTable
-            :columns="deptColumns"
-            :data="overview?.departments ?? []"
-            :bordered="false"
-            size="small"
-          />
+          <NDataTable :columns="deptColumns" :data="overview?.departments ?? []" :bordered="false" size="small" />
         </NCard>
 
         <div class="mt-16px text-center">

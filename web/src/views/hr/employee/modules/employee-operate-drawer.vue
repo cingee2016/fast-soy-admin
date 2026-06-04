@@ -136,10 +136,21 @@ watch(visible, () => {
           <NInput v-model:value="addModel.email" :placeholder="$t('page.hr.employee.form.email')" />
         </NFormItem>
         <NFormItem :label="$t('page.hr.employee.department')" path="departmentId">
-          <NSelect v-model:value="addModel.departmentId" :options="departmentOptions" clearable :placeholder="$t('page.hr.employee.form.department')" />
+          <NSelect
+            v-model:value="addModel.departmentId"
+            :options="departmentOptions"
+            clearable
+            :placeholder="$t('page.hr.employee.form.department')"
+          />
         </NFormItem>
         <NFormItem :label="$t('page.hr.employee.tags')">
-          <NSelect v-model:value="addModel.tagIds" :options="props.tagOptions" multiple clearable :placeholder="$t('page.hr.employee.form.tags')" />
+          <NSelect
+            v-model:value="addModel.tagIds"
+            :options="props.tagOptions"
+            multiple
+            clearable
+            :placeholder="$t('page.hr.employee.form.tags')"
+          />
         </NFormItem>
       </NForm>
       <!-- Edit form -->
@@ -167,7 +178,13 @@ watch(visible, () => {
           <NInput v-model:value="editModel.position" :placeholder="$t('page.hr.employee.form.position')" />
         </NFormItem>
         <NFormItem :label="$t('page.hr.employee.tags')">
-          <NSelect v-model:value="editModel.tagIds" :options="props.tagOptions" multiple clearable :placeholder="$t('page.hr.employee.form.tags')" />
+          <NSelect
+            v-model:value="editModel.tagIds"
+            :options="props.tagOptions"
+            multiple
+            clearable
+            :placeholder="$t('page.hr.employee.form.tags')"
+          />
         </NFormItem>
       </NForm>
       <template #footer>

@@ -352,7 +352,12 @@ function toggleAutoRefresh(val: boolean) {
         <!-- Performance Overview + Response Time -->
         <NGrid :x-gap="16" :y-gap="16" cols="1 m:2" responsive="screen">
           <NGi>
-            <NCard :title="$t('page.manage.radar.dashboard.perfOverview')" :bordered="false" size="small" class="card-wrapper">
+            <NCard
+              :title="$t('page.manage.radar.dashboard.perfOverview')"
+              :bordered="false"
+              size="small"
+              class="card-wrapper"
+            >
               <NGrid :x-gap="16" :y-gap="16" cols="2" responsive="screen">
                 <NGi>
                   <NStatistic :label="$t('page.manage.radar.dashboard.successRate')">
@@ -376,7 +381,12 @@ function toggleAutoRefresh(val: boolean) {
             </NCard>
           </NGi>
           <NGi>
-            <NCard :title="$t('page.manage.radar.dashboard.responseTime')" :bordered="false" size="small" class="card-wrapper">
+            <NCard
+              :title="$t('page.manage.radar.dashboard.responseTime')"
+              :bordered="false"
+              size="small"
+              class="card-wrapper"
+            >
               <NGrid :x-gap="16" :y-gap="16" cols="2" responsive="screen">
                 <NGi>
                   <NStatistic label="P50 (Median)">
@@ -406,19 +416,34 @@ function toggleAutoRefresh(val: boolean) {
         <!-- Request Distribution + Response Time Trend -->
         <NGrid :x-gap="16" :y-gap="16" cols="1 m:3" responsive="screen">
           <NGi>
-            <NCard :title="$t('page.manage.radar.dashboard.requestDist')" :bordered="false" size="small" class="card-wrapper">
+            <NCard
+              :title="$t('page.manage.radar.dashboard.requestDist')"
+              :bordered="false"
+              size="small"
+              class="card-wrapper"
+            >
               <div ref="distChartRef" class="h-300px"></div>
             </NCard>
           </NGi>
           <NGi :span="2">
-            <NCard :title="$t('page.manage.radar.dashboard.responseTimeTrend')" :bordered="false" size="small" class="card-wrapper">
+            <NCard
+              :title="$t('page.manage.radar.dashboard.responseTimeTrend')"
+              :bordered="false"
+              size="small"
+              class="card-wrapper"
+            >
               <div ref="trendChartRef" class="h-300px"></div>
             </NCard>
           </NGi>
         </NGrid>
 
         <!-- Query Activity -->
-        <NCard :title="$t('page.manage.radar.dashboard.queryActivity')" :bordered="false" size="small" class="card-wrapper">
+        <NCard
+          :title="$t('page.manage.radar.dashboard.queryActivity')"
+          :bordered="false"
+          size="small"
+          class="card-wrapper"
+        >
           <div ref="queryChartRef" class="h-300px"></div>
         </NCard>
       </div>

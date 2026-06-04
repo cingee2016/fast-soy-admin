@@ -76,7 +76,6 @@ export function fetchGetApiList(data?: Api.SystemManage.ApiSearchParams) {
   });
 }
 
-
 /** add user */
 export function fetchAddUser(data?: Api.SystemManage.UserUpdateParams) {
   return request<Api.SystemManage.UserList, 'json'>({
@@ -249,4 +248,3 @@ export function fetchUpdateMenu(data?: Api.SystemManage.MenuUpdateParams) {
     data
   });
 }
-

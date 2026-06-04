@@ -185,34 +185,18 @@ loadData();
         <NCollapseItem :title="$t('common.search')" name="request-search">
           <NForm label-placement="left" :label-width="100">
             <NGrid responsive="screen" item-responsive>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.requests.path')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.requests.path')" class="pr-24px">
                 <NInput v-model:value="searchParams.path_filter" clearable />
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.requests.businessCode')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.requests.businessCode')" class="pr-24px">
                 <NInput v-model:value="searchParams.code_filter" clearable />
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.requests.minDuration')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.requests.minDuration')" class="pr-24px">
                 <NInputNumber v-model:value="searchParams.min_duration" clearable :min="0">
                   <template #suffix>ms</template>
                 </NInputNumber>
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.requests.hasError')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.requests.hasError')" class="pr-24px">
                 <NSelect
                   v-model:value="(searchParams.has_error as any)"
                   clearable
@@ -243,7 +227,12 @@ loadData();
         </NCollapseItem>
       </NCollapse>
     </NCard>
-    <NCard :title="$t('page.manage.radar.requests.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
+    <NCard
+      :title="$t('page.manage.radar.requests.title')"
+      :bordered="false"
+      size="small"
+      class="card-wrapper sm:flex-1-hidden"
+    >
       <template #header-extra>
         <NButton size="small" :disabled="loading" @click="loadData">
           <template #icon>

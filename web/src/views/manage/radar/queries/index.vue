@@ -185,18 +185,10 @@ loadData();
         <NCollapseItem :title="$t('common.search')" name="query-search">
           <NForm label-placement="left" :label-width="120">
             <NGrid responsive="screen" item-responsive>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.queries.slowOnly')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.queries.slowOnly')" class="pr-24px">
                 <NSwitch v-model:value="searchParams.slow_only" />
               </NFormItemGi>
-              <NFormItemGi
-                span="24 s:12 m:6"
-                :label="$t('page.manage.radar.queries.threshold')"
-                class="pr-24px"
-              >
+              <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.radar.queries.threshold')" class="pr-24px">
                 <NInputNumber v-model:value="searchParams.threshold_ms" :min="0">
                   <template #suffix>ms</template>
                 </NInputNumber>
@@ -216,7 +208,12 @@ loadData();
         </NCollapseItem>
       </NCollapse>
     </NCard>
-    <NCard :title="$t('page.manage.radar.queries.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
+    <NCard
+      :title="$t('page.manage.radar.queries.title')"
+      :bordered="false"
+      size="small"
+      class="card-wrapper sm:flex-1-hidden"
+    >
       <template #header-extra>
         <NButton size="small" :disabled="loading" @click="loadData">
           <template #icon>

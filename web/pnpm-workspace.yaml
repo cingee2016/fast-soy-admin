@@ -1,7 +1,8 @@
 packages:
-  - "packages/*"
+  - 'packages/*'
 allowBuilds:
-  "@parcel/watcher": false
+  '@antv/util': false
+  '@parcel/watcher': false
   core-js: false
   core-js-pure: false
   es5-ext: false
@@ -10,3 +11,6 @@ allowBuilds:
   typeit: false
   unrs-resolver: false
   vue-demi: false
+shamefullyHoist: true
+ignoreWorkspaceRootCheck: true
+linkWorkspacePackages: true

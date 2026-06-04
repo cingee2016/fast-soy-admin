@@ -98,7 +98,11 @@ function buildFullSql(sql: string, params: string | null): string {
             <NDescriptionsItem :label="$t('page.manage.radar.requests.createdAt')" :span="appStore.isMobile ? 1 : 2">
               {{ data.fmtCreatedAt }}
             </NDescriptionsItem>
-            <NDescriptionsItem v-if="data.queryParams" :label="$t('page.manage.radar.requests.queryParams')" :span="appStore.isMobile ? 1 : 2">
+            <NDescriptionsItem
+              v-if="data.queryParams"
+              :label="$t('page.manage.radar.requests.queryParams')"
+              :span="appStore.isMobile ? 1 : 2"
+            >
               <NCode :code="data.queryParams" language="text" word-wrap />
             </NDescriptionsItem>
           </NDescriptions>
@@ -119,11 +123,7 @@ function buildFullSql(sql: string, params: string | null): string {
               </template>
               <NCode :code="formatJson(data.requestHeaders)" language="json" word-wrap />
             </NCollapseItem>
-            <NCollapseItem
-              v-if="data.requestBody"
-              :title="$t('page.manage.radar.requests.requestBody')"
-              name="reqBody"
-            >
+            <NCollapseItem v-if="data.requestBody" :title="$t('page.manage.radar.requests.requestBody')" name="reqBody">
               <template #header-extra>
                 <NButton quaternary size="tiny" @click.stop="copyText(formatJson(data.requestBody))">
                   <template #icon>

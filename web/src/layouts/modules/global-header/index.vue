@@ -46,7 +46,11 @@ async function handleExitImpersonate() {
     </div>
     <div v-if="authStore.impersonating" class="h-full flex-y-center gap-8px mr-12px">
       <NTag type="warning" size="small" round>
-        {{ $t('page.manage.user.impersonate.actingAs', { name: authStore.userInfo.nickName || authStore.userInfo.userName }) }}
+        {{
+          $t('page.manage.user.impersonate.actingAs', {
+            name: authStore.userInfo.nickName || authStore.userInfo.userName
+          })
+        }}
       </NTag>
       <NButton type="warning" size="tiny" @click="handleExitImpersonate">
         {{ $t('page.manage.user.impersonate.exit') }}

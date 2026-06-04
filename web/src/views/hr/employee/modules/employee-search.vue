@@ -39,11 +39,26 @@ function search() {
             <NFormItemGi span="24 s:12 m:6" :label="$t('page.hr.employee.name')" path="name" class="pr-24px">
               <NInput v-model:value="model.name" :placeholder="$t('page.hr.employee.form.name')" />
             </NFormItemGi>
-            <NFormItemGi span="24 s:12 m:6" :label="$t('page.hr.employee.department')" path="departmentId" class="pr-24px">
-              <NSelect v-model:value="model.departmentId" :options="departmentOptions" clearable :placeholder="$t('page.hr.employee.form.department')" />
+            <NFormItemGi
+              span="24 s:12 m:6"
+              :label="$t('page.hr.employee.department')"
+              path="departmentId"
+              class="pr-24px"
+            >
+              <NSelect
+                v-model:value="model.departmentId"
+                :options="departmentOptions"
+                clearable
+                :placeholder="$t('page.hr.employee.form.department')"
+              />
             </NFormItemGi>
             <NFormItemGi span="24 s:12 m:6" :label="$t('page.hr.common.status')" path="status" class="pr-24px">
-              <NSelect v-model:value="model.status" :options="translateOptions(employeeStatusOptions)" clearable :placeholder="$t('page.hr.employee.form.status')" />
+              <NSelect
+                v-model:value="model.status"
+                :options="translateOptions(employeeStatusOptions)"
+                clearable
+                :placeholder="$t('page.hr.employee.form.status')"
+              />
             </NFormItemGi>
             <NFormItemGi span="24 s:12 m:6">
               <NSpace class="w-full" justify="end">

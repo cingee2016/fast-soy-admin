@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import {
-  fetchAddTeamEmployee,
-  fetchGetEmployee,
-  fetchUpdateTeamEmployee
-} from '@/service/api';
+import { fetchAddTeamEmployee, fetchGetEmployee, fetchUpdateTeamEmployee } from '@/service/api';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 

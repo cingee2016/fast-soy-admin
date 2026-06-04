@@ -88,7 +88,11 @@ watch(visible, () => {
           <NInput v-model:value="model.code" :placeholder="$t('page.hr.department.form.code')" />
         </NFormItem>
         <NFormItem :label="$t('page.hr.department.description')">
-          <NInput v-model:value="model.description" type="textarea" :placeholder="$t('page.hr.department.form.description')" />
+          <NInput
+            v-model:value="model.description"
+            type="textarea"
+            :placeholder="$t('page.hr.department.form.description')"
+          />
         </NFormItem>
         <NFormItem :label="$t('page.hr.common.status')" path="status">
           <NRadioGroup v-model:value="model.status">
