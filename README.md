@@ -82,12 +82,18 @@
 - [命令参考](https://sleep1223.github.io/fast-soy-admin-docs/reference/commands)
 - [Apidog 接口文档](https://fast-soy-admin.apidog.io)
 
+## 交流群
+
+欢迎扫码加入 FastSoyAdmin QQ 交流群，一起交流使用、二开和部署经验。
+
+<img src="https://sleep1223.github.io/fast-soy-admin-docs/community/qq-group.jpg" alt="FastSoyAdmin QQ 交流群二维码" width="220">
+
 ## 分支说明
 
 | 分支 | 用途 |
 | --- | --- |
-| `main` | 默认分支，带 HR 示例（`app/business/hr/` 员工 / 部门 / 标签） |
-| `slim` | 纯净骨架，无业务示例（整理中） |
+| `main` | 纯净骨架，无业务示例（默认分支） |
+| `example` | 带 HR 示例（`app/business/hr/` 员工 / 部门 / 标签） |
 
 > 临时无示例起步：删除 `app/business/hr/` 即可，autodiscover 会自动跳过。
 
@@ -233,7 +239,7 @@ uv sync --extra oracle  # Oracle (asyncodbc)
 - [x] Docker 一键部署
 - [x] CLI 代码生成器（后端 + 前端）
 - [x] 内置 Radar 监控（请求 / SQL / 异常 / 埋点）
-- [ ] `slim` 纯净分支
+- [x] `main` 纯净分支
 - [ ] 端到端测试
 
 ## 贡献

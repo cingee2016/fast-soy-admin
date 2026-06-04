@@ -86,8 +86,8 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 
 | Branch | Purpose |
 | --- | --- |
-| `main` | Default; includes the HR example (`app/business/hr/` — employees / departments / tags) |
-| `slim` | Clean skeleton with no business examples (in preparation) |
+| `main` | Clean skeleton with no business examples (default) |
+| `example` | Includes the HR example (`app/business/hr/` — employees / departments / tags) |
 
 > Want a clean start now? Delete `app/business/hr/` before launching — autodiscover will skip it.
 
@@ -231,7 +231,7 @@ See [response codes](https://sleep1223.github.io/fast-soy-admin-docs/en/referenc
 - [x] One-command Docker deploy
 - [x] CLI code generator (backend + frontend)
 - [x] Built-in Radar dashboard (requests / SQL / exceptions / audit)
-- [ ] `slim` clean branch
+- [x] `main` clean branch
 - [ ] End-to-end tests
 
 ## Contributing
