@@ -679,8 +679,8 @@ const local: App.I18n.BaseSchema = {
         includeBusiness: 'Business Menus',
         includeBusinessWarningTitle: 'Show business menus?',
         includeBusinessWarning:
-          'Business menus are declared by each module\'s init_data.py. Subtrees guarded by reconcile_menu_subtree are rebuilt from the declarations on every restart — menus you delete here will be restored, and menus you add under them will be removed.',
-        dontShowAgain: 'Don\'t show again',
+          "Business menus are declared by each module's init_data.py. Subtrees guarded by reconcile_menu_subtree are rebuilt from the declarations on every restart — menus you delete here will be restored, and menus you add under them will be removed.",
+        dontShowAgain: "Don't show again",
         type: {
           directory: 'Directory',
           menu: 'Menu'
