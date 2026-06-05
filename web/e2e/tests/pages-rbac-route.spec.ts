@@ -18,5 +18,4 @@ test.describe('RBAC route access (common user)', () => {
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     await expect(page).not.toHaveURL(/\/manage\/role(\?|$|#)/);
   });
-
 });

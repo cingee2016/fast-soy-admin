@@ -46,7 +46,8 @@ just run                              # 并行启动后端 :9999 + 前端 :9527
 just run backend / just run frontend  # 仅后端 / 仅前端
 
 just mm                               # makemigrations + migrate（启动不会自动迁移）
-just check                            # 提交前必跑：ruff + basedpyright + pytest + eslint + oxlint + vue-tsc
+just fmt                              # 格式化并应用安全 lint 修复（前后端统一入口）
+just check                            # 提交前门禁（前后端统一入口）
 just up / just logs / just down       # docker compose
 ```
 
@@ -58,7 +59,7 @@ just up / just logs / just down       # docker compose
 just cli-init <name>              # 生成骨架
 # 编辑 app/business/<name>/models.py 定义模型
 just cli-gen-all <name> <中文名>  # 生成后端 + 前端 CRUD
-just mm && just run && just check
+just mm && just run && just fmt && just check
 ```
 
 业务模块结构、autodiscover 约定见 [docx/develop/autodiscover.md](docx/develop/autodiscover.md)。
@@ -88,7 +89,7 @@ just mm && just run && just check
 
 - 读取仓库文件、`.env.example`、`justfile`、`pyproject.toml`、`web/package.json`
 - 跑只读 / `--check` / dry-run 命令
-- `just --list` / `just dbhistory` / `just fmt backend` / `just typecheck backend` / `just test backend` / `just check` / `just typecheck frontend`
+- `just --list` / `just dbhistory` / `just fmt` / `just check`
 - 查看监控、日志、Radar 面板
 - 读取系统表 / 元数据：`information_schema.*`、Tortoise meta
 
@@ -151,7 +152,7 @@ just mm && just run && just check
 11. 不要 `raise HTTPException`；用 `BizError` / `SchemaValidationError`（**不是** `ValueError`）
 12. 业务自有缓存按 `<module>_<resource>:<scope>` 命名，读 → miss → 查 → 写 TTL，变更时主动失效；不要给分页接口加全局 `@cache(...)`
 13. 关键节点 / 权限拒绝用 `radar_log(...)`；高频调试 `log.debug`；不要 `print(...)`
-14. 所有函数加类型注解；`just check` 必须全绿
+14. 所有函数加类型注解；提交前 `just fmt` + `just check` 必须全绿
 15. **`@crud.override` 内禁止**：`in_transaction(...)` / `request.app.state.redis` / 跨模型写（含 `m2m.add` / `m2m.clear`）/ 调其他模块 service / 发事件 / 写审计——这些必须下沉到 `services/`
 16. **CRUDRouter 适用边界**：仅给贫血资源用（字典/标签/部门/分类）。聚合根（用户/角色/订单/工单等带状态、副作用）用显式 `@router.post(...)` + `services/`。判断条件：override ≥ 3、override 内出现事务/Redis/跨模型写、资源是聚合根或带状态机、写操作有副作用（通知/审计/事件/失效缓存）——任一命中立即改写
 

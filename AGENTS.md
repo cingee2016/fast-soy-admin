@@ -1,3 +1,8 @@
+## Project Gates
+
+- Use root-level `just` recipes for quality gates: run `just fmt` to format/apply safe lint fixes, then `just check` before handoff or commit.
+- Target-specific commands such as `just fmt frontend` are fine while iterating, but `cd web && pnpm fmt`, direct `ruff`, direct `eslint`, or direct `pnpm lint` do not replace the project gate.
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
