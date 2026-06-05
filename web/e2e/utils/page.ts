@@ -6,13 +6,32 @@ export async function loginAs(page: Page, userName: string, password: string) {
   await page.locator('input').nth(0).fill(userName);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole('button', { name: '确认', exact: true }).click();
-  await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 15_000 });
+  await waitForLoggedIn(page, userName);
 }
 
 export async function quickLoginSuper(page: Page) {
   await page.goto('/login');
   await page.getByRole('button', { name: '超级管理员', exact: true }).click();
-  await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 15_000 });
+  await waitForLoggedIn(page, 'Soybean');
+}
+
+async function waitForLoggedIn(page: Page, userName: string) {
+  await page.waitForFunction(
+    name => {
+      const isAwayFromLogin = !window.location.pathname.startsWith('/login');
+      const hasUserButton = Array.from(document.querySelectorAll('button')).some(button =>
+        button.textContent?.includes(name)
+      );
+
+      return isAwayFromLogin || hasUserButton;
+    },
+    userName,
+    { timeout: 15_000 }
+  );
+
+  if (new URL(page.url()).pathname.startsWith('/login')) {
+    await page.goto('/home');
+  }
 }
 
 /**

@@ -35,7 +35,7 @@
     "dev": "vite --mode test",
     "dev:prod": "vite --mode prod",
     "e2e": "playwright test",
-    "e2e:install": "playwright install --with-deps chromium",
+    "e2e:install": "playwright install --with-deps --only-shell chromium",
     "e2e:ui": "playwright test --ui",
     "fmt": "oxfmt",
     "gen-route": "sa gen-route",

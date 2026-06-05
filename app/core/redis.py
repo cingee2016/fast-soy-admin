@@ -8,6 +8,11 @@ from app.core.config import APP_SETTINGS
 
 
 async def init_redis() -> Redis:
+    if APP_SETTINGS.REDIS_URL.startswith("fakeredis://"):
+        from fakeredis import aioredis as fake_aioredis
+
+        return fake_aioredis.FakeRedis()
+
     return aioredis.from_url(url=APP_SETTINGS.REDIS_URL)
 
 
