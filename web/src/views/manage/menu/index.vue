@@ -277,7 +277,7 @@ function handleIncludeBusinessUpdate(val: boolean) {
     return;
   }
 
-  let dontShowAgain = false;
+  const dontShowAgain = ref(false);
 
   window.$dialog?.warning({
     title: $t('page.manage.menu.includeBusinessWarningTitle'),
@@ -287,9 +287,9 @@ function handleIncludeBusinessUpdate(val: boolean) {
         h(
           NCheckbox,
           {
-            checked: dontShowAgain,
+            checked: dontShowAgain.value,
             'onUpdate:checked': (v: boolean) => {
-              dontShowAgain = v;
+              dontShowAgain.value = v;
             }
           },
           { default: () => $t('page.manage.menu.dontShowAgain') }
@@ -298,7 +298,7 @@ function handleIncludeBusinessUpdate(val: boolean) {
     positiveText: $t('common.confirm'),
     negativeText: $t('common.cancel'),
     onPositiveClick: () => {
-      if (dontShowAgain) {
+      if (dontShowAgain.value) {
         localStorage.setItem(SHOW_BUSINESS_WARNING_KEY, '1');
       }
       searchParams.value.includeBusiness = true;
