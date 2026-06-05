@@ -78,9 +78,11 @@ jobs:
         run: pnpm typecheck
 
   e2e:
-    name: E2E (Playwright, non-blocking)
+    name: E2E (Playwright)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      options: --user 1001
     services:
       redis:
         image: redis:7-alpine
@@ -92,7 +94,7 @@ jobs:
           --health-timeout 3s
           --health-retries 5
     env:
-      REDIS_URL: redis://127.0.0.1:6379/15
+      REDIS_URL: redis://redis:6379/15
       DB_URL: sqlite://app_system_e2e.sqlite3?busy_timeout=5000
       APP_DEBUG: "false"
       GUARD_ENABLED: "false"
@@ -124,10 +126,6 @@ jobs:
       - name: Install frontend deps
         working-directory: web
         run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright (chromium)
-        working-directory: web
-        run: pnpm exec playwright install --with-deps chromium
 
       - name: Init E2E database
         run: |
