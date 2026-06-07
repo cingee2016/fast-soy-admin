@@ -47,7 +47,7 @@ _run-windows target:
     powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{justfile_directory()}}\scripts\run-dev-windows.ps1" -Root "{{justfile_directory()}}" -Target "{{target}}"
 
 _run-unix target:
-    python scripts/dev.py "{{target}}"
+    uv run python scripts/dev.py "{{target}}"
 
 # Backward-compatible alias for starting both dev servers.
 dev:
