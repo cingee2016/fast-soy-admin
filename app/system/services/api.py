@@ -29,7 +29,7 @@ async def list_apis_with_scope(obj_in: ApiSearch) -> tuple[int, list[dict], int,
     )
     if obj_in.tags:
         q &= Q(*[Q(tags__icontains=f"|{tag}|") for tag in obj_in.tags], join_type="OR")
-    # slim 分支默认展示系统接口；关闭开关时仍可按业务模块路径过滤。
+    # 默认只展示业务模块接口；勾选后展示全部（含系统接口）
     if not obj_in.include_system:
         q &= Q(api_path__startswith="/api/v1/business/")
 

@@ -11,7 +11,7 @@ TEST_TORTOISE_ORM = {
     },
     "apps": {
         "app_system": {
-            "models": ["app.system.models", "app.system.radar.models"],
+            "models": ["app.system.models", "app.system.radar.models", "app.business.hr.models"],
             "default_connection": "conn_system",
         }
     },
@@ -133,3 +133,32 @@ async def auth_client(app, seed_data):
         headers={"Authorization": f"Bearer {token}"},
     ) as ac:
         yield ac
+
+
+# ===================== HR Fixtures =====================
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def hr_data(app, seed_data):
+    """Seed HR test data: department, tags, employee (linked to super admin)."""
+    from app.business.hr.models import Department, Employee, Tag
+
+    user = seed_data
+
+    dept = await Department.create(name="Engineering", code="ENG", description="Engineering Department")
+    tag_py = await Tag.create(name="Python", category="Language")
+    tag_js = await Tag.create(name="JavaScript", category="Language")
+
+    emp = await Employee.create(
+        name=user.nick_name or "Soybean",
+        employee_no="EMP0001",
+        email="admin@admin.com",
+        department=dept,
+        user_id=user.id,
+    )
+    await emp.tags.add(tag_py)
+
+    # Set employee as department manager
+    await Department.filter(id=dept.id).update(manager_id=emp.id)
+
+    return {"department": dept, "tags": [tag_py, tag_js], "employee": emp, "user": user}

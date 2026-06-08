@@ -11,7 +11,7 @@
 - 以 `_` 开头的目录将被跳过
 
 目录结构示例：
-    app/business/demo/
+    app/business/hr/
     ├── __init__.py
     ├── config.py, ctx.py, dependency.py
     ├── models.py, schemas.py, controllers.py, services.py
@@ -19,7 +19,7 @@
     └── api/
         ├── __init__.py  (导出 router)
         ├── manage.py
-        └── public.py
+        └── my.py
 """
 
 import importlib
@@ -65,7 +65,7 @@ def discover_business_db_configs() -> dict[str, dict]:
     返回::
 
         {
-            "demo": {"db_url": "postgres://...", "models": "app.business.demo.models"},
+            "hr": {"db_url": "postgres://...", "models": "app.business.hr.models"},
         }
     """
     configs: dict[str, dict] = {}

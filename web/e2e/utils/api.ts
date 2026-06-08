@@ -1,7 +1,9 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { request as pwRequest } from '@playwright/test';
 
-export const API_BASE = 'http://127.0.0.1:9999/api/v1';
+const BACKEND_PORT = process.env.E2E_BACKEND_PORT ?? '9999';
+
+export const API_BASE = `http://127.0.0.1:${BACKEND_PORT}/api/v1`;
 
 export interface BizResponse<T = unknown> {
   code: string;

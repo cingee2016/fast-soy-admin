@@ -65,7 +65,7 @@ class BaseApi(SchemaBase):
 
 
 class ApiSearch(BaseApi, PageQueryBase):
-    include_system: bool = Field(True, title="是否包含系统接口", description="slim 分支默认展示系统接口")
+    include_system: bool = Field(False, title="是否包含系统接口", description="默认仅显示业务模块接口")
 
 
 class ApiCreate(BaseApi):

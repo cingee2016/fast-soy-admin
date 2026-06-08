@@ -18,7 +18,7 @@ const defaultSearchParams: Api.SystemManage.ApiSearchParams = {
   apiMethod: null,
   summary: null,
   tags: null,
-  includeSystem: true
+  includeSystem: false
 };
 
 const searchParams: Api.SystemManage.ApiSearchParams = reactive({ ...defaultSearchParams });

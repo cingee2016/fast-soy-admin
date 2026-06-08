@@ -18,4 +18,10 @@ test.describe('RBAC route access (common user)', () => {
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     await expect(page).not.toHaveURL(/\/manage\/role(\?|$|#)/);
   });
+
+  test('普通用户访问 /function/super-page 不可达', async ({ page }) => {
+    await page.goto('/function/super-page');
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await expect(page).not.toHaveURL(/\/function\/super-page(\?|$|#)/);
+  });
 });

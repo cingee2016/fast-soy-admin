@@ -11,14 +11,14 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
-const { toLogin } = useRouterPush();
+const { routerPushByKey, toLogin } = useRouterPush();
 const { SvgIconVNode } = useSvgIcon();
 
 function loginOrRegister() {
   toLogin();
 }
 
-type DropdownKey = 'logout' | 'exit-impersonate';
+type DropdownKey = 'user-center' | 'logout' | 'exit-impersonate';
 
 type DropdownOption =
   | {
@@ -32,17 +32,23 @@ type DropdownOption =
     };
 
 const options = computed(() => {
-  const opts: DropdownOption[] = [];
+  const opts: DropdownOption[] = [
+    {
+      label: $t('common.userCenter'),
+      key: 'user-center',
+      icon: SvgIconVNode({ icon: 'ph:user-circle', fontSize: 18 })
+    },
+    {
+      type: 'divider',
+      key: 'divider'
+    }
+  ];
 
   if (authStore.impersonating) {
     opts.push({
       label: $t('page.manage.user.impersonate.exit'),
       key: 'exit-impersonate',
       icon: SvgIconVNode({ icon: 'ph:arrow-u-up-left', fontSize: 18 })
-    });
-    opts.push({
-      type: 'divider',
-      key: 'divider'
     });
   }
 
@@ -76,6 +82,9 @@ function handleDropdown(key: DropdownKey) {
     logout();
   } else if (key === 'exit-impersonate') {
     handleExitImpersonate();
+  } else {
+    // If your other options are jumps from other routes, they will be directly supported here
+    routerPushByKey(key);
   }
 }
 </script>

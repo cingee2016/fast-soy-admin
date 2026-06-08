@@ -1,36 +1,59 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
+const LOGIN_TIMEOUT_MS = 15_000;
+const LOGIN_ATTEMPTS = 2;
+
 export async function loginAs(page: Page, userName: string, password: string) {
-  await page.goto('/login');
-  await page.locator('input').nth(0).fill(userName);
-  await page.locator('input[type="password"]').fill(password);
-  await page.getByRole('button', { name: '确认', exact: true }).click();
-  await waitForLoggedIn(page, userName);
+  for (let attempt = 0; attempt < LOGIN_ATTEMPTS; attempt += 1) {
+    await page.goto('/login');
+    await page.locator('input').nth(0).fill(userName);
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole('button', { name: '确认', exact: true }).click();
+
+    if (await waitForLoggedIn(page, userName)) {
+      return;
+    }
+  }
+
+  throw new Error(`login timed out for ${userName}`);
 }
 
 export async function quickLoginSuper(page: Page) {
-  await page.goto('/login');
-  await page.getByRole('button', { name: '超级管理员', exact: true }).click();
-  await waitForLoggedIn(page, 'Soybean');
+  for (let attempt = 0; attempt < LOGIN_ATTEMPTS; attempt += 1) {
+    await page.goto('/login');
+    await page.getByRole('button', { name: '超级管理员', exact: true }).click();
+
+    if (await waitForLoggedIn(page, 'Soybean')) {
+      return;
+    }
+  }
+
+  throw new Error('quick login timed out for Soybean');
 }
 
-async function waitForLoggedIn(page: Page, userName: string) {
-  await page.waitForFunction(
-    name => {
-      const isAwayFromLogin = !window.location.pathname.startsWith('/login');
-      const hasUserButton = Array.from(document.querySelectorAll('button')).some(button =>
-        button.textContent?.includes(name)
-      );
+async function waitForLoggedIn(page: Page, userName: string): Promise<boolean> {
+  try {
+    await page.waitForFunction(
+      name => {
+        const isAwayFromLogin = !window.location.pathname.startsWith('/login');
+        const hasUserButton = Array.from(document.querySelectorAll('button')).some(button =>
+          button.textContent?.includes(name)
+        );
 
-      return isAwayFromLogin || hasUserButton;
-    },
-    userName,
-    { timeout: 15_000 }
-  );
+        return isAwayFromLogin || hasUserButton;
+      },
+      userName,
+      { timeout: LOGIN_TIMEOUT_MS }
+    );
 
-  if (new URL(page.url()).pathname.startsWith('/login')) {
-    await page.goto('/home');
+    if (new URL(page.url()).pathname.startsWith('/login')) {
+      await page.goto('/home');
+    }
+
+    return true;
+  } catch {
+    return false;
   }
 }
 

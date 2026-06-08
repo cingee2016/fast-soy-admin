@@ -95,7 +95,7 @@ class Settings(BaseSettings):
         # 使用默认连接的模型列表（排除已声明独立连接的模块）
         default_models = ["app.system.models", "app.system.radar.models"]
         for m in discover_business_models():
-            module_name = m.split(".")[-2]  # e.g. "app.business.demo.models" -> "demo"
+            module_name = m.split(".")[-2]  # e.g. "app.business.hr.models" -> "hr"
             if module_name not in biz_db_configs:
                 default_models.append(m)
 
