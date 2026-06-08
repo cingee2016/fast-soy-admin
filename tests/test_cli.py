@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -21,6 +22,24 @@ def test_cli_exposes_full_crud_commands():
 def test_format_path_uses_forward_slashes():
     assert format_path(r"app\business\inventory\models.py") == "app/business/inventory/models.py"
     assert format_path(Path("web") / "src" / "views") == "web/src/views"
+
+
+def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
+    init_module = importlib.import_module("app.cli.commands.init")
+    monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
+    monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+
+    result = CliRunner().invoke(cli, ["init", "inventory"])
+
+    assert result.exit_code == 0, result.output
+    assert "模块中文名" not in result.output
+    assert "\033" not in result.output
+    assert "✅" not in result.output
+
+    models_content = (tmp_path / "inventory" / "models.py").read_text(encoding="utf-8")
+    assert "inventory — 业务模型定义" in models_content
+    assert "just cli-crud inventory" in models_content
+    assert "just cli-crud inventory inventory" not in models_content
 
 
 def test_parse_models_uses_first_docstring_line(tmp_path: Path):
@@ -55,7 +74,7 @@ class InventoryItem(BaseModel):
 def test_resolve_model_selection_supports_indexes_and_names(tmp_path: Path):
     models_path = tmp_path / "models.py"
     models_path.write_text(
-        '''
+        """
 from tortoise import fields
 
 from app.utils import BaseModel
@@ -71,7 +90,7 @@ class UtilityPrice(BaseModel):
 
 class UtilityReading(BaseModel):
     id = fields.IntField(primary_key=True)
-''',
+""",
         encoding="utf-8",
     )
     models = parse_models(models_path)
@@ -284,7 +303,7 @@ class UtilityReading(BaseModel):
     assert 'v-model:formatted-value="model.readingTime"' in drawer
     assert 'value-format="yyyy-MM-dd HH:mm:ss"' in drawer
     assert "readingTime: null" in drawer
-    assert 'formatJsonInput(model.rawData)' in drawer
-    assert 'model.rawData = parseJsonInput(value)' in drawer
+    assert "formatJsonInput(model.rawData)" in drawer
+    assert "model.rawData = parseJsonInput(value)" in drawer
     assert ':value="model.enabled as any"' in search
     assert "value => (model.enabled = value as boolean | null)" in search
