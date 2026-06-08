@@ -4,9 +4,10 @@ from click.testing import CliRunner
 
 from app.cli import cli
 from app.cli.display import format_path
-from app.cli.generator import gen_api_manage
+from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas
 from app.cli.parser import parse_models
 from app.cli.prompts import resolve_model_selection
+from app.cli.web_generator import gen_view_drawer, gen_view_search
 
 
 def test_cli_exposes_full_crud_commands():
@@ -111,3 +112,137 @@ class UtilityPrice(BaseModel):
     assert "contains_fields=['remark']" in content
     assert "exact_fields=['enabled']" in content
     assert "exact_fields=['status']" not in content
+
+
+def test_gen_init_data_includes_business_menus(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class UtilityPrice(BaseModel):
+    """水电费单价表"""
+
+    id = fields.IntField(primary_key=True)
+    remark = fields.CharField(max_length=500, null=True, description="备注")
+
+
+class UtilityReading(BaseModel):
+    """水电费读数表"""
+
+    id = fields.IntField(primary_key=True)
+    source = fields.CharField(max_length=50, description="来源")
+''',
+        encoding="utf-8",
+    )
+    models = parse_models(models_path)
+
+    content = gen_init_data("utility_fee2", models, module_title="水电费2")
+
+    compile(content, "init_data.py", "exec")
+    assert 'MODULE_ROUTE_NAME = "utility_fee2"' in content
+    assert 'MODULE_MENU_NAME = "水电费2"' in content
+    assert '"route_name": "utility_fee2_utility-price"' in content
+    assert '"route_path": "/utility/fee2/utility-price"' in content
+    assert '"component": "view.utility_fee2_utility-price"' in content
+    assert '"i18n_key": "route.utility_fee2_utility_price"' in content
+    assert "await ensure_menu(**_build_menu_tree())" in content
+    assert 'root_route=MODULE_ROUTE_NAME' in content
+    assert "\\" not in content
+
+
+def test_gen_schemas_imports_custom_enums_from_business_models(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel, StatusType, StrEnum
+
+
+class ReadingSource(StrEnum):
+    external = "external"
+    manual = "manual"
+
+
+class UtilityReading(BaseModel):
+    """水电费读数表"""
+
+    id = fields.IntField(primary_key=True)
+    source = fields.CharEnumField(enum_type=ReadingSource, default=ReadingSource.external, description="来源")
+    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+''',
+        encoding="utf-8",
+    )
+    models = parse_models(models_path)
+
+    content = gen_schemas("utility_fee", models)
+
+    utils_import = next(line for line in content.splitlines() if line.startswith("from app.utils import"))
+    assert "from app.business.utility_fee.models import ReadingSource" in content
+    assert "StatusType" in utils_import
+    assert "ReadingSource" not in utils_import
+
+
+def test_gen_view_drawer_skips_unused_form_rules_for_optional_models(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class UtilityConfig(BaseModel):
+    """水电费配置表"""
+
+    id = fields.IntField(primary_key=True)
+    external_token = fields.TextField(null=True, description="外部接口 token")
+    sync_enabled = fields.BooleanField(default=True, description="是否开启自动同步")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    content = gen_view_drawer("utility_fee", model)
+
+    assert "useFormRules" not in content
+    assert "defaultRequiredRule" not in content
+    assert "const rules: Record<string, App.Global.FormRule> = {};" in content
+    assert ':value="Boolean(model.syncEnabled)"' in content
+
+
+def test_gen_frontend_controls_are_typecheck_friendly(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class UtilityReading(BaseModel):
+    """水电费读数表"""
+
+    id = fields.IntField(primary_key=True)
+    reading_time = fields.DatetimeField(description="读数时间")
+    enabled = fields.BooleanField(default=True, description="是否启用")
+    raw_data = fields.JSONField(null=True, description="原始数据")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    drawer = gen_view_drawer("utility_fee", model)
+    search = gen_view_search("utility_fee", model, ["enabled"])
+
+    assert 'v-model:formatted-value="model.readingTime"' in drawer
+    assert 'value-format="yyyy-MM-dd HH:mm:ss"' in drawer
+    assert "readingTime: null" in drawer
+    assert 'formatJsonInput(model.rawData)' in drawer
+    assert 'model.rawData = parseJsonInput(value)' in drawer
+    assert ':value="model.enabled as any"' in search
+    assert "value => (model.enabled = value as boolean | null)" in search

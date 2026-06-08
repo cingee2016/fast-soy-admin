@@ -156,4 +156,4 @@ Includes: `ruff fix + format`, `basedpyright`, `pytest`, `eslint + oxlint`, `vue
 - [Architecture](/en/getting-started/architecture)
 - [Development guide](/en/getting-started/workflow)
 - [API conventions](/en/develop/api) / [Response codes](/en/reference/codes)
-- [HR module (best-practice reference)](/en/develop/business-hr)
+- [HR module (best-practice reference)](/en/advanced/business-hr)

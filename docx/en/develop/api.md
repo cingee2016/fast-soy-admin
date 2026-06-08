@@ -183,7 +183,7 @@ Each follows the standard 6-route convention:
 
 ### Business modules (`/api/v1/business/<name>`)
 
-Per-module. The complete HR module endpoint list is in [HR module](/en/develop/business-hr).
+Per-module. The complete HR module endpoint list is in [HR module](/en/advanced/business-hr).
 
 ## Response wrappers
 

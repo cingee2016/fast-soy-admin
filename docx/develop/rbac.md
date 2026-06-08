@@ -140,7 +140,7 @@ ensure_role 'R_HR_ADMIN': missing apis [('post', '/api/v1/business/hr/old')] (ro
 
 ### data_scope 必须显式
 
-`ensure_role(..., data_scope=...)` 不传时**沿用 `Role` 模型默认值 `all`**——这对部门主管 / 普通用户来说是错误的全可见。**业务角色一律显式声明** `data_scope`。详见 [数据权限](./data-scope.md)。
+`ensure_role(..., data_scope=...)` 不传时**沿用 `Role` 模型默认值 `all`**——这对范围角色 / 普通用户来说是错误的全可见。**业务角色一律显式声明** `data_scope`。详见 [数据权限](./data-scope.md)。
 
 ## 后端鉴权依赖
 

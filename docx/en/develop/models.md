@@ -2,7 +2,7 @@
 
 System models live in `app/system/models/admin.py` and `app/system/models/dictionary.py`. All inherit `BaseModel + AuditMixin`; primary keys and foreign keys are auto-encoded as [sqid](/en/develop/sqids) at the HTTP boundary.
 
-> Business module models live in `app/business/<name>/models.py`. See [Mixins](/en/develop/mixins) and [HR module](/en/develop/business-hr) for conventions.
+> Business module models live in `app/business/<name>/models.py`. See [Mixins](/en/develop/mixins) and [HR module](/en/advanced/business-hr) for conventions.
 
 ## User
 
@@ -52,7 +52,7 @@ Relations:
 - `by_role_users` — Reverse → User
 
 ::: warning data_scope default = `all` is a pitfall
-The model defaults `data_scope` to `all`, so omitting it in `ensure_role(...)` makes the role "see everything". **Always set it explicitly** in business seeds or department managers will see the entire company.
+The model defaults `data_scope` to `all`, so omitting it in `ensure_role(...)` makes the role "see everything". **Always set it explicitly** in business seeds or scoped roles may see everything.
 :::
 
 ## Menu
@@ -177,4 +177,4 @@ Migrations live in `migrations/<app_name>/` (system + shared business in `migrat
 - [Mixins](/en/develop/mixins) — `BaseModel / AuditMixin / TreeMixin / SoftDeleteMixin`
 - [Sqids](/en/develop/sqids) — how PK / FK become sqid strings
 - [RBAC](/en/develop/rbac) — User / Role / Menu / Button / API together
-- [HR module](/en/develop/business-hr) — business module model sample
+- [HR module](/en/advanced/business-hr) — business module model sample

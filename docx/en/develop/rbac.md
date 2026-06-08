@@ -124,7 +124,7 @@ ensure_role 'R_HR_ADMIN': missing apis [('post', '/api/v1/business/hr/old')] (ro
 
 ### data_scope must be explicit
 
-Omitting `data_scope` on `ensure_role(...)` keeps the model default `all` — wrong for department managers / regular users. **Always set it explicitly** in business role seeds. See [Data scope](/en/develop/data-scope).
+Omitting `data_scope` on `ensure_role(...)` keeps the model default `all` — wrong for scoped roles / regular users. **Always set it explicitly** in business role seeds. See [Data scope](/en/develop/data-scope).
 
 ## Backend dependencies
 

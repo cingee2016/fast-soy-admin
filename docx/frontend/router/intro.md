@@ -74,8 +74,8 @@ interface RouteMeta {
 
 1. 后端用 CLI 生成业务模块：`just cli-init inventory` → 写模型 → `just cli-gen inventory`
 2. 前端用 CLI 生成页面：`just cli-gen-web inventory 库存管理`
-3. 在模块的 `init_data.py` 中调用 `ensure_menu()` 注册菜单（一般生成器会留模板，用户补全）
-4. `ensure_role()` 把菜单 / 按钮 / API 授权给对应角色
+3. `init_data.py` 会自动包含业务菜单声明；按需调整图标、排序或菜单名称
+4. 在角色管理中授权菜单 / 按钮 / API，或在模块的 `init_data.py` 中补充 `ensure_role()`
 5. 重启后端，登录对应角色的用户即可看到菜单
 
 完整步骤见 [开发指南](../../getting-started/workflow.md)。

@@ -1,6 +1,6 @@
 # Data Scope
 
-RBAC controls "which menus / endpoints / buttons you can use"; data scope controls "which **rows** you can see" — e.g. department managers see their department's employees, regular employees see only themselves.
+RBAC controls "which menus / endpoints / buttons you can use"; data scope controls "which **rows** you can see" — e.g. tenant admins see their tenant's customers, project owners see their project's orders, and regular users see only themselves.
 
 Source: `app/core/data_scope.py`.
 
@@ -9,7 +9,7 @@ Source: `app/core/data_scope.py`.
 | Value | Meaning | Typical role |
 |---|---|---|
 | `all` | All rows; no filter | HR director / system admin |
-| `department` | Only your department | department manager |
+| `scope` | Current business scope | tenant admin / org lead / project owner |
 | `self` | Only your own | regular employee |
 | `custom` | Reserved; currently falls back to `self` | — |
 
@@ -17,10 +17,10 @@ Source: `app/core/data_scope.py`.
 
 ## Multi-role: most permissive wins
 
-A user can hold multiple roles (e.g. HR director + department manager). The final scope is the **most permissive**:
+A user can hold multiple roles (e.g. platform admin + tenant admin). The final scope is the **most permissive**:
 
 ```
-all  >  department  >  self  >  custom
+all  >  scope  >  self  >  custom
 ```
 
 Implementation `get_current_data_scope(redis)`: iterate `CTX_ROLE_CODES`, read each `role:{code}:data_scope`, return the highest (lowest priority number).
@@ -30,15 +30,15 @@ Implementation `get_current_data_scope(redis)`: iterate `CTX_ROLE_CODES`, read e
 The model defaults `data_scope=all`, so omitting it on `ensure_role()` makes the role "all-visible". **Always declare it explicitly** in business role seeds:
 
 ```python
-HR_ROLE_SEEDS = [
+BIZ_ROLE_SEEDS = [
     {
-        "role_code": "R_HR_ADMIN",
+        "role_code": "R_PLATFORM_ADMIN",
         "data_scope": DataScopeType.all,             # explicit all
         ...
     },
     {
-        "role_code": "R_DEPT_MGR",
-        "data_scope": DataScopeType.department,      # explicit department
+        "role_code": "R_TENANT_ADMIN",
+        "data_scope": DataScopeType.scope,           # current business scope
         ...
     },
     {
@@ -49,7 +49,7 @@ HR_ROLE_SEEDS = [
 ]
 ```
 
-> `ensure_role` doesn't enforce this (omitting keeps existing) — relies on code review. Forgetting it makes department managers see the entire company.
+> `ensure_role` doesn't enforce this (omitting keeps existing) — relies on code review. Forgetting it makes scoped business roles see everything.
 
 ## Use it in business endpoints
 
@@ -63,9 +63,9 @@ async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
-        department_id=get_department_id(),     # module-local ctx helper
-        user_id_field="user_id",               # column name in your model
-        dept_id_field="department_id",         # column name in your model
+        scope_id=get_current_scope_id(),       # module-local ctx helper
+        user_id_field="user_id",               # user column in your model
+        scope_id_field="tenant_id",            # business-scope column in your model
     )
     total, employees = await employee_controller.list(..., search=q & scope_q)
     return total, records
@@ -76,48 +76,47 @@ async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
 | Input | scope-matched behavior |
 |---|---|
 | `is_super_admin()` or `scope == "all"` | empty `Q()`, no filter |
-| `scope == "department"` and `department_id` not None | `Q(department_id=...)` |
+| `scope == "scope"` and `scope_id` not None | `Q(<scope_id_field>=...)` |
 | Otherwise (incl. `self` / `custom`) | `Q(user_id=...)` |
 
-Column names are configurable via `user_id_field` / `dept_id_field`.
+Column names are configurable via `user_id_field` / `scope_id_field`.
 
-## How a module provides department_id
+## How a module provides scope_id
 
-A module typically uses a local ContextVar + dependency to inject "current user's department id":
+A module typically uses a local ContextVar + dependency to inject the current user's business-scope id. That scope can be a tenant, organization, project, store, etc.; the system no longer requires a fixed department field:
 
 ```python
-# app/business/hr/ctx.py
+# app/business/crm/ctx.py
 import contextvars
 
-_CTX_DEPT_ID: contextvars.ContextVar[int | None] = contextvars.ContextVar("hr_dept_id", default=None)
+_CTX_SCOPE_ID: contextvars.ContextVar[int | None] = contextvars.ContextVar("crm_scope_id", default=None)
 
-def get_department_id() -> int | None:
-    return _CTX_DEPT_ID.get()
+def get_current_scope_id() -> int | None:
+    return _CTX_SCOPE_ID.get()
 
-def set_department_id(dept_id: int | None) -> None:
-    _CTX_DEPT_ID.set(dept_id)
+def set_current_scope_id(scope_id: int | None) -> None:
+    _CTX_SCOPE_ID.set(scope_id)
 ```
 
 ```python
-# app/business/hr/dependency.py
+# app/business/crm/dependency.py
 from fastapi import Depends
 from app.utils import DependAuth, get_current_user_id
 
-async def _bind_employee_context(_: User = DependAuth):
-    emp = await Employee.filter(user_id=get_current_user_id()).first()
-    if emp:
-        await emp.fetch_related("department")
-        set_department_id(emp.department_id)
+async def _bind_tenant_context(_: User = DependAuth):
+    member = await TenantMember.filter(user_id=get_current_user_id()).first()
+    if member:
+        set_current_scope_id(member.tenant_id)
 
-DependEmployee = Depends(_bind_employee_context)
+DependTenant = Depends(_bind_tenant_context)
 ```
 
 ```python
-# app/business/hr/api/__init__.py
-router = APIRouter(prefix="/hr", dependencies=[DependPermission, DependEmployee])
+# app/business/crm/api/__init__.py
+router = APIRouter(prefix="/crm", dependencies=[DependPermission, DependTenant])
 ```
 
-Now every HR endpoint sees the right `get_department_id()` value when entering services.
+Now every CRM endpoint sees the right `get_current_scope_id()` value when entering services.
 
 ## Redis fallback
 
@@ -127,7 +126,7 @@ Now every HR endpoint sees the right `get_department_id()` value when entering s
 
 Not every table needs scope. Rule of thumb:
 
-- **Strong scope**: employee records, orders, customers — anything with personal / department ownership
+- **Strong scope**: orders, customers, tickets — anything with personal / business-scope ownership
 - **Not needed**: dictionaries, menus, roles, buttons, system config (RBAC suffices)
 - **Be careful**: log tables (limiting by `actor_id` may hide audit trails from admins)
 
@@ -142,8 +141,16 @@ async def _list(obj_in: EmployeeSearch, request: Request):
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 
+The CLI can generate this override directly:
+
+```bash
+uv run python -m app.cli crud crm --models Customer --data-scope Customer:owner_id,tenant_id
+```
+
+Generated code passes `user_id_field` / `scope_id_field` into `build_scope_filter()` and emits an `_get_scope_id()` hook. Scope-level permission should wire that hook to the module's business context; until then, the `scope` tier follows `build_scope_filter()` and falls back to `self`.
+
 ## See also
 
 - [RBAC](/en/develop/rbac)
-- [HR module (full row-level permission example)](/en/develop/business-hr)
+- [HR module (full row-level permission example)](/en/advanced/business-hr)
 - [Cache](/en/ops/cache) — `role:{code}:data_scope`

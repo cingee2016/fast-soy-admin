@@ -136,7 +136,7 @@ def make_optional(schema: type[BaseModel], name: str | None = None) -> type[Base
         class EmployeeCreate(SchemaBase):
             name: str
             email: str
-            department_id: int
+            tenant_id: int
 
         EmployeeUpdate = make_optional(EmployeeCreate, "EmployeeUpdate")
 
@@ -145,7 +145,7 @@ def make_optional(schema: type[BaseModel], name: str | None = None) -> type[Base
         class EmployeeUpdate(SchemaBase):
             name: str | None = None
             email: str | None = None
-            department_id: int | None = None
+            tenant_id: int | None = None
     """
     optional_fields: dict[str, Any] = {}
     for field_name, field_info in schema.model_fields.items():

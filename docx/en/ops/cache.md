@@ -20,7 +20,7 @@ The Redis client is at `app.state.redis` (`redis.asyncio.Redis`); access via `re
 | `role:{code}:menus` | menu IDs | `load_role_permissions` |
 | `role:{code}:apis` | `[{method, path, status}]` | same |
 | `role:{code}:buttons` | button codes | same |
-| `role:{code}:data_scope` | `all` / `department` / `self` / `custom` | same |
+| `role:{code}:data_scope` | `all` / `scope` / `self` / `custom` | same |
 | `user:{uid}:roles` | role codes | `load_user_roles` |
 | `user:{uid}:role_home` | route name of home page | same |
 | `token_version:{uid}` | int (INCR) | `invalidate_user_session` etc. |

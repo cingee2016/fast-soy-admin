@@ -33,7 +33,9 @@
 
 ### 使用方式
 
-在业务模块的 `init_data.py` 中调用 `reconcile_menu_subtree`，参考 [app/business/hr/init_data.py](../../../app/business/hr/init_data.py)：
+`just cli-gen` / `just cli-crud` 生成后端代码时，会在业务模块的 `init_data.py` 中自动写入 `MODULE_MENU_CHILDREN`、`ensure_menu()` 和 `reconcile_menu_subtree()`。默认会按所选模型对账菜单子树，但 `declared_button_codes=None`，因此不会清理 Web UI 中手工维护的按钮权限。若生成时传入 `--button-auth`，CLI 会同时声明 create/edit/delete 按钮，并把 `declared_button_codes` 指向声明集合，让按钮也进入 IaC。
+
+在业务模块的 `init_data.py` 中调用 `reconcile_menu_subtree`：
 
 ```python
 from app.system.services import ensure_menu, reconcile_menu_subtree
@@ -60,18 +62,18 @@ def _collect_declared_buttons(children: list[dict]) -> set[str]:
 
 async def _init_menu_data() -> None:
     await ensure_menu(
-        menu_name="HR管理",
-        route_name="hr",
-        route_path="/hr",
-        icon="mdi:account-group",
+        menu_name="客户管理",
+        route_name="crm",
+        route_path="/crm",
+        icon="mdi:account-box",
         order=8,
-        children=HR_MENU_CHILDREN,
+        children=CRM_MENU_CHILDREN,
     )
-    # HR 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮
+    # CRM 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮
     await reconcile_menu_subtree(
-        root_route="hr",
-        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
+        root_route="crm",
+        declared_route_names=_collect_declared_routes(CRM_MENU_CHILDREN),
+        declared_button_codes=_collect_declared_buttons(CRM_MENU_CHILDREN),
     )
 ```
 

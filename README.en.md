@@ -52,7 +52,7 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 
 **Security & permissions**
 
-- **Three-tier RBAC + row-level `data_scope`** — menu / API / button checks plus `all / department / self / custom` data scope; button checks live in services, not just in UI
+- **Three-tier RBAC + row-level `data_scope`** — menu / API / button checks plus `all / scope / self / custom` data scope; button checks live in services, not just in UI
 - **Menu / role IaC reconciliation** — `ensure_menu` / `reconcile_menu_subtree` / `refresh_api_list` give three explicit semantics so you know which subtrees are code-owned and which are user-editable
 - **Sqid public IDs** — auto-increment IDs never leak; enumeration-safe
 

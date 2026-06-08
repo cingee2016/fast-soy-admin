@@ -130,14 +130,14 @@ from app.utils import make_optional, SchemaBase
 class EmployeeCreate(SchemaBase):
     name: str
     email: str
-    department_id: int
+    team_id: int
 
 EmployeeUpdate = make_optional(EmployeeCreate, "EmployeeUpdate")
 # Equivalent to:
 # class EmployeeUpdate(SchemaBase):
 #     name: str | None = None
 #     email: str | None = None
-#     department_id: int | None = None
+#     team_id: int | None = None
 ```
 
 `description` / `title` are preserved.

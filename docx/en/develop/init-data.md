@@ -33,7 +33,9 @@ Legend: ✅ takes effect on restart; ⚠️ needs explicit opt-in; ❌ needs SQL
 
 ### Usage
 
-In your module's `init_data.py` (see `app/business/hr/init_data.py`):
+`just cli-gen` / `just cli-crud` now writes `MODULE_MENU_CHILDREN`, `ensure_menu()` and `reconcile_menu_subtree()` into the module's generated `init_data.py`. By default it reconciles the selected model menus, but keeps `declared_button_codes=None`, so buttons maintained from the Web UI are not cleaned up. When generation uses `--button-auth`, the CLI also declares create/edit/delete buttons and points `declared_button_codes` at the declared set, making buttons IaC-managed too.
+
+In your module's `init_data.py`:
 
 ```python
 from app.system.services import ensure_menu, reconcile_menu_subtree
@@ -60,17 +62,17 @@ def _collect_declared_buttons(children: list[dict]) -> set[str]:
 
 async def _init_menu_data() -> None:
     await ensure_menu(
-        menu_name="HR",
-        route_name="hr",
-        route_path="/hr",
-        icon="mdi:account-group",
+        menu_name="CRM",
+        route_name="crm",
+        route_path="/crm",
+        icon="mdi:account-box",
         order=8,
-        children=HR_MENU_CHILDREN,
+        children=CRM_MENU_CHILDREN,
     )
     await reconcile_menu_subtree(
-        root_route="hr",
-        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
+        root_route="crm",
+        declared_route_names=_collect_declared_routes(CRM_MENU_CHILDREN),
+        declared_button_codes=_collect_declared_buttons(CRM_MENU_CHILDREN),
     )
 ```
 

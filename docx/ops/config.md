@@ -93,6 +93,22 @@ TRUSTED_HOSTS=["10.0.0.0/8"]
 | `LOGS_ROOT` | `BASE_DIR / "logs/"` | 启动时自动 mkdir |
 | `STATIC_ROOT` | `BASE_DIR / "static/"` | 启动时自动 mkdir |
 
+### 业务端点限流
+
+全局限流仍由 `GUARD_RATE_LIMIT` / `GUARD_RATE_LIMIT_WINDOW` 控制。需要给某个业务列表接口配置更严格的端点限流时，可在业务 API 模块声明：
+
+```python
+ENDPOINT_RATE_LIMITS = {
+    "/api/v1/business/hr/employees/search": (30, 60),
+}
+```
+
+启动时 `discover_business_endpoint_rate_limits()` 会自动合并这些配置到 fastapi-guard。CLI 也可以生成该声明：
+
+```bash
+uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
+```
+
 ## 业务模块自有配置
 
 业务模块在 `app/business/<name>/config.py` 声明自己的 Settings：

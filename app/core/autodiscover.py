@@ -141,3 +141,35 @@ def discover_business_init_data() -> list[Callable]:
             init_funcs.append(init_fn)
             log.debug(f"Business: found init_data for '{name}'")
     return init_funcs
+
+
+def discover_business_endpoint_rate_limits() -> dict[str, tuple[int, int]]:
+    """发现业务 API 模块声明的 fastapi-guard 端点限流配置。"""
+    from app.core.log import log  # 延迟导入——参见模块 docstring 说明
+
+    limits: dict[str, tuple[int, int]] = {}
+    for name in _discover_modules():
+        module_names: list[str] = []
+        module_path = BUSINESS_ROOT / name
+        if (module_path / "api.py").exists():
+            module_names.append(f"app.business.{name}.api")
+        if (module_path / "api" / "manage.py").exists():
+            module_names.append(f"app.business.{name}.api.manage")
+
+        for module_name in module_names:
+            try:
+                module = importlib.import_module(module_name)
+            except ImportError:
+                log.warning(f"Business: module '{module_name}' failed to import while collecting endpoint rate limits", exc_info=True)
+                continue
+
+            raw_limits = getattr(module, "ENDPOINT_RATE_LIMITS", None)
+            if not isinstance(raw_limits, dict):
+                continue
+            for path, value in raw_limits.items():
+                if not isinstance(path, str) or not isinstance(value, (tuple, list)) or len(value) != 2:
+                    log.warning(f"Business: ignore invalid ENDPOINT_RATE_LIMITS item from '{module_name}': {path!r} -> {value!r}")
+                    continue
+                requests, window = value
+                limits[path] = (int(requests), int(window))
+    return limits

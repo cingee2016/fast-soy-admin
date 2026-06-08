@@ -7,8 +7,9 @@ from pathlib import Path
 import click
 
 from app.cli.display import echo_file_result, format_path, has_written_files, relative_path, run_just_format
+from app.cli.options import all_choice_names, resolve_field_map
 from app.cli.parser import parse_models
-from app.cli.prompts import frontend_list_field_candidates, frontend_search_field_candidates, prompt_fields, prompt_model_selection
+from app.cli.prompts import frontend_list_field_candidates, frontend_search_field_candidates, prompt_fields, prompt_model_selection, resolve_model_selection
 from app.cli.web_generator import generate_web
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -43,13 +44,35 @@ def _format_generated_files(results: list[tuple[str, str]]) -> None:
     run_just_format("frontend")
 
 
-@click.command()
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("module_name")
 @click.option("--cn-name", default=None, help="模块中文名（用于 i18n）")
+@click.option("--models", "models_spec", default=None, help="要生成页面的模型，逗号分隔；支持序号、类名、all")
+@click.option("-y", "--yes", "assume_yes", is_flag=True, help="不进入交互，使用全模型与默认字段")
+@click.option("--list-fields", "list_field_specs", multiple=True, help="前端列表字段，例: Employee:name,tenant_id,status_type")
+@click.option("--search-fields", "search_field_specs", multiple=True, help="前端搜索字段，例: Employee:name,status_type")
 @click.option("--force", is_flag=True, help="强制覆盖已存在的文件")
 @click.option("--no-format", is_flag=True, help="跳过 just fmt frontend")
-def gen_web(module_name: str, cn_name: str | None, force: bool, no_format: bool):
-    """根据 models.py 生成前端代码（service / typings / views / i18n）。"""
+def gen_web(
+    module_name: str,
+    cn_name: str | None,
+    models_spec: str | None,
+    assume_yes: bool,
+    list_field_specs: tuple[str, ...],
+    search_field_specs: tuple[str, ...],
+    force: bool,
+    no_format: bool,
+):
+    """根据 models.py 生成前端代码（service / typings / views / i18n）。
+
+    示例:
+
+      uv run python -m app.cli gen-web hr --cn-name 人事 --yes
+      uv run python -m app.cli gen-web hr --models Employee --list-fields Employee:name,status_type --search-fields Employee:name
+    """
     module_dir = BUSINESS_DIR / module_name
     models_path = module_dir / "models.py"
 
@@ -66,24 +89,50 @@ def gen_web(module_name: str, cn_name: str | None, force: bool, no_format: bool)
 
     click.echo(f"\n  \033[1m✓\033[0m 解析模块: \033[36m{relative_path(models_path)}\033[0m")
     click.echo(f"  \033[1m✓\033[0m 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
-    models = prompt_model_selection(models)
+    if models_spec:
+        models = resolve_model_selection(models, models_spec)
+        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+    elif assume_yes:
+        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+    else:
+        models = prompt_model_selection(models)
 
     # 2. 模块中文名
-    module_cn: str = cn_name or click.prompt("\n  模块中文名 (用于 i18n)", default=module_name)
+    module_cn: str = cn_name or (module_name if assume_yes else click.prompt("\n  模块中文名 (用于 i18n)", default=module_name))
 
     # 3. 列表展示字段
-    list_fields = prompt_fields(
-        models,
-        "列表展示字段",
-        frontend_list_field_candidates,
-    )
+    if list_field_specs or assume_yes:
+        list_fields = resolve_field_map(
+            models,
+            list_field_specs,
+            frontend_list_field_candidates,
+            default_names_fn=all_choice_names,
+            defaults_when_missing=assume_yes,
+            option_name="--list-fields",
+        )
+    else:
+        list_fields = prompt_fields(
+            models,
+            "列表展示字段",
+            frontend_list_field_candidates,
+        )
 
     # 4. 搜索字段
-    search_fields = prompt_fields(
-        models,
-        "搜索字段",
-        frontend_search_field_candidates,
-    )
+    if search_field_specs or assume_yes:
+        search_fields = resolve_field_map(
+            models,
+            search_field_specs,
+            frontend_search_field_candidates,
+            default_names_fn=all_choice_names,
+            defaults_when_missing=assume_yes,
+            option_name="--search-fields",
+        )
+    else:
+        search_fields = prompt_fields(
+            models,
+            "搜索字段",
+            frontend_search_field_candidates,
+        )
 
     # 5. 生成
     click.echo("")

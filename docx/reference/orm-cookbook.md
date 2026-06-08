@@ -11,35 +11,35 @@
 ```python
 # models.py
 class Employee(BaseModel, AuditMixin):
-    department_id: int
-    department: fields.ForeignKeyRelation["Department"] = fields.ForeignKeyField(
-        "app_system.Department", related_name="employees",
+    team_id: int
+    team: fields.ForeignKeyRelation["Team"] = fields.ForeignKeyField(
+        "app_system.Team", related_name="employees",
     )
 ```
 
 | 场景 | 写法 |
 |---|---|
-| 只要父 ID | `emp.department_id`（同步、零查询） |
-| 要父对象的字段（单个） | `dept = await emp.department` 后读 `dept.name` |
-| 批量列表要父字段 | `select_related("department")` 一次 JOIN 拉完，避免 N+1 |
-| 按父字段过滤 | `Employee.filter(department__name__icontains="技术")`（双下划线跨关系） |
-| 按父 ID 过滤 | `Employee.filter(department_id=1)`（**推荐**，走 FK 列，不 JOIN） |
+| 只要父 ID | `emp.team_id`（同步、零查询） |
+| 要父对象的字段（单个） | `team = await emp.team` 后读 `team.name` |
+| 批量列表要父字段 | `select_related("team")` 一次 JOIN 拉完，避免 N+1 |
+| 按父字段过滤 | `Employee.filter(team__name__icontains="技术")`（双下划线跨关系） |
+| 按父 ID 过滤 | `Employee.filter(team_id=1)`（**推荐**，走 FK 列，不 JOIN） |
 
 ### 反向：从父 → 子集合
 
-`related_name="employees"` 让 `Department` 拥有 `employees` 反向关系（`ReverseRelation`）：
+`related_name="employees"` 让 `Team` 拥有 `employees` 反向关系（`ReverseRelation`）：
 
 ```python
 # 单对象：要么 prefetch 后遍历，要么显式 all()
-dept = await Department.get(id=1).prefetch_related("employees")
-for emp in dept.employees:        # 已加载，同步遍历
+team = await Team.get(id=1).prefetch_related("employees")
+for emp in team.employees:        # 已加载，同步遍历
     ...
 
 # 不 prefetch 时必须 all()
-emps = await dept.employees.all()
+emps = await team.employees.all()
 
 # 反向关系也能继续过滤
-active = await dept.employees.filter(status="enable")
+active = await team.employees.filter(status="enable")
 ```
 
 ## 二、多对多（ManyToMany）
@@ -58,7 +58,7 @@ class Employee(...):
 # 列表查询：prefetch_related，一次拉完所有关联
 total, employees = await employee_controller.list(
     page=1, page_size=20,
-    select_related=["department"],
+    select_related=["team"],
     prefetch_related=["tags"],
 )
 for emp in employees:
@@ -66,7 +66,7 @@ for emp in employees:
     tag_ids = [t.id for t in emp.tags]
 
 # 单对象：fetch_related 原地加载
-await emp.fetch_related("department", "tags")
+await emp.fetch_related("team", "tags")
 ```
 
 ### 写：`add` / `remove` / `clear`
@@ -108,8 +108,8 @@ await Employee.filter(tags__id__in=[1, 2, 3]).distinct()
 from tortoise.expressions import Q
 
 q = Q(status="enable")
-q &= Q(department_id=1)                    # AND
-q |= Q(department_id=2)                    # OR
+q &= Q(team_id=1)                    # AND
+q |= Q(team_id=2)                    # OR
 q = ~Q(deleted_at__isnull=False)           # NOT
 q = Q(name__icontains="张") | Q(email__icontains="zhang")
 
@@ -125,7 +125,7 @@ q = employee_controller.build_search(
     exact_fields=["status"],
     range_fields=["created_at"],
 )
-q &= Q(department_id=search_in.department_id)
+q &= Q(team_id=search_in.team_id)
 ```
 
 ## 四、聚合与注解
@@ -135,14 +135,14 @@ q &= Q(department_id=search_in.department_id)
 ```python
 from tortoise.functions import Count, Sum, Avg, Max, Min, Lower, Upper, Length, Coalesce, Trim
 
-# 每个部门的员工数
-rows = await Department.annotate(emp_count=Count("employees")).values("id", "name", "emp_count")
+# 每个团队的员工数
+rows = await Team.annotate(emp_count=Count("employees")).values("id", "name", "emp_count")
 
 # 字段变形
 await Employee.annotate(lname=Lower("name")).filter(lname__icontains="zhang")
 
 # COALESCE 处理 null
-await Employee.annotate(dept_name=Coalesce("department__name", "—")).values("id", "dept_name")
+await Employee.annotate(dept_name=Coalesce("team__name", "—")).values("id", "dept_name")
 ```
 
 ### 聚合（不带 annotate）
@@ -156,7 +156,7 @@ max_id = await Employee.all().annotate(m=Max("id")).first().values_list("m", fla
 
 ```python
 # 只要几个字段，直接返回 dict / tuple，省掉对象实例化
-rows = await Employee.filter(status="enable").values("id", "name", "department__name")
+rows = await Employee.filter(status="enable").values("id", "name", "team__name")
 ids = await Employee.filter(status="enable").values_list("id", flat=True)
 ```
 
@@ -184,7 +184,7 @@ from tortoise import connections
 conn = connections.get(get_db_conn(Employee))
 # execute_query 返回 (count, rows)
 count, rows = await conn.execute_query(
-    "SELECT department_id, COUNT(*) c FROM biz_hr_employee WHERE status = ? GROUP BY department_id",
+    "SELECT team_id, COUNT(*) c FROM biz_hr_employee WHERE status = ? GROUP BY team_id",
     ["enable"],
 )
 ```
@@ -214,7 +214,7 @@ async with in_transaction(get_db_conn(Employee)):
 
 ```python
 # create：INSERT
-emp = await Employee.create(name="张三", department_id=1)
+emp = await Employee.create(name="张三", team_id=1)
 
 # save：INSERT 或 UPDATE（有 pk 就 UPDATE）
 emp.name = "张三三"
@@ -229,8 +229,8 @@ await emp.save(update_fields=["name", "updated_at"])
 ```python
 # bulk_create：一条 SQL 插入多行（不会触发 save 钩子、不会回填 pk）
 await Employee.bulk_create([
-    Employee(name="a", department_id=1),
-    Employee(name="b", department_id=1),
+    Employee(name="a", team_id=1),
+    Employee(name="b", team_id=1),
 ])
 
 # bulk_update：更新已有对象的指定字段
@@ -244,7 +244,7 @@ await Employee.bulk_update(employees, fields=["status"])
 ```python
 emp, created = await Employee.get_or_create(
     employee_no="EMP0001",
-    defaults={"name": "张三", "department_id": 1},
+    defaults={"name": "张三", "team_id": 1},
 )
 
 emp, created = await Employee.update_or_create(
@@ -257,10 +257,10 @@ emp, created = await Employee.update_or_create(
 
 | 症状 | 原因 | 修复 |
 |---|---|---|
-| 列表接口慢，看 SQL 数百条 | 循环里访问 `emp.department.xxx` 触发懒加载 | `select_related("department")` 或 `prefetch_related(...)` |
+| 列表接口慢，看 SQL 数百条 | 循环里访问 `emp.team.xxx` 触发懒加载 | `select_related("team")` 或 `prefetch_related(...)` |
 | `for m in role.by_role_menus:` 报 `TypeError: ... is not iterable` | M2M / 反向关系是 RelatedManager 不是 list | 先 `.all()` 或 `prefetch_related` |
-| `await Employee.create(department=other.department)` 报 TypeError | `other.department` 未 prefetch 是 coroutine | 用 `department_id=other.department_id` |
-| `await emp.department` 拿到 `None` 但 FK 设了 non-null | FK 目标行被硬删或 FK 未 prefetch 之前读过一次 | 先 `await emp.fetch_related("department")` 再读 |
+| `await Employee.create(team=other.team)` 报 TypeError | `other.team` 未 prefetch 是 coroutine | 用 `team_id=other.team_id` |
+| `await emp.team` 拿到 `None` 但 FK 设了 non-null | FK 目标行被硬删或 FK 未 prefetch 之前读过一次 | 先 `await emp.fetch_related("team")` 再读 |
 | 跨 M2M 过滤后行数翻倍 | M2M JOIN 天然产生重复 | 加 `.distinct()` |
 | 软删的旧行和新行 `unique` 冲突 | `deleted_at IS NOT NULL` 的旧行仍占唯一约束 | PG 改部分索引，详见 [SoftDeleteMixin 陷阱](../develop/mixins.md#软删与-unique) |
 
@@ -273,7 +273,7 @@ total, records = await employee_controller.list(
     page=1, page_size=20,
     search=q,
     order=["-created_at", "id"],
-    select_related=["department"],
+    select_related=["team"],
     prefetch_related=["tags"],
 )
 ```

@@ -42,7 +42,7 @@ from . import events  # noqa: F401  ← 触发 @on 注册
 # app/business/hr/services.py
 from app.utils import emit
 
-await emit("employee.created", employee_id=new_emp.id, department_id=dept.id)
+await emit("employee.created", employee_id=new_emp.id, team_id=dept.id)
 ```
 
 任何 kwargs 都会原样透传给所有处理器。
@@ -128,12 +128,12 @@ async def test_xxx(monkeypatch):
 
 | 事件 | 发起方 | kwargs | 用途 |
 |---|---|---|---|
-| `employee.created` | HR | `employee_id`, `department_id`, `created_by` | HR 创建员工后的通知/统计 |
+| `employee.created` | HR | `employee_id`, `team_id`, `created_by` | HR 创建员工后的通知/统计 |
 | `employee.status_changed` | HR | `employee_id`, `from_state`, `to_state`, `actor_id` | 状态机流转后的审计 |
 
 > 新增事件请追加到本表，并在事件发起处保留一行注释指向本文档。
 
 ## 相关
 
-- [HR 模块（事件触发示例）](./business-hr.md)
+- [HR 模块（事件触发示例）](../advanced/business-hr.md)
 - [状态机](./state-machine.md) — 状态变更后常配合 `emit` 发审计事件

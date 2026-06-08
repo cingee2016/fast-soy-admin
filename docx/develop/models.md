@@ -2,7 +2,7 @@
 
 系统模块的核心模型在 [`app/system/models/admin.py`](../../../app/system/models/admin.py) 与 [`app/system/models/dictionary.py`](../../../app/system/models/dictionary.py)。所有模型都继承 `BaseModel + AuditMixin`，外键 / 主键在 HTTP 边界自动编码为 [sqid](./sqids.md)。
 
-> 业务模块的模型放在 `app/business/<name>/models.py`。架构与字段约定可参考 [模型 Mixin](./mixins.md) 与 [HR 模块](./business-hr.md)。
+> 业务模块的模型放在 `app/business/<name>/models.py`。架构与字段约定可参考 [模型 Mixin](./mixins.md) 与 [HR 模块](../advanced/business-hr.md)。
 
 ## User（用户）
 
@@ -52,7 +52,7 @@
 - `by_role_users` — Reverse → User
 
 ::: warning data_scope 默认 all 是个坑
-模型默认 `all` 让 `ensure_role(...)` 不传该参数时角色就是"全可见"。**业务种子角色一律显式声明 `data_scope`**，否则部门主管会变成全公司可见。
+模型默认 `all` 让 `ensure_role(...)` 不传该参数时角色就是"全可见"。**业务种子角色一律显式声明 `data_scope`**，否则范围角色会变成全量可见。
 :::
 
 ## Menu（菜单）
@@ -178,4 +178,4 @@ just mm  # = tortoise makemigrations + migrate
 - [模型 Mixin](./mixins.md) — `BaseModel / AuditMixin / TreeMixin / SoftDeleteMixin`
 - [Sqids](./sqids.md) — 主键 / 外键怎么变成 sqid
 - [RBAC](./rbac.md) — 用户 / 角色 / 菜单 / 按钮 / API 怎么联动
-- [HR 模块](./business-hr.md) — 业务模块的模型样例（部门 / 标签 / 员工）
+- [HR 模块](../advanced/business-hr.md) — 业务模块的模型样例（部门 / 标签 / 员工）

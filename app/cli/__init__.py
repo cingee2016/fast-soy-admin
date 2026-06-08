@@ -9,10 +9,19 @@ from app.cli.commands.init import init
 from app.cli.commands.initdb import initdb
 from app.cli.display import configure_output_encoding
 
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
 
-@click.group()
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
-    """FastSoyAdmin 业务模块代码生成器"""
+    """FastSoyAdmin 业务模块代码生成器。
+
+    常用:
+
+      uv run python -m app.cli init inventory
+      uv run python -m app.cli crud inventory --cn-name 库存 --yes
+      uv run python -m app.cli crud inventory --models Item --contains Item:name --exact Item:status_type
+    """
     configure_output_encoding()
 
 

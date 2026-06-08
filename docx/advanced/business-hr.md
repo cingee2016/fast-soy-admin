@@ -28,7 +28,7 @@ HR 模块管理三类资源：
 app/business/hr/
 ├── __init__.py
 ├── config.py        # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
-├── ctx.py           # 模块上下文变量（如 get_department_id）
+├── ctx.py           # 模块上下文变量（如 get_org_unit_id）
 ├── dependency.py    # 模块 FastAPI 依赖（DependEmployee / DependManager）
 ├── models.py        # Tortoise 模型 + 状态枚举
 ├── schemas.py       # Pydantic schema（继承 SchemaBase）
@@ -104,10 +104,10 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
 |---|---|---|---|
 | `R_SUPER` | all（自动跳过过滤） | 全部 | 系统超管 |
 | `R_HR_ADMIN` | `all` | 10 个 HR 按钮全集 | HR 总管 / 人事专员 |
-| `R_DEPT_MGR` | `department` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | 任意部门主管 |
+| `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | 任意部门主管 |
 | `R_USER` | `self` | 无 | 普通员工，走 `/hr/my/*` |
 
-`R_DEPT_MGR` 是**通用部门主管角色**——所有部门的主管都用同一个 role_code，靠 `data_scope=department` + `Employee.user_id` 做行级隔离。
+`R_DEPT_MGR` 是**通用部门主管角色**——所有部门的主管都用同一个 role_code，靠 `data_scope=scope` + `scope_id_field="org_unit_id"` 做行级隔离。
 
 ### 按钮粒度（资源 × 操作）
 
@@ -180,7 +180,7 @@ dept_crud = CRUDRouter(
 `Role` 模型有 `data_scope` 字段，枚举见 [app/core/data_scope.py](../../../app/core/data_scope.py)：
 
 - `all` — 全部数据（不过滤）
-- `department` — 仅本部门数据
+- `scope` — 当前业务范围数据；在 HR 案例里映射为本部门
 - `self` — 仅本人数据
 - `custom` — 预留，当前降级到 `self`
 
@@ -198,7 +198,7 @@ HR_ROLE_SEEDS = [
     },
     {
         "role_code": "R_DEPT_MGR",
-        "data_scope": DataScopeType.department,
+        "data_scope": DataScopeType.scope,
         ...
     },
 ]
@@ -217,13 +217,14 @@ async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
-        department_id=get_department_id(),
+        scope_id=get_org_unit_id(),
+        scope_id_field="org_unit_id",
     )
     total, employees = await employee_controller.list(..., search=q & scope_q)
     return total, records
 ```
 
-多角色取最宽松：用户同时持有 `R_HR_ADMIN`(all) 和 `R_DEPT_MGR`(department) 时，最终生效 `all`。
+多角色取最宽松：用户同时持有 `R_HR_ADMIN`(all) 和 `R_DEPT_MGR`(scope) 时，最终生效 `all`。
 
 ## 状态机：员工状态流转
 
@@ -415,14 +416,14 @@ async def create_emp(emp_in: EmployeeCreate, request: Request):
 ```python
 # 超级管理员 / HR 管理员（持 B_HR_EMP_CREATE 但未绑定员工）→ 必须显式指定部门
 if is_super_admin() or (has_button_code("B_HR_EMP_CREATE") and not current_emp):
-    if not emp_in.department_id:
+    if not emp_in.org_unit_id:
         return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="创建员工需要指定部门")
 # 部门主管（持 B_HR_EMP_CREATE 且绑定的员工是某部门主管）→ 自动继承本部门
 elif has_button_code("B_HR_EMP_CREATE") and current_emp:
     dept = await Department.filter(manager_id=current_emp.id).first()
     if not dept:
         return Fail(code=Code.HR_MANAGER_REQUIRED, msg="仅部门主管可创建员工")
-    emp_in.department_id = dept.id
+    emp_in.org_unit_id = dept.id
 else:
     return Fail(code=Code.HR_CREATE_FORBIDDEN, msg="无权限创建员工")
 ```

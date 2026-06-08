@@ -28,7 +28,7 @@ Four sets of endpoints:
 app/business/hr/
 ├── __init__.py
 ├── config.py        # BIZ_SETTINGS (per-module Pydantic Settings)
-├── ctx.py           # module ContextVars (e.g. get_department_id)
+├── ctx.py           # module ContextVars (e.g. get_org_unit_id)
 ├── dependency.py    # module FastAPI deps (DependEmployee / DependManager)
 ├── models.py        # Tortoise models + state enums
 ├── schemas.py       # Pydantic schemas (extend SchemaBase)
@@ -104,10 +104,10 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
 |---|---|---|---|
 | `R_SUPER` | all (auto bypass) | all | system super admin |
 | `R_HR_ADMIN` | `all` | all 10 HR buttons | HR director / specialist |
-| `R_DEPT_MGR` | `department` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | any department manager |
+| `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | any department manager |
 | `R_USER` | `self` | none | regular employee, uses `/hr/my/*` |
 
-`R_DEPT_MGR` is a **generic department-manager role** — every department's manager uses the same role_code; row-level isolation comes from `data_scope=department` + `Employee.user_id`.
+`R_DEPT_MGR` is a **generic department-manager role** — every department's manager uses the same role_code; row-level isolation comes from `data_scope=scope` + `scope_id_field="org_unit_id"`.
 
 ### Button granularity (resource × action)
 
@@ -180,7 +180,7 @@ Once button codes are surfaced to the frontend, templates use `hasAuth(...)` to 
 `Role` has a `data_scope` field; enum in `app/core/data_scope.py`:
 
 - `all` — all data (no filter)
-- `department` — own department only
+- `scope` — current business scope; mapped to own department in this HR case
 - `self` — self only
 - `custom` — reserved; currently falls back to `self`
 
@@ -198,7 +198,7 @@ HR_ROLE_SEEDS = [
     },
     {
         "role_code": "R_DEPT_MGR",
-        "data_scope": DataScopeType.department,
+        "data_scope": DataScopeType.scope,
         ...
     },
 ]
@@ -217,13 +217,14 @@ async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
-        department_id=get_department_id(),
+        scope_id=get_org_unit_id(),
+        scope_id_field="org_unit_id",
     )
     total, employees = await employee_controller.list(..., search=q & scope_q)
     return total, records
 ```
 
-Multi-role: most permissive wins. A user holding both `R_HR_ADMIN`(all) and `R_DEPT_MGR`(department) ends up with `all`.
+Multi-role: most permissive wins. A user holding both `R_HR_ADMIN`(all) and `R_DEPT_MGR`(scope) ends up with `all`.
 
 ## State machine: employee state transitions
 
@@ -415,14 +416,14 @@ async def create_emp(emp_in: EmployeeCreate, request: Request):
 ```python
 # Super admin / HR admin (holds B_HR_EMP_CREATE, no employee binding) → must specify department
 if is_super_admin() or (has_button_code("B_HR_EMP_CREATE") and not current_emp):
-    if not emp_in.department_id:
+    if not emp_in.org_unit_id:
         return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="department required")
 # Department manager (holds B_HR_EMP_CREATE and is bound as a manager) → auto inherit own department
 elif has_button_code("B_HR_EMP_CREATE") and current_emp:
     dept = await Department.filter(manager_id=current_emp.id).first()
     if not dept:
         return Fail(code=Code.HR_MANAGER_REQUIRED, msg="manager only")
-    emp_in.department_id = dept.id
+    emp_in.org_unit_id = dept.id
 else:
     return Fail(code=Code.HR_CREATE_FORBIDDEN, msg="no permission")
 ```

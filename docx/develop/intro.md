@@ -111,4 +111,4 @@ models / schemas
 - [架构](../getting-started/architecture.md) — 中间件栈、生命周期、目录到职责的映射
 - [开发指南](../getting-started/workflow.md) — 用 CLI 从 0 搭一个业务模块
 - [API 约定](./api.md) / [响应码](../reference/codes.md) — 强制约定
-- [HR 模块](./business-hr.md) — 完整的业务模块参考实现
+- [HR 模块](../advanced/business-hr.md) — 完整的业务模块参考实现

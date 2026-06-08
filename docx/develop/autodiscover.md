@@ -162,4 +162,4 @@ async with in_transaction(get_db_conn(Invoice)):  # 自动选 conn_billing
 
 - [开发指南](../getting-started/workflow.md) — 用 CLI 创建一个新业务模块
 - [启动初始化与对账](./init-data.md) — `init()` 怎么执行、怎么对账
-- [HR 模块](./business-hr.md) — 标准业务模块的样例
+- [HR 模块](../advanced/business-hr.md) — 标准业务模块的样例

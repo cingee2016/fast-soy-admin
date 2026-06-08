@@ -52,7 +52,7 @@
 
 **安全与权限**
 
-- **三层 RBAC + 行级 `data_scope`** — 菜单 / API / 按钮 + `all / department / self / custom`
+- **三层 RBAC + 行级 `data_scope`** — 菜单 / API / 按钮 + `all / scope / self / custom`
 - **菜单/角色 IaC 对账** — `ensure_menu` / `reconcile_menu_subtree` / `refresh_api_list` 三档语义
 - **Sqid 对外 ID** — 防遍历枚举
 

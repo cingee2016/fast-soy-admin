@@ -138,7 +138,7 @@ await ensure_role(
 ```python
 {
     "role_code": "R_DEPT_MGR",
-    "data_scope": DataScopeType.department,    # ← 必须显式
+    "data_scope": DataScopeType.scope,         # ← 必须显式
     ...
 }
 ```

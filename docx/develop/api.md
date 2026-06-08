@@ -183,7 +183,7 @@ router = dept_crud.router
 
 ### 业务模块（`/api/v1/business/<name>`）
 
-按模块自治。HR 模块的完整路由见 [HR 模块](./business-hr.md)。
+按模块自治。HR 模块的完整路由见 [HR 模块](../advanced/business-hr.md)。
 
 ## 响应封装
 
