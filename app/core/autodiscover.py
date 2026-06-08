@@ -132,10 +132,17 @@ def discover_business_init_data() -> list[Callable]:
 
     init_funcs: list[Callable] = []
     for name in _discover_modules():
-        try:
-            module = importlib.import_module(f"app.business.{name}.init_data")
-        except ImportError:
+        init_data_path = BUSINESS_ROOT / name / "init_data.py"
+        if not init_data_path.exists():
             continue
+
+        module_name = f"app.business.{name}.init_data"
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as exc:
+            message = f"Business: module '{name}' has init_data.py but failed to import: {exc}"
+            log.exception(message)
+            raise RuntimeError(message) from exc
         init_fn = getattr(module, "init", None)
         if callable(init_fn):
             init_funcs.append(init_fn)
