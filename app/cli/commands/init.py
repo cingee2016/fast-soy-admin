@@ -103,6 +103,26 @@ def _validate_module_name(_ctx: click.Context, _param: click.Parameter, value: s
     return value
 
 
+def _has_module_content(path: Path) -> bool:
+    """Return whether a module dir already contains user-owned source files."""
+    if not path.is_dir():
+        return True
+
+    for child in path.iterdir():
+        if child.is_dir():
+            if child.name == "__pycache__":
+                continue
+            if _has_module_content(child):
+                return True
+            continue
+
+        if child.suffix in {".pyc", ".pyo"}:
+            continue
+        return True
+
+    return False
+
+
 @click.command()
 @click.argument("module_name", callback=_validate_module_name)
 @click.option("--cn-name", default=None, help="可选模块中文名（仅写入初始注释；CRUD i18n 在 cli-crud 指定）")
@@ -113,11 +133,11 @@ def init(module_name: str, cn_name: str | None):
     """
     module_dir = BUSINESS_DIR / module_name
 
-    if module_dir.exists():
+    if module_dir.exists() and _has_module_content(module_dir):
         raise click.ClickException(f"模块目录已存在: {relative_path(module_dir)}")
 
     # 创建目录
-    module_dir.mkdir(parents=True)
+    module_dir.mkdir(parents=True, exist_ok=True)
 
     # __init__.py
     (module_dir / "__init__.py").write_text("", encoding="utf-8")

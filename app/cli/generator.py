@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+from pprint import pformat
 
 from app.cli.options import BackendFeatureOptions
 from app.cli.parser import FieldInfo, ModelInfo, RelationInfo, collect_extra_imports
@@ -513,6 +513,24 @@ def _model_menu_children(
     return children
 
 
+def _module_menu_tree(module_name: str, module_title: str, children: list[dict], *, reconcile_buttons: bool) -> dict:
+    route_name = _module_route_name(module_name)
+    return {
+        "menu_name": module_title,
+        "route_name": route_name,
+        "route_path": f"/{route_name}",
+        "order": 8,
+        "icon": BUSINESS_MENU_ICON,
+        "i18n_key": f"route.{route_name}",
+        "reconcile": {
+            "menus": True,
+            # 启用 CLI --button-auth 时会同步按钮；否则保留 Web UI 中手工维护的按钮权限。
+            "buttons": reconcile_buttons,
+        },
+        "children": children,
+    }
+
+
 def gen_init_data(
     module_name: str,
     models: list[ModelInfo],
@@ -522,9 +540,21 @@ def gen_init_data(
 ) -> str:
     """生成 init_data.py 内容，内置业务菜单声明。"""
     button_auth_models = button_auth_models or set()
-    menu_children = json.dumps(_model_menu_children(module_name, models, button_auth_models=button_auth_models), ensure_ascii=False, indent=4)
     resolved_module_title = module_title or module_name
-    declared_button_expr = "_collect_declared_buttons(MODULE_MENU_CHILDREN)" if button_auth_models else "None"
+    init_data = {
+        "menus": [
+            _module_menu_tree(
+                module_name,
+                resolved_module_title,
+                _model_menu_children(module_name, models, button_auth_models=button_auth_models),
+                reconcile_buttons=bool(button_auth_models),
+            )
+        ],
+        "roles": [],
+        "users": [],
+        "dictionaries": [],
+    }
+    init_data_literal = pformat(init_data, width=120, sort_dicts=False)
 
     lines = [
         '"""',
@@ -534,75 +564,14 @@ def gen_init_data(
         "所有操作幂等，重复启动不会重复创建。",
         '"""',
         "",
-        "from app.system.services import ensure_menu, reconcile_menu_subtree",
+        "from app.system.services import apply_init_data",
         "",
-        f'MODULE_NAME = "{module_name}"',
-        f'MODULE_ROUTE_NAME = "{_module_route_name(module_name)}"',
-        f'MODULE_MENU_NAME = "{resolved_module_title}"',
-        f'MODULE_MENU_ICON = "{BUSINESS_MENU_ICON}"',
-        "MODULE_MENU_ORDER = 8",
-        f"MODULE_MENU_CHILDREN = {menu_children}",
-        "",
-        "",
-        "def _route_path(route_name: str) -> str:",
-        "    if route_name == MODULE_ROUTE_NAME:",
-        '        return f"/{MODULE_ROUTE_NAME}"',
-        "",
-        '    child_segment = route_name.removeprefix(f"{MODULE_ROUTE_NAME}_").replace("_", "/")',
-        '    return f"/{MODULE_ROUTE_NAME}/{child_segment}"',
-        "",
-        "",
-        "def _title_from_route_name(route_name: str) -> str:",
-        '    return route_name.rsplit("_", maxsplit=1)[-1].replace("-", " ").title()',
-        "",
-        "",
-        "def _collect_declared_routes(children: list[dict]) -> set[str]:",
-        "    result: set[str] = set()",
-        "    for item in children:",
-        '        result.add(item["route_name"])',
-        '        if item.get("children"):',
-        '            result.update(_collect_declared_routes(item["children"]))',
-        "    return result",
-        "",
-        "",
-        "def _collect_declared_buttons(children: list[dict]) -> set[str]:",
-        "    result: set[str] = set()",
-        "    for item in children:",
-        '        for btn in item.get("buttons", []):',
-        '            result.add(btn["button_code"])',
-        '        if item.get("children"):',
-        '            result.update(_collect_declared_buttons(item["children"]))',
-        "    return result",
-        "",
-        "",
-        "def _build_menu_tree() -> dict:",
-        "    tree = {",
-        '        "menu_name": MODULE_MENU_NAME,',
-        '        "route_name": MODULE_ROUTE_NAME,',
-        '        "route_path": _route_path(MODULE_ROUTE_NAME),',
-        '        "order": 1,',
-        '        "i18n_key": f"route.{MODULE_ROUTE_NAME}",',
-        '        "children": MODULE_MENU_CHILDREN,',
-        "    }",
-        "",
-        '    tree["icon"] = MODULE_MENU_ICON',
-        '    tree["order"] = MODULE_MENU_ORDER',
-        "    return tree",
-        "",
-        "",
-        "async def _init_menu_data() -> None:",
-        "    await ensure_menu(**_build_menu_tree())",
-        "    await reconcile_menu_subtree(",
-        "        root_route=MODULE_ROUTE_NAME,",
-        "        declared_route_names=_collect_declared_routes(MODULE_MENU_CHILDREN),",
-        "        # 启用 CLI --button-auth 时会同步按钮；否则保留 Web UI 中手工维护的按钮权限。",
-        f"        declared_button_codes={declared_button_expr},",
-        "    )",
+        f"INIT_DATA = {init_data_literal}",
         "",
         "",
         "async def init() -> None:",
         '    """模块初始化入口 — 由 autodiscover 调用。"""',
-        "    await _init_menu_data()",
+        "    await apply_init_data(INIT_DATA)",
         "    # 普通角色要看到该菜单，请在角色管理中授权，或在这里补充 _init_role_data()。",
         "    # await _init_role_data()",
         "",

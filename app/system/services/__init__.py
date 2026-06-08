@@ -1,3 +1,4 @@
+from app.system.services.init_helper import apply_init_data as apply_init_data
 from app.system.services.init_helper import ensure_menu as ensure_menu
 from app.system.services.init_helper import ensure_role as ensure_role
 from app.system.services.init_helper import ensure_user as ensure_user
