@@ -109,6 +109,37 @@ function Format-Elapsed {
     return $elapsed.ToString("hh\:mm\:ss")
 }
 
+function Write-PidFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true)]
+        [int]$ProcessId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Command
+    )
+
+    [PSCustomObject]@{
+        name = $Name
+        pid = $ProcessId
+        root = $Root
+        workingDirectory = $WorkingDirectory
+        command = $Command
+        startedAt = (Get-Date).ToString("o")
+    } | ConvertTo-Json | Set-Content -Path $Path -Encoding UTF8
+}
+
 function Start-DevProcess {
     param(
         [Parameter(Mandatory = $true)]
@@ -149,6 +180,7 @@ function Start-DevProcess {
         Process = $process
         StdoutPath = $StdoutPath
         StderrPath = $StderrPath
+        PidPath = $null
         StdoutPosition = 0L
         StderrPosition = 0L
     }
@@ -204,11 +236,15 @@ try {
     foreach ($service in $services) {
         $stdoutPath = Join-Path $logPath "run-$($service.Name).out.log"
         $stderrPath = Join-Path $logPath "run-$($service.Name).err.log"
+        $pidPath = Join-Path $logPath "run-$($service.Name).pid"
         Set-Content -Path $stdoutPath -Value "" -Encoding UTF8
         Set-Content -Path $stderrPath -Value "" -Encoding UTF8
 
         Write-Host "[dev] starting $($service.Name): $($service.Command)"
-        $processes += Start-DevProcess -Name $service.Name -WorkingDirectory $service.WorkingDirectory -Command $service.Command -StdoutPath $stdoutPath -StderrPath $stderrPath
+        $entry = Start-DevProcess -Name $service.Name -WorkingDirectory $service.WorkingDirectory -Command $service.Command -StdoutPath $stdoutPath -StderrPath $stderrPath
+        $entry.PidPath = $pidPath
+        $processes += $entry
+        Write-PidFile -Path $pidPath -Name $service.Name -ProcessId $entry.Process.Id -Root $Root -WorkingDirectory $service.WorkingDirectory -Command $service.Command
     }
 
     while ($true) {
@@ -264,6 +300,12 @@ finally {
         if ($entry.Process) {
             Stop-ProcessTree -ProcessId $entry.Process.Id
             $entry.Process.Dispose()
+        }
+    }
+
+    foreach ($entry in $processes) {
+        if ($entry.PidPath -and (Test-Path $entry.PidPath)) {
+            Remove-Item -LiteralPath $entry.PidPath -Force -ErrorAction SilentlyContinue
         }
     }
 

@@ -34,6 +34,10 @@ _install-frontend:
 run target='all':
     just _run-{{target}}
 
+# Stop dev server(s) started by `just run`. Target can be all, backend, or frontend.
+stop target='all':
+    just _stop-{{target}}
+
 _run-all:
     just _run-{{host_family}} all
 
@@ -48,6 +52,21 @@ _run-windows target:
 
 _run-unix target:
     python scripts/dev.py "{{target}}"
+
+_stop-all:
+    just _stop-{{host_family}} all
+
+_stop-backend:
+    just _stop-{{host_family}} backend
+
+_stop-frontend:
+    just _stop-{{host_family}} frontend
+
+_stop-windows target:
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{justfile_directory()}}\scripts\stop-dev-windows.ps1" -Root "{{justfile_directory()}}" -Target "{{target}}"
+
+_stop-unix target:
+    @echo "just stop is currently implemented for Windows dev runs. On Unix, press Ctrl+C in the terminal running just run."
 
 # Backward-compatible alias for starting both dev servers.
 dev:
