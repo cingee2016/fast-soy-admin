@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from app.cli.display import echo_file_result, format_path, has_written_files, relative_path, run_just_format
+from app.cli.display import echo_file_result, echo_lines, format_path, has_written_files, relative_path, run_just_format
 from app.cli.options import all_choice_names, resolve_field_map
 from app.cli.parser import parse_models
 from app.cli.prompts import frontend_list_field_candidates, frontend_search_field_candidates, prompt_fields, prompt_model_selection, resolve_model_selection
@@ -16,29 +16,32 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BUSINESS_DIR = PROJECT_ROOT / "app" / "business"
 WEB_ROOT = PROJECT_ROOT / "web"
 
-GUIDE = """\
 
-\033[1;32m✅ 前端代码生成完成！\033[0m
-
-\033[1;33m📋 后续步骤：\033[0m
-
-  \033[1m1.\033[0m i18n 已写入 \033[36mweb/src/locales/langs/_generated/{module}/\033[0m，
-     由 \033[36mweb/src/locales/locale.ts\033[0m 通过 \033[36mimport.meta.glob\033[0m 自动合并，
-     类型由同目录 \033[36mtypes.d.ts\033[0m 通过 declare 合并注入 \033[1mApp.I18n.GeneratedPages\033[0m，
-     \033[2m无需手动合并到 zh-cn.ts / en-us.ts / app.d.ts。\033[0m
-
-  \033[1m2.\033[0m 搜索生成代码中的 \033[33mTODO\033[0m 注释，补充外键 / 枚举的 options 数据源
-
-  \033[1m3.\033[0m 启动前端验证（首次启动会自动更新 elegant-router.d.ts 的路由类型）：
-
-     \033[36mcd web && pnpm dev\033[0m
-"""
+def _guide_lines(module: str) -> list[str]:
+    return [
+        "",
+        "[OK] 前端代码生成完成！",
+        "",
+        "[NEXT] 后续步骤：",
+        "",
+        f"  1. i18n 已写入 web/src/locales/langs/_generated/{module}/，",
+        "     由 web/src/locales/locale.ts 通过 import.meta.glob 自动合并，",
+        "     类型由同目录 types.d.ts 通过 declare 合并注入 App.I18n.GeneratedPages，",
+        "     无需手动合并到 zh-cn.ts / en-us.ts / app.d.ts。",
+        "",
+        "  2. 搜索生成代码中的 TODO 注释，补充外键 / 枚举的 options 数据源",
+        "",
+        "  3. 启动前端验证（首次启动会自动更新 elegant-router.d.ts 的路由类型）：",
+        "",
+        "     cd web && pnpm dev",
+    ]
 
 
 def _format_generated_files(results: list[tuple[str, str]]) -> None:
     """对生成/追加的前端文件执行项目格式化。"""
     if not has_written_files(results):
-        click.echo("\n  \033[90m-\033[0m 没有新写入的前端文件，跳过格式化")
+        click.echo("")
+        click.echo("  [-] 没有新写入的前端文件，跳过格式化")
         return
 
     run_just_format("frontend")
@@ -87,18 +90,23 @@ def gen_web(
     if not models:
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
 
-    click.echo(f"\n  \033[1m✓\033[0m 解析模块: \033[36m{relative_path(models_path)}\033[0m")
-    click.echo(f"  \033[1m✓\033[0m 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
+    click.echo("")
+    click.echo(f"  [ok] 解析模块: {relative_path(models_path)}")
+    click.echo(f"  [ok] 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
     if models_spec:
         models = resolve_model_selection(models, models_spec)
-        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
     elif assume_yes:
-        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
     else:
         models = prompt_model_selection(models)
 
     # 2. 模块中文名
-    module_cn: str = cn_name or (module_name if assume_yes else click.prompt("\n  模块中文名 (用于 i18n)", default=module_name))
+    if cn_name or assume_yes:
+        module_cn: str = cn_name or module_name
+    else:
+        click.echo("")
+        module_cn = click.prompt("  模块中文名 (用于 i18n)", default=module_name)
 
     # 3. 列表展示字段
     if list_field_specs or assume_yes:
@@ -153,4 +161,4 @@ def gen_web(
     if not no_format:
         _format_generated_files(results)
 
-    click.echo(GUIDE.format(module=module_name))
+    echo_lines(_guide_lines(module_name))

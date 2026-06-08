@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from app.cli.display import echo_file_result, format_path, has_written_files, relative_path, run_just_format
+from app.cli.display import echo_file_result, echo_lines, format_path, has_written_files, relative_path, run_just_format
 from app.cli.generator import generate_all
 from app.cli.options import all_choice_names, build_backend_feature_options, resolve_field_map
 from app.cli.parser import parse_models
@@ -29,26 +29,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BUSINESS_DIR = PROJECT_ROOT / "app" / "business"
 WEB_ROOT = PROJECT_ROOT / "web"
 
-GUIDE = """\
-
-\033[1;32m✅ 前后端 CRUD 生成完成！\033[0m
-
-\033[1;33m📋 后续步骤：\033[0m
-
-  \033[1m1.\033[0m 搜索生成代码中的 \033[33mTODO\033[0m，补充外键 / 枚举的 options 数据源
-  \033[1m2.\033[0m \033[36minit_data.py\033[0m 已生成业务菜单；按需调整图标/排序，并补充业务逻辑、角色、种子数据
-  \033[1m3.\033[0m 执行数据库迁移：
-
-     \033[36mjust mm\033[0m
-
-  \033[1m4.\033[0m 启动服务验证：
-
-     \033[36mjust run\033[0m
-
-  \033[1m5.\033[0m 提交前运行完整质量检查：
-
-     \033[36mjust check\033[0m
-"""
+GUIDE_LINES = [
+    "",
+    "[OK] 前后端 CRUD 生成完成！",
+    "",
+    "[NEXT] 后续步骤：",
+    "",
+    "  1. 搜索生成代码中的 TODO，补充外键 / 枚举的 options 数据源",
+    "  2. init_data.py 已生成业务菜单；按需调整图标/排序，并补充业务逻辑、角色、种子数据",
+    "  3. 执行数据库迁移：",
+    "",
+    "     just mm",
+    "",
+    "  4. 启动服务验证：",
+    "",
+    "     just run",
+    "",
+    "  5. 提交前运行完整质量检查：",
+    "",
+    "     just check",
+]
 
 
 def _format_generated_crud(backend_results: list[tuple[str, str]], frontend_results: list[tuple[str, str]]) -> None:
@@ -56,12 +56,14 @@ def _format_generated_crud(backend_results: list[tuple[str, str]], frontend_resu
     if has_written_files(backend_results):
         run_just_format("backend")
     else:
-        click.echo("\n  \033[90m-\033[0m 没有新写入的后端文件，跳过格式化")
+        click.echo("")
+        click.echo("  [-] 没有新写入的后端文件，跳过格式化")
 
     if has_written_files(frontend_results):
         run_just_format("frontend")
     else:
-        click.echo("\n  \033[90m-\033[0m 没有新写入的前端文件，跳过格式化")
+        click.echo("")
+        click.echo("  [-] 没有新写入的前端文件，跳过格式化")
 
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
@@ -133,19 +135,25 @@ def gen_all(
     if not models:
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
 
-    click.echo(f"\n  \033[1m✓\033[0m 解析模块: \033[36m{relative_path(models_path)}\033[0m")
-    click.echo(f"  \033[1m✓\033[0m 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
+    click.echo("")
+    click.echo(f"  [ok] 解析模块: {relative_path(models_path)}")
+    click.echo(f"  [ok] 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
     if models_spec:
         models = resolve_model_selection(models, models_spec)
-        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
     elif assume_yes:
-        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
     else:
         models = prompt_model_selection(models)
 
-    module_cn: str = cn_name or (module_name if assume_yes else click.prompt("\n  模块中文名 (用于 i18n)", default=module_name))
+    if cn_name or assume_yes:
+        module_cn: str = cn_name or module_name
+    else:
+        click.echo("")
+        module_cn = click.prompt("  模块中文名 (用于 i18n)", default=module_name)
 
-    click.echo("\n\033[1m🧩 后端 CRUD 配置\033[0m")
+    click.echo("")
+    click.echo("[BACKEND] 后端 CRUD 配置")
     if contains_specs or assume_yes:
         contains_map = resolve_field_map(
             models,
@@ -183,7 +191,8 @@ def gen_all(
         rate_limit_specs=rate_limit_specs,
     )
 
-    click.echo("\n\033[1m🖥 前端 CRUD 配置\033[0m")
+    click.echo("")
+    click.echo("[FRONTEND] 前端 CRUD 配置")
     if list_field_specs or assume_yes:
         list_fields = resolve_field_map(
             models,
@@ -217,7 +226,8 @@ def gen_all(
             default_names_fn=default_frontend_search_field_names([contains_map, exact_map]),
         )
 
-    click.echo("\n\033[1m🚀 写入后端文件\033[0m")
+    click.echo("")
+    click.echo("[WRITE] 写入后端文件")
     backend_results = generate_all(
         module_dir,
         module_name,
@@ -231,7 +241,8 @@ def gen_all(
     for rel_path, status in backend_results:
         echo_file_result(f"app/business/{module_name}/{rel_path}", status)
 
-    click.echo("\n\033[1m🎛 写入前端文件\033[0m")
+    click.echo("")
+    click.echo("[WRITE] 写入前端文件")
     frontend_results = generate_web(
         WEB_ROOT,
         module_name,
@@ -247,4 +258,4 @@ def gen_all(
     if not no_format:
         _format_generated_crud(backend_results, frontend_results)
 
-    click.echo(GUIDE)
+    echo_lines(GUIDE_LINES)

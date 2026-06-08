@@ -7,18 +7,18 @@ from pathlib import Path
 
 import click
 
-from app.cli.display import relative_path
+from app.cli.display import echo_lines, relative_path
 
 BUSINESS_DIR = Path(__file__).resolve().parents[2] / "business"
 
 MODELS_TEMPLATE = '''\
 # pyright: reportIncompatibleVariableOverride=false
 """
-{cn_name} — 业务模型定义。
+{module_title} — 业务模型定义。
 
 在此文件中定义 Tortoise ORM 模型，完成后运行:
 
-    just cli-crud {module_name} {cn_name}
+    just cli-crud {module_name}
 
 即可一次生成后端 schemas / controllers / api 及前端 service / views / i18n 等文件。
 """
@@ -51,42 +51,48 @@ from app.utils import AuditMixin, BaseModel, StatusType
 #         table_description = "示例"
 '''
 
-GUIDE_TEXT = """\
 
-\033[1;32m✅ 模块 {module_name} 创建成功！\033[0m
-
-  📂 {module_path}/
-     ├── __init__.py
-     └── models.py          ← 请在这里定义你的模型
-
-\033[1;33m📋 下一步：\033[0m
-
-  \033[1m1.\033[0m 用编辑器打开 \033[36m{models_path}\033[0m
-     参照注释中的示例，定义你的 Tortoise ORM 模型。
-
-     几个要点：
-     • 继承 \033[36mBaseModel, AuditMixin\033[0m
-     • 每个字段加上 \033[36mdescription="..."\033[0m（用于生成 schema 注释）
-     • 类的 docstring 写中文名（如 \033[36m\"\"\"仓库\"\"\"\033[0m），将作为 API summary 前缀
-     • Meta.table 建议用 \033[36mbiz_{module_name}_xxx\033[0m 前缀
-     • 外键字段上方必须声明 \033[36m<name>_id: int\033[0m（或 \033[36mint | None\033[0m）注解；
-       使用时一律用 \033[36mobj.<name>_id\033[0m，访问关系对象字段前先 \033[36mprefetch_related(...)\033[0m
-
-  \033[1m2.\033[0m 模型写好后，运行代码生成（后端 + 前端 CRUD 一次生成）：
-
-     \033[36mjust cli-crud {module_name} {cn_name}\033[0m
-
-     将自动生成后端 schemas.py / controllers.py / services.py / api/，
-     以及前端 service / typings / views / i18n 等文件。
-
-  \033[1m3.\033[0m 生成后执行数据库迁移：
-
-     \033[36mjust mm\033[0m
-
-  \033[1m4.\033[0m 启动服务验证：
-
-     \033[36mjust run\033[0m
-"""
+def _guide_lines(module_name: str, module_path: str, models_path: str) -> list[str]:
+    return [
+        "",
+        f"[OK] 模块 {module_name} 创建成功！",
+        "",
+        f"  {module_path}/",
+        "     - __init__.py",
+        "     - models.py          <- 请在这里定义你的模型",
+        "",
+        "[NEXT] 下一步：",
+        "",
+        f"  1. 用编辑器打开 {models_path}",
+        "     参照注释中的示例，定义你的 Tortoise ORM 模型。",
+        "",
+        "     几个要点：",
+        "     - 继承 BaseModel, AuditMixin",
+        '     - 每个字段加上 description="..."（用于生成 schema 注释）',
+        '     - 类的 docstring 写中文名（如 """仓库"""），将作为 API summary 前缀',
+        f"     - Meta.table 建议用 biz_{module_name}_xxx 前缀",
+        "     - 外键字段上方必须声明 <name>_id: int（或 int | None）注解；",
+        "       使用时一律用 obj.<name>_id，访问关系对象字段前先 prefetch_related(...)",
+        "",
+        "  2. 模型写好后，运行代码生成（后端 + 前端 CRUD 一次生成）：",
+        "",
+        f"     just cli-crud {module_name}",
+        "",
+        "     如需指定模块 i18n 中文名：",
+        "",
+        f"     just cli-crud {module_name} 中文名",
+        "",
+        "     将自动生成后端 schemas.py / controllers.py / services.py / api/，",
+        "     以及前端 service / typings / views / i18n 等文件。",
+        "",
+        "  3. 生成后执行数据库迁移：",
+        "",
+        "     just mm",
+        "",
+        "  4. 启动服务验证：",
+        "",
+        "     just run",
+    ]
 
 
 def _validate_module_name(_ctx: click.Context, _param: click.Parameter, value: str) -> str:
@@ -99,8 +105,8 @@ def _validate_module_name(_ctx: click.Context, _param: click.Parameter, value: s
 
 @click.command()
 @click.argument("module_name", callback=_validate_module_name)
-@click.option("--cn-name", prompt="模块中文名", help="模块中文名（如：库存管理）")
-def init(module_name: str, cn_name: str):
+@click.option("--cn-name", default=None, help="可选模块中文名（仅写入初始注释；CRUD i18n 在 cli-crud 指定）")
+def init(module_name: str, cn_name: str | None):
     """创建业务模块目录骨架。
 
     MODULE_NAME: 模块名（snake_case），将创建到 app/business/<MODULE_NAME>/
@@ -117,15 +123,14 @@ def init(module_name: str, cn_name: str):
     (module_dir / "__init__.py").write_text("", encoding="utf-8")
 
     # models.py
-    models_content = MODELS_TEMPLATE.format(module_name=module_name, cn_name=cn_name)
+    models_content = MODELS_TEMPLATE.format(module_name=module_name, module_title=cn_name or module_name)
     (module_dir / "models.py").write_text(models_content, encoding="utf-8")
 
     # 输出引导
-    click.echo(
-        GUIDE_TEXT.format(
+    echo_lines(
+        _guide_lines(
             module_name=module_name,
-            cn_name=cn_name,
             module_path=relative_path(module_dir),
             models_path=relative_path(module_dir / "models.py"),
-        )
+        ),
     )

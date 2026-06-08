@@ -17,7 +17,6 @@ just db-init  # first-time DB init (only once)
 
 ```bash
 just cli-init inventory
-# Will prompt for the Chinese name, e.g. "Inventory"
 ```
 
 Generates:

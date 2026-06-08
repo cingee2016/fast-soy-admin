@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 import click
@@ -17,7 +18,13 @@ def configure_output_encoding() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
-            reconfigure(encoding="utf-8", errors="replace")
+            reconfigure(encoding="utf-8", errors="replace", newline="\n")
+
+
+def echo_lines(lines: Iterable[str]) -> None:
+    """Print multi-line CLI output one line at a time."""
+    for line in lines:
+        click.echo(line)
 
 
 def format_path(path: Path | str) -> str:
@@ -41,17 +48,17 @@ def echo_file_result(path: str | Path, status: str) -> None:
     """Print a generated file result with a consistent icon and message."""
     display_path = format_path(path)
     if status == "created":
-        click.echo(f"  \033[32m✓\033[0m {display_path}")
+        click.echo(f"  [ok] {display_path}")
     elif status == "appended":
-        click.echo(f"  \033[32m+\033[0m {display_path} (已追加 export)")
+        click.echo(f"  [+] {display_path} (已追加 export)")
     elif status == "exists":
-        click.echo(f"  \033[33m⚠\033[0m {display_path} (已存在，用 --force 覆盖)")
+        click.echo(f"  [skip] {display_path} (已存在，用 --force 覆盖)")
     elif status == "skipped":
-        click.echo(f"  \033[90m-\033[0m {display_path} (跳过)")
+        click.echo(f"  [-] {display_path} (跳过)")
     elif status == "not-found":
-        click.echo(f"  \033[31m✗\033[0m {display_path} (文件不存在，请手动处理)")
+        click.echo(f"  [missing] {display_path} (文件不存在，请手动处理)")
     else:
-        click.echo(f"  \033[90m?\033[0m {display_path} ({status})")
+        click.echo(f"  [?] {display_path} ({status})")
 
 
 def run_just_format(target: str) -> bool:
@@ -66,15 +73,18 @@ def run_just_format(target: str) -> bool:
             check=False,
         )
     except FileNotFoundError:
-        click.echo(f"\n  \033[33m⚠\033[0m just 未安装，跳过 {label}")
+        click.echo("")
+        click.echo(f"  [warn] just 未安装，跳过 {label}")
         return False
 
     if result.returncode == 0:
-        click.echo(f"\n  \033[32m✓\033[0m {label} 完成")
+        click.echo("")
+        click.echo(f"  [ok] {label} 完成")
         return True
 
     output = (result.stderr or result.stdout).strip()
-    click.echo(f"\n  \033[33m⚠\033[0m {label} 失败")
+    click.echo("")
+    click.echo(f"  [warn] {label} 失败")
     if output:
-        click.echo(f"  \033[90m{output[:600]}\033[0m")
+        click.echo(f"  {output[:600]}")
     return False

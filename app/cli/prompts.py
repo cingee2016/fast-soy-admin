@@ -87,7 +87,7 @@ def _prompt_choice_names(
 
 
 def _display_choices(choices: Sequence[PromptChoice]) -> str:
-    return " | ".join(f"\033[36m{index}.{choice.name}\033[0m({choice.description or choice.name})" for index, choice in enumerate(choices, start=1))
+    return " | ".join(f"{index}.{choice.name}({choice.description or choice.name})" for index, choice in enumerate(choices, start=1))
 
 
 def resolve_model_selection(models: Sequence[ModelInfo], raw: str) -> list[ModelInfo]:
@@ -103,7 +103,8 @@ def prompt_model_selection(models: list[ModelInfo]) -> list[ModelInfo]:
         return models
 
     choices = [PromptChoice(model.name, f"{model.cn_name} / {model.table or model.snake_name}") for model in models]
-    click.echo(f"\n  可生成 CRUD 的模型: {_display_choices(choices)}")
+    click.echo("")
+    click.echo(f"  可生成 CRUD 的模型: {_display_choices(choices)}")
     selected_names = _prompt_choice_names(
         "  选择要生成 CRUD 的模型 (序号或类名，逗号分隔，回车全选)",
         choices,
@@ -111,7 +112,7 @@ def prompt_model_selection(models: list[ModelInfo]) -> list[ModelInfo]:
         allow_empty=False,
     )
     selected = [model for model in models if model.name in selected_names]
-    click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in selected)}")
+    click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in selected)}")
     return selected
 
 
@@ -133,7 +134,8 @@ def prompt_fields(
         defaults = list(default_names_fn(model, candidates) if default_names_fn else [choice.name for choice in candidates])
         defaults = [name for name in defaults if any(choice.name == name for choice in candidates)]
 
-        click.echo(f"\n  模型 \033[1m{model.name}\033[0m ({model.cn_name}) 可配置的{label}: {_display_choices(candidates)}")
+        click.echo("")
+        click.echo(f"  模型 {model.name} ({model.cn_name}) 可配置的{label}: {_display_choices(candidates)}")
         result[model.name] = _prompt_choice_names(
             f"  选择{label} (序号或字段名，逗号分隔，回车使用默认值；输入空格跳过)",
             candidates,

@@ -18,7 +18,6 @@ just db-init          # 首次建表 + 基础数据
 
 ```bash
 just cli-init inventory
-# 执行过程中会要求输入模块中文名，如"库存管理"
 ```
 
 执行后会生成：
@@ -191,7 +190,7 @@ CLI 根据 Tortoise 字段类型自动推导 TS 类型和表单组件：
 
 ## i18n 命名规则
 
-- **模块中文名**：`init` 命令时输入，用于 `route.<module>` 和 `page.<module>` 顶层
+- **模块中文名**：`cli-gen-web` / `cli-crud` 的第二个位置参数或 `--cn-name` 指定；未指定时默认使用模块名，用于 `route.<module>` 和 `page.<module>` 顶层
 - **模型中文名**：类 docstring（`"""仓库"""`）或 `Meta.table_description`
 - **字段中文名**：`description="..."`，**截断到第一个中英文句号之前**
   - 例：`description="仓库编号。全局唯一"` → 取 `仓库编号`
