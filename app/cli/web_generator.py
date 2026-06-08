@@ -508,6 +508,14 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
             body = f'              <NSelect v-model:value="model.{camel}" :options="statusTypeOptions" clearable :placeholder="$t(\'{placeholder_key}\')" />'
         elif component == "select-todo":
             body = f'              <NSelect v-model:value="model.{camel}" :options="[]" clearable :placeholder="$t(\'{placeholder_key}\')" />'
+        elif component == "switch":
+            body = f'              <NSelect v-model:value="model.{camel}" :options="booleanOptions" clearable :placeholder="$t(\'{placeholder_key}\')" />'
+        elif component == "date":
+            body = f'              <NDatePicker v-model:formatted-value="model.{camel}" type="date" value-format="yyyy-MM-dd" clearable class="w-full" />'
+        elif component == "datetime":
+            body = f'              <NDatePicker v-model:formatted-value="model.{camel}" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" clearable class="w-full" />'
+        elif component == "time":
+            body = f'              <NTimePicker v-model:formatted-value="model.{camel}" value-format="HH:mm:ss" clearable class="w-full" />'
         else:
             body = f'              <NInput v-model:value="model.{camel}" :placeholder="$t(\'{placeholder_key}\')" />'
 
@@ -515,6 +523,7 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
 
     # 是否引入 statusTypeOptions
     needs_status_import = any((next((x for x in fields if x.name == n), None) or FieldInfo("", "", "")).enum_type == "StatusType" for n in search_field_names)
+    needs_boolean_options = any((next((x for x in fields if x.name == n), None) or FieldInfo("", "", "")).field_type == "BooleanField" for n in search_field_names)
 
     imports = [
         "import { toRaw } from 'vue';",
@@ -524,8 +533,18 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
     if needs_status_import:
         imports.append("import { statusTypeOptions } from '@/constants/business';")
 
+    boolean_options = ""
+    if needs_boolean_options:
+        boolean_options = """
+const booleanOptions = [
+  { label: $t('common.yesOrNo.yes'), value: true },
+  { label: $t('common.yesOrNo.no'), value: false }
+];
+"""
+
     template = f"""<script setup lang="ts">
 {chr(10).join(imports)}
+{boolean_options}
 
 defineOptions({{ name: '{entity}Search' }});
 
@@ -919,7 +938,7 @@ def generate_web(
     results: list[tuple[str, str]] = []
 
     def write(path: Path, content: str) -> None:
-        rel = str(path.relative_to(web_root))
+        rel = path.relative_to(web_root).as_posix()
         if path.exists() and not force:
             results.append((rel, "exists"))
             return

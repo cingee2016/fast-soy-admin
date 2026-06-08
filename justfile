@@ -186,8 +186,11 @@ cli-gen-web mod cn='':
 
 # Generate both backend and frontend code.
 cli-gen-all mod cn='':
-    just cli-gen "{{mod}}"
-    just cli-gen-web "{{mod}}" "{{cn}}"
+    uv run python -m app.cli gen-all "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }}
+
+# Generate full CRUD code (alias of cli-gen-all).
+cli-crud mod cn='':
+    uv run python -m app.cli crud "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }}
 
 # ---- E2E ----------------------------------------------------
 

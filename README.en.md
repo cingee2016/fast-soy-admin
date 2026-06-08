@@ -30,14 +30,14 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 - **Backend** — FastAPI · Pydantic v2 · Tortoise ORM · Redis
 - **Frontend** — Vue3 · Vite7 · TypeScript · Naive UI · UnoCSS · Pinia · Alova · Elegant Router
 - **Infra** — Docker Compose (Nginx + FastAPI + Redis), multi-worker startup lock, fastapi-guard, built-in Radar dashboard
-- **Code generator** — `cli-init` to scaffold, write `models.py`, `cli-gen-all` to emit backend + frontend CRUD
+- **Code generator** — `cli-init` to scaffold, write `models.py`, `cli-crud` to emit backend + frontend CRUD
 
 ## Highlights
 
 **AI-native**
 
 - **AI-coding friendly** — ships with [CLAUDE.md](CLAUDE.md) and full project docs so agents produce code that matches project conventions out of the box
-- **Generator as the AI workbench** — `cli-gen-all` collapses "add a table" into one command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
+- **Generator as the AI workbench** — `cli-crud` collapses "add a table" into one command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
 
 **Engineering velocity**
 
@@ -139,9 +139,10 @@ All commands are wrapped in `justfile`. Run `just --list` for the full list.
 | `just check backend` / `just check frontend` | Check backend / frontend only                  |
 | `just mm`                              | `makemigrations` + `migrate`                          |
 | `just cli-init xxx`                | Scaffold a new business module                        |
-| `just cli-gen xxx`                 | Generate backend code from `models.py`                |
-| `just cli-gen-web xxx name`     | Generate frontend code from `models.py`               |
-| `just cli-gen-all xxx name`     | Generate both at once                                 |
+| `just cli-gen xxx`                 | Choose models and fuzzy/exact search fields; generate backend code |
+| `just cli-gen-web xxx name`     | Choose models and list/search fields; generate frontend code |
+| `just cli-gen-all xxx name`     | Choose and generate both at once                      |
+| `just cli-crud xxx name`        | Alias for full CRUD generation                        |
 | `just up` / `just down` / `just logs`  | Docker lifecycle                                      |
 
 See the [commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/reference/commands) for the complete list.
@@ -151,7 +152,7 @@ See the [commands reference](https://sleep1223.github.io/fast-soy-admin-docs/en/
 ```bash
 just cli-init inventory                   # 1. scaffold the module
 $EDITOR app/business/inventory/models.py  # 2. define Tortoise models
-just cli-gen-all inventory Inventory      # 3. generate backend + frontend CRUD (i18n auto-merged)
+just cli-crud inventory Inventory         # 3. generate backend + frontend CRUD (i18n auto-merged)
 just mm                                   # 4. run migrations
 just run                                  # 5. verify
 just check                                # 6. pre-commit

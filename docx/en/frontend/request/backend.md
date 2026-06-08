@@ -110,7 +110,7 @@ if (error) {
 | 3. fetchXxx function | `web/src/service/api/<x>-manage.ts` |
 | 4. Use in component / store / hook | — |
 
-Steps 1–3 can be auto-generated via `just cli-gen-all`. See [Development](/en/getting-started/workflow).
+Steps 1–3 can be auto-generated via `just cli-crud`. See [Development](/en/getting-started/workflow).
 
 ## See also
 
