@@ -7,7 +7,7 @@ from app.cli.display import format_path
 from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas
 from app.cli.parser import parse_models
 from app.cli.prompts import resolve_model_selection
-from app.cli.web_generator import gen_view_drawer, gen_view_search
+from app.cli.web_generator import gen_view_drawer, gen_view_search, generate_web
 
 
 def test_cli_exposes_full_crud_commands():
@@ -143,15 +143,57 @@ class UtilityReading(BaseModel):
     content = gen_init_data("utility_fee2", models, module_title="水电费2")
 
     compile(content, "init_data.py", "exec")
-    assert 'MODULE_ROUTE_NAME = "utility_fee2"' in content
+    assert 'MODULE_NAME = "utility_fee2"' in content
+    assert 'MODULE_ROUTE_NAME = "utility-fee2"' in content
     assert 'MODULE_MENU_NAME = "水电费2"' in content
-    assert '"route_name": "utility_fee2_utility-price"' in content
-    assert '"route_path": "/utility/fee2/utility-price"' in content
-    assert '"component": "view.utility_fee2_utility-price"' in content
-    assert '"i18n_key": "route.utility_fee2_utility_price"' in content
+    assert '"route_name": "utility-fee2_utility-price"' in content
+    assert '"route_path": "/utility-fee2/utility-price"' in content
+    assert '"component": "view.utility-fee2_utility-price"' in content
+    assert '"i18n_key": "route.utility-fee2_utility-price"' in content
     assert "await ensure_menu(**_build_menu_tree())" in content
-    assert 'root_route=MODULE_ROUTE_NAME' in content
+    assert "root_route=MODULE_ROUTE_NAME" in content
+    assert 'parent_route = "_".join(parts[:level])' not in content
     assert "\\" not in content
+
+
+def test_generate_web_uses_elegant_router_official_route_keys(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class UtilityPrice(BaseModel):
+    """水电费单价表"""
+
+    id = fields.IntField(primary_key=True)
+    remark = fields.CharField(max_length=500, null=True, description="备注")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+    web_root = tmp_path / "web"
+    (web_root / "src" / "service" / "api").mkdir(parents=True)
+    (web_root / "src" / "service" / "api" / "index.ts").write_text("", encoding="utf-8")
+
+    results = generate_web(
+        web_root,
+        "utility_fee2",
+        "水电费2",
+        [model],
+        list_fields_map={"UtilityPrice": ["remark"]},
+        search_fields_map={},
+    )
+
+    created_paths = {path for path, status in results if status == "created"}
+    assert "src/views/utility-fee2/utility-price/index.vue" in created_paths
+    assert "src/views/utility-fee2/utility-price/modules/utility-price-search.vue" in created_paths
+
+    zh_content = (web_root / "src" / "locales" / "langs" / "_generated" / "utility_fee2" / "zh-cn.ts").read_text(encoding="utf-8")
+    assert "'utility-fee2': '水电费2'" in zh_content
+    assert "'utility-fee2_utility-price': '水电费单价表'" in zh_content
 
 
 def test_gen_schemas_imports_custom_enums_from_business_models(tmp_path: Path):
