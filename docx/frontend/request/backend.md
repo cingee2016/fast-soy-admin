@@ -111,7 +111,7 @@ if (error) {
 | 3. fetchXxx 函数 | `web/src/service/api/<x>-manage.ts` |
 | 4. 在组件 / store / hook 调 | — |
 
-1–3 步可由 `just cli-gen-all` 自动产出。详见 [开发指南](../../getting-started/workflow.md)。
+1–3 步可由 `just cli-crud` 自动产出。详见 [开发指南](../../getting-started/workflow.md)。
 
 ## 相关
 

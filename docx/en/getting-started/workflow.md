@@ -85,7 +85,7 @@ Conventions:
 just cli-gen inventory
 ```
 
-Interactively select fuzzy-search fields (Enter accepts all). Generates:
+The CLI first asks which models should receive CRUD code (enter indexes or class names; Enter selects all), then asks for fuzzy-search and exact-match fields per model. Generates:
 
 ```
 app/business/inventory/
@@ -100,7 +100,7 @@ app/business/inventory/
     └── manage.py   # CRUDRouter generates 6 standard endpoints
 ```
 
-Auto runs `ruff check --fix` + `ruff format`.
+Auto runs `just fmt backend`.
 
 ### 4. Generate frontend code
 
@@ -108,9 +108,9 @@ Auto runs `ruff check --fix` + `ruff format`.
 just cli-gen-web inventory Inventory
 ```
 
-> Or `just cli-gen-all inventory Inventory` to do steps 3 + 4 in one shot.
+> Or `just cli-crud inventory Inventory` to do steps 3 + 4 in one shot.
 
-Pick list-display and search fields per model. Generates:
+Pick the models to generate pages for, then choose list-display and search fields per model. Generates:
 
 ```
 web/

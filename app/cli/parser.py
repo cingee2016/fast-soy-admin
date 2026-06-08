@@ -181,8 +181,11 @@ def _extract_meta(class_node: ast.ClassDef) -> dict[str, str]:
 
 def _extract_docstring(class_node: ast.ClassDef) -> str:
     """提取类的 docstring。"""
-    if class_node.body and isinstance(class_node.body[0], ast.Expr) and isinstance(class_node.body[0].value, ast.Constant):
-        return str(class_node.body[0].value.value).strip()
+    docstring = ast.get_docstring(class_node, clean=True) or ""
+    for line in docstring.splitlines():
+        title = line.strip()
+        if title:
+            return title.rstrip("。.")
     return ""
 
 

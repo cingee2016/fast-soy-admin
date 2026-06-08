@@ -7,7 +7,7 @@
 ```bash
 just cli-init inventory              # 创建后端模块骨架
 # 编辑 app/business/inventory/models.py 定义模型
-just cli-gen-all inventory 库存管理  # 同时生成前后端
+just cli-crud inventory 库存管理     # 同时生成前后端 CRUD
 just mm                              # 数据库迁移
 just run                             # 重启
 ```

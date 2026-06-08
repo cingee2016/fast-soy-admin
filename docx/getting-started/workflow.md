@@ -87,7 +87,7 @@ class Product(BaseModel, AuditMixin):
 just cli-gen inventory
 ```
 
-交互式地选择每个模型的模糊搜索字段（可直接回车全选），生成：
+CLI 会先让你选择本次要生成 CRUD 的模型（可输入序号或类名，回车全选），再分别选择每个模型的**模糊查询字段**和**精确查询字段**。生成：
 
 ```
 app/business/inventory/
@@ -102,7 +102,7 @@ app/business/inventory/
     └── manage.py   # CRUDRouter 自动生成 6 个标准路由
 ```
 
-生成后会自动跑 `ruff check --fix` + `ruff format`。
+生成后会自动跑 `just fmt backend`。
 
 ### 4. 生成前端代码
 
@@ -110,9 +110,9 @@ app/business/inventory/
 just cli-gen-web inventory 库存管理
 ```
 
-> 也可以用 `just cli-gen-all inventory 库存管理` 一次跑完步骤 3 和 4。
+> 也可以用 `just cli-crud inventory 库存管理` 一次跑完步骤 3 和 4。
 
-选择每个模型的**列表展示字段**和**搜索字段**后，生成：
+选择本次要生成页面的模型、每个模型的**列表展示字段**和**搜索字段**后，生成：
 
 ```
 web/
