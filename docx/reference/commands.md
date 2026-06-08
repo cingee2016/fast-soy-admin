@@ -36,9 +36,10 @@ just --list
 | 原始命令 | just 命令 | 作用 |
 |---|---|---|
 | `uv run python -m app.cli init <MOD>` | `just cli-init xxx` | 创建业务模块骨架（只含 `models.py`） |
-| `uv run python -m app.cli gen <MOD>` | `just cli-gen xxx` | 解析 `models.py`，生成后端 schemas/controllers/api 等 |
-| `uv run python -m app.cli gen-web <MOD>` | `just cli-gen-web xxx [中文名]` | 解析 `models.py`，生成前端 service/typings/views/i18n（自动合并到 `_generated/<mod>/`，无需手动改 `zh-cn.ts` / `app.d.ts`） |
-| — | `just cli-gen-all xxx [中文名]` | 一次跑完 cli-gen + cli-gen-web |
+| `uv run python -m app.cli gen <MOD>` | `just cli-gen xxx` | 选择 CRUD 模型、模糊/精确查询字段，生成后端 schemas/controllers/api 等 |
+| `uv run python -m app.cli gen-web <MOD>` | `just cli-gen-web xxx [中文名]` | 选择页面模型、列表/搜索字段，生成前端 service/typings/views/i18n |
+| `uv run python -m app.cli gen-all <MOD>` | `just cli-gen-all xxx [中文名]` | 一次选择并生成后端 + 前端 CRUD |
+| `uv run python -m app.cli crud <MOD>` | `just cli-crud xxx [中文名]` | 同上，完整 CRUD 生成别名 |
 
 详细使用流程见 [开发指南](../getting-started/workflow.md)。
 
@@ -102,7 +103,7 @@ just cli-gen inventory
 just cli-gen-web inventory 库存管理
 
 # 6+7 也可一次跑完:
-# just cli-gen-all inventory 库存管理
+# just cli-crud inventory 库存管理
 
 # 8. 执行数据库迁移
 just mm

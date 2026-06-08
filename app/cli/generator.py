@@ -202,7 +202,12 @@ def gen_services(module_name: str, models: list[ModelInfo]) -> str:
 # ─── api/manage.py ───
 
 
-def gen_api_manage(module_name: str, models: list[ModelInfo], contains_map: dict[str, list[str]]) -> str:
+def gen_api_manage(
+    module_name: str,
+    models: list[ModelInfo],
+    contains_map: dict[str, list[str]],
+    exact_map: dict[str, list[str]] | None = None,
+) -> str:
     lines = [
         '"""',
         f"{module_name} 管理接口 — CRUD。",
@@ -230,8 +235,11 @@ def gen_api_manage(module_name: str, models: list[ModelInfo], contains_map: dict
     # CRUDRouter per model
     for m in models:
         contains = contains_map.get(m.name, [])
-        # exact_fields: 有 enum_type 或 status 字段
-        exact = [f.name for f in m.schema_fields if f.enum_type or f.name == "status"]
+        if exact_map is None:
+            # exact_fields: 有 enum_type 或 status 字段
+            exact = [f.name for f in m.schema_fields if f.enum_type or f.name == "status"]
+        else:
+            exact = exact_map.get(m.name, [])
 
         lines.append(f"{m.snake_name}_crud = CRUDRouter(")
         lines.append(f'    prefix="/{m.plural_snake}",')
@@ -328,6 +336,7 @@ def generate_all(
     models: list[ModelInfo],
     contains_map: dict[str, list[str]],
     *,
+    exact_map: dict[str, list[str]] | None = None,
     skip: set[str] | None = None,
     force: bool = False,
 ) -> list[tuple[str, str]]:
@@ -344,7 +353,7 @@ def generate_all(
         "services.py": lambda: gen_services(module_name, models),
         "init_data.py": lambda: gen_init_data(module_name),
         "api/__init__.py": lambda: gen_api_init(module_name),
-        "api/manage.py": lambda: gen_api_manage(module_name, models, contains_map),
+        "api/manage.py": lambda: gen_api_manage(module_name, models, contains_map, exact_map),
     }
 
     for rel_path, gen_fn in generators.items():

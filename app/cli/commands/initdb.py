@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import click
 from tortoise import Tortoise, connections
 
+from app.cli.display import format_path, relative_path
 from app.core.config import APP_SETTINGS
 
 BASE_DIR = APP_SETTINGS.BASE_DIR
@@ -53,7 +54,7 @@ def _check_sqlite_file(db_url: str) -> str | None:
         return None
     if not sqlite_path.exists():
         return None
-    return f"SQLite 数据库文件已存在: {sqlite_path.relative_to(BASE_DIR)}"
+    return f"SQLite 数据库文件已存在: {relative_path(sqlite_path, BASE_DIR)}"
 
 
 def _check_migration_table(db_url: str) -> str | None:
@@ -120,7 +121,7 @@ def _reset_migration_files() -> None:
     for migration_dir in _configured_migration_dirs():
         resolved = migration_dir.resolve()
         if not (resolved == migrations_root or resolved.is_relative_to(migrations_root)):
-            raise click.ClickException(f"拒绝清理 migrations 目录外的路径: {migration_dir}")
+            raise click.ClickException(f"拒绝清理 migrations 目录外的路径: {format_path(migration_dir)}")
 
         migration_dir.mkdir(parents=True, exist_ok=True)
         for child in migration_dir.iterdir():

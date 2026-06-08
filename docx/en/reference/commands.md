@@ -32,9 +32,10 @@ A root `justfile` wraps all common operations. Run `just` (or `just --list`) for
 | Raw | just | Purpose |
 |---|---|---|
 | `uv run python -m app.cli init <MOD>` | `just cli-init xxx` | Create module skeleton (`models.py` only) |
-| `uv run python -m app.cli gen <MOD>` | `just cli-gen xxx` | Parse `models.py`, generate backend schemas/controllers/api |
-| `uv run python -m app.cli gen-web <MOD>` | `just cli-gen-web xxx [Chinese-Name]` | Parse `models.py`, generate frontend service/typings/views/i18n fragments |
-| — | `just cli-gen-all xxx [Chinese-Name]` | Run `cli-gen` + `cli-gen-web` |
+| `uv run python -m app.cli gen <MOD>` | `just cli-gen xxx` | Choose CRUD models plus fuzzy/exact search fields; generate backend schemas/controllers/api |
+| `uv run python -m app.cli gen-web <MOD>` | `just cli-gen-web xxx [Chinese-Name]` | Choose page models plus list/search fields; generate frontend service/typings/views/i18n |
+| `uv run python -m app.cli gen-all <MOD>` | `just cli-gen-all xxx [Chinese-Name]` | Choose and generate backend + frontend CRUD in one command |
+| `uv run python -m app.cli crud <MOD>` | `just cli-crud xxx [Chinese-Name]` | Alias for full CRUD generation |
 
 For details see [Development guide](/en/getting-started/workflow).
 
@@ -93,7 +94,7 @@ just cli-gen inventory
 just cli-gen-web inventory Inventory
 
 # 5+6 in one shot:
-# just cli-gen-all inventory Inventory
+# just cli-crud inventory Inventory
 
 # 7. run migrations
 just mm
