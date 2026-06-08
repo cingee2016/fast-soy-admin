@@ -58,7 +58,7 @@ def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "模块中文名" not in result.output
     assert "\033" not in result.output
-    assert "✅" not in result.output
+    assert "✅ 模块 inventory 创建成功！" in result.output
 
     models_content = (tmp_path / "inventory" / "models.py").read_text(encoding="utf-8")
     assert "inventory — 业务模型定义" in models_content

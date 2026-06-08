@@ -84,24 +84,24 @@ def echo_file_result(path: str | Path, status: str) -> None:
     """Print a generated file result with a consistent icon and message."""
     display_path = format_path(path)
     if status == "created":
-        click.echo(f"  [ok] {display_path}")
+        click.echo(f"  ✅ {display_path}")
     elif status == "appended":
-        click.echo(f"  [+] {display_path} (已追加 export)")
+        click.echo(f"  ➕ {display_path} (已追加 export)")
     elif status == "exists":
-        click.echo(f"  [skip] {display_path} (已存在，用 --force 覆盖)")
+        click.echo(f"  ⚠️  {display_path} (已存在，用 --force 覆盖)")
     elif status == "skipped":
-        click.echo(f"  [-] {display_path} (跳过)")
+        click.echo(f"  ➖ {display_path} (跳过)")
     elif status == "not-found":
-        click.echo(f"  [missing] {display_path} (文件不存在，请手动处理)")
+        click.echo(f"  ❌ {display_path} (文件不存在，请手动处理)")
     else:
-        click.echo(f"  [?] {display_path} ({status})")
+        click.echo(f"  ❔ {display_path} ({status})")
 
 
 def run_just_format(target: str) -> bool:
     """Run the project-level formatter for a target."""
     label = f"just fmt {target}"
     click.echo("")
-    click.echo(f"  [run] {label}")
+    click.echo(f"  🔧 {label}")
     try:
         result = subprocess.run(
             ["just", "fmt", target],
@@ -109,14 +109,14 @@ def run_just_format(target: str) -> bool:
             check=False,
         )
     except FileNotFoundError:
-        click.echo(f"  [warn] just 未安装，跳过 {label}")
+        click.echo(f"  ⚠️  just 未安装，跳过 {label}")
         return False
     finally:
         restore_console_modes()
 
     if result.returncode == 0:
-        click.echo(f"  [ok] {label} 完成")
+        click.echo(f"  ✅ {label} 完成")
         return True
 
-    click.echo(f"  [warn] {label} 失败")
+    click.echo(f"  ⚠️  {label} 失败")
     return False

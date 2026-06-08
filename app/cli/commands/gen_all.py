@@ -31,9 +31,9 @@ WEB_ROOT = PROJECT_ROOT / "web"
 
 GUIDE_LINES = [
     "",
-    "[OK] 前后端 CRUD 生成完成！",
+    "✅ 前后端 CRUD 生成完成！",
     "",
-    "[NEXT] 后续步骤：",
+    "📋 后续步骤：",
     "",
     "  1. 搜索生成代码中的 TODO，补充外键 / 枚举的 options 数据源",
     "  2. init_data.py 已生成业务菜单；按需调整图标/排序，并补充业务逻辑、角色、种子数据",
@@ -57,13 +57,13 @@ def _format_generated_crud(backend_results: list[tuple[str, str]], frontend_resu
         run_just_format("backend")
     else:
         click.echo("")
-        click.echo("  [-] 没有新写入的后端文件，跳过格式化")
+        click.echo("  ➖ 没有新写入的后端文件，跳过格式化")
 
     if has_written_files(frontend_results):
         run_just_format("frontend")
     else:
         click.echo("")
-        click.echo("  [-] 没有新写入的前端文件，跳过格式化")
+        click.echo("  ➖ 没有新写入的前端文件，跳过格式化")
 
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
@@ -136,13 +136,13 @@ def gen_all(
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
 
     click.echo("")
-    click.echo(f"  [ok] 解析模块: {relative_path(models_path)}")
-    click.echo(f"  [ok] 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
+    click.echo(f"  ✅ 解析模块: {relative_path(models_path)}")
+    click.echo(f"  ✅ 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
     if models_spec:
         models = resolve_model_selection(models, models_spec)
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     elif assume_yes:
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     else:
         models = prompt_model_selection(models)
 
@@ -153,7 +153,7 @@ def gen_all(
         module_cn = click.prompt("  模块中文名 (用于 i18n)", default=module_name)
 
     click.echo("")
-    click.echo("[BACKEND] 后端 CRUD 配置")
+    click.echo("🧩 后端 CRUD 配置")
     if contains_specs or assume_yes:
         contains_map = resolve_field_map(
             models,
@@ -192,7 +192,7 @@ def gen_all(
     )
 
     click.echo("")
-    click.echo("[FRONTEND] 前端 CRUD 配置")
+    click.echo("🖥️  前端 CRUD 配置")
     if list_field_specs or assume_yes:
         list_fields = resolve_field_map(
             models,
@@ -227,7 +227,7 @@ def gen_all(
         )
 
     click.echo("")
-    click.echo("[WRITE] 写入后端文件")
+    click.echo("🚀 写入后端文件")
     backend_results = generate_all(
         module_dir,
         module_name,
@@ -242,7 +242,7 @@ def gen_all(
         echo_file_result(f"app/business/{module_name}/{rel_path}", status)
 
     click.echo("")
-    click.echo("[WRITE] 写入前端文件")
+    click.echo("🎛️  写入前端文件")
     frontend_results = generate_web(
         WEB_ROOT,
         module_name,

@@ -24,9 +24,9 @@ BUSINESS_DIR = Path(__file__).resolve().parents[2] / "business"
 
 GUIDE_LINES = [
     "",
-    "[OK] 代码生成完成！",
+    "✅ 代码生成完成！",
     "",
-    "[NEXT] 后续步骤：",
+    "📋 后续步骤：",
     "",
     "  1. 按需修改 services.py 中的业务逻辑",
     "  2. init_data.py 已生成业务菜单；按需调整图标/排序，并补充角色、种子数据",
@@ -102,13 +102,13 @@ def gen(
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
 
     click.echo("")
-    click.echo(f"  [ok] 解析模块: {relative_path(models_path)}")
-    click.echo(f"  [ok] 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
+    click.echo(f"  ✅ 解析模块: {relative_path(models_path)}")
+    click.echo(f"  ✅ 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
     if models_spec:
         models = resolve_model_selection(models, models_spec)
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     elif assume_yes:
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     else:
         models = prompt_model_selection(models)
 
@@ -163,6 +163,6 @@ def gen(
             run_just_format("backend")
         else:
             click.echo("")
-            click.echo("  [-] 没有新写入的后端文件，跳过格式化")
+            click.echo("  ➖ 没有新写入的后端文件，跳过格式化")
 
     echo_lines(GUIDE_LINES)

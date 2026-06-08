@@ -20,9 +20,9 @@ WEB_ROOT = PROJECT_ROOT / "web"
 def _guide_lines(module: str) -> list[str]:
     return [
         "",
-        "[OK] 前端代码生成完成！",
+        "✅ 前端代码生成完成！",
         "",
-        "[NEXT] 后续步骤：",
+        "📋 后续步骤：",
         "",
         f"  1. i18n 已写入 web/src/locales/langs/_generated/{module}/，",
         "     由 web/src/locales/locale.ts 通过 import.meta.glob 自动合并，",
@@ -41,7 +41,7 @@ def _format_generated_files(results: list[tuple[str, str]]) -> None:
     """对生成/追加的前端文件执行项目格式化。"""
     if not has_written_files(results):
         click.echo("")
-        click.echo("  [-] 没有新写入的前端文件，跳过格式化")
+        click.echo("  ➖ 没有新写入的前端文件，跳过格式化")
         return
 
     run_just_format("frontend")
@@ -91,13 +91,13 @@ def gen_web(
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
 
     click.echo("")
-    click.echo(f"  [ok] 解析模块: {relative_path(models_path)}")
-    click.echo(f"  [ok] 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
+    click.echo(f"  ✅ 解析模块: {relative_path(models_path)}")
+    click.echo(f"  ✅ 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
     if models_spec:
         models = resolve_model_selection(models, models_spec)
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     elif assume_yes:
-        click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in models)}")
+        click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in models)}")
     else:
         models = prompt_model_selection(models)
 

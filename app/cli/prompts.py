@@ -112,7 +112,7 @@ def prompt_model_selection(models: list[ModelInfo]) -> list[ModelInfo]:
         allow_empty=False,
     )
     selected = [model for model in models if model.name in selected_names]
-    click.echo(f"  [ok] 本次生成 CRUD: {', '.join(model.name for model in selected)}")
+    click.echo(f"  ✅ 本次生成 CRUD: {', '.join(model.name for model in selected)}")
     return selected
 
 
