@@ -26,13 +26,13 @@ def test_format_path_uses_forward_slashes():
     assert format_path(Path("web") / "src" / "views") == "web/src/views"
 
 
-def test_run_just_format_streams_child_output(monkeypatch):
+def test_run_just_format_captures_child_output_on_success(monkeypatch, capsys):
     calls = []
     restores = []
 
     def fake_run(*args, **kwargs):
         calls.append((args, kwargs))
-        return subprocess.CompletedProcess(args[0], 0)
+        return subprocess.CompletedProcess(args[0], 0, stdout="child output\n", stderr="child error\n")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(cli_display, "restore_console_modes", lambda: restores.append(True))
@@ -42,10 +42,32 @@ def test_run_just_format_streams_child_output(monkeypatch):
     _, kwargs = calls[0]
     assert kwargs["cwd"] == cli_display.PROJECT_ROOT
     assert kwargs["check"] is False
-    assert "capture_output" not in kwargs
+    assert kwargs["capture_output"] is True
+    assert kwargs["text"] is True
+    assert kwargs["encoding"] == "utf-8"
+    assert kwargs["errors"] == "replace"
     assert "stdout" not in kwargs
     assert "stderr" not in kwargs
     assert restores == [True]
+    output = capsys.readouterr().out
+    assert "✅ just fmt backend 完成" in output
+    assert "child output" not in output
+    assert "child error" not in output
+
+
+def test_run_just_format_prints_child_output_on_failure(monkeypatch, capsys):
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(args[0], 1, stdout="lint stdout\n", stderr="lint stderr\n")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(cli_display, "restore_console_modes", lambda: None)
+
+    assert cli_display.run_just_format("frontend") is False
+
+    captured = capsys.readouterr()
+    assert "⚠️  just fmt frontend 失败" in captured.out
+    assert "lint stdout" in captured.out
+    assert "lint stderr" in captured.err
 
 
 def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):

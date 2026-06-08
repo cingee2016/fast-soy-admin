@@ -97,6 +97,19 @@ def echo_file_result(path: str | Path, status: str) -> None:
         click.echo(f"  ❔ {display_path} ({status})")
 
 
+def _echo_captured_output(output: str | None, *, err: bool = False) -> None:
+    """Print captured child-process output only when it has useful content."""
+    if not output:
+        return
+
+    output = output.rstrip()
+    if not output:
+        return
+
+    for line in output.splitlines():
+        click.echo(line, err=err)
+
+
 def run_just_format(target: str) -> bool:
     """Run the project-level formatter for a target."""
     label = f"just fmt {target}"
@@ -107,6 +120,10 @@ def run_just_format(target: str) -> bool:
             ["just", "fmt", target],
             cwd=PROJECT_ROOT,
             check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except FileNotFoundError:
         click.echo(f"  ⚠️  just 未安装，跳过 {label}")
@@ -119,4 +136,6 @@ def run_just_format(target: str) -> bool:
         return True
 
     click.echo(f"  ⚠️  {label} 失败")
+    _echo_captured_output(result.stdout)
+    _echo_captured_output(result.stderr, err=True)
     return False
