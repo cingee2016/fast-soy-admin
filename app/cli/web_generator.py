@@ -21,6 +21,21 @@ def snake_to_pascal(s: str) -> str:
     return "".join(p.title() for p in s.split("_"))
 
 
+def route_segment(name: str) -> str:
+    """snake_case → kebab-case route/path segment."""
+    return name.replace("_", "-")
+
+
+def module_route_key(module: str) -> str:
+    """Return the Elegant Router key for a generated module root."""
+    return route_segment(module)
+
+
+def model_route_key(module: str, model: ModelInfo) -> str:
+    """Return the Elegant Router key for a generated CRUD view."""
+    return f"{module_route_key(module)}_{route_segment(model.snake_name)}"
+
+
 def cn_title(description: str, fallback: str) -> str:
     """从 description 中提取中文标题：截断到第一个句号前。"""
     if not description:
@@ -820,10 +835,10 @@ def gen_i18n_zh(module: str, module_cn: str, models: list[ModelInfo]) -> str:
         "",
         "export default {",
         "  route: {",
-        f"    {module}: '{module_cn}',",
+        f"    '{module_route_key(module)}': '{module_cn}',",
     ]
     for model in models:
-        lines.append(f"    {module}_{model.snake_name}: '{model.cn_name}',")
+        lines.append(f"    '{model_route_key(module, model)}': '{model.cn_name}',")
     lines.append("  },")
     lines.append("  page: {")
     lines.append(f"    {module}: {{")
@@ -877,11 +892,11 @@ def gen_i18n_en(module: str, models: list[ModelInfo]) -> str:
         "",
         "export default {",
         "  route: {",
-        f"    {module}: '{module_pascal}',",
+        f"    '{module_route_key(module)}': '{module_pascal}',",
     ]
     for model in models:
         name_title = re.sub(r"(?<!^)(?=[A-Z])", " ", model.name).strip()
-        lines.append(f"    {module}_{model.snake_name}: '{name_title}',")
+        lines.append(f"    '{model_route_key(module, model)}': '{name_title}',")
     lines.append("  },")
     lines.append("  page: {")
     lines.append(f"    {module}: {{")
@@ -1024,9 +1039,10 @@ def generate_web(
     )
 
     # views
+    module_view_dir = route_segment(module)
     for model in models:
-        entity_kebab = model.snake_name.replace("_", "-")
-        view_dir = web_root / "src" / "views" / module / entity_kebab
+        entity_kebab = route_segment(model.snake_name)
+        view_dir = web_root / "src" / "views" / module_view_dir / entity_kebab
 
         list_fields = list_fields_map.get(model.name, [f.name for f in model.schema_fields[:5]])
         search_fields = search_fields_map.get(model.name, [])

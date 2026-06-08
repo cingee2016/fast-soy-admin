@@ -460,14 +460,24 @@ def gen_api_init(module_name: str) -> str:
 # ─── init_data.py ───
 
 
+def _route_segment(name: str) -> str:
+    """Return the URL/path segment for a module or entity name."""
+    return name.replace("_", "-")
+
+
+def _module_route_name(module_name: str) -> str:
+    """Return the Elegant Router route key for a generated module root."""
+    return module_name.replace("_", "-")
+
+
 def _model_route_name(module_name: str, model: ModelInfo) -> str:
     """Return the Elegant Router route key for a generated CRUD view."""
-    return f"{module_name}_{model.snake_name.replace('_', '-')}"
+    return f"{_module_route_name(module_name)}_{_route_segment(model.snake_name)}"
 
 
-def _route_path(route_name: str) -> str:
-    """Route path mirrors Elegant Router: underscores become path segments."""
-    return f"/{route_name.replace('_', '/')}"
+def _model_route_path(module_name: str, model: ModelInfo) -> str:
+    """Return the URL path for a generated CRUD view."""
+    return f"/{_module_route_name(module_name)}/{_route_segment(model.snake_name)}"
 
 
 def _model_button_defs(module_name: str, model: ModelInfo) -> list[dict[str, str]]:
@@ -491,11 +501,11 @@ def _model_menu_children(
         item = {
             "menu_name": model.cn_name,
             "route_name": route_name,
-            "route_path": _route_path(route_name),
+            "route_path": _model_route_path(module_name, model),
             "component": f"view.{route_name}",
             "order": index,
             "icon": BUSINESS_MODEL_ICON,
-            "i18n_key": f"route.{module_name}_{model.snake_name}",
+            "i18n_key": f"route.{route_name}",
         }
         if model.name in button_auth_models:
             item["buttons"] = _model_button_defs(module_name, model)
@@ -526,7 +536,8 @@ def gen_init_data(
         "",
         "from app.system.services import ensure_menu, reconcile_menu_subtree",
         "",
-        f'MODULE_ROUTE_NAME = "{module_name}"',
+        f'MODULE_NAME = "{module_name}"',
+        f'MODULE_ROUTE_NAME = "{_module_route_name(module_name)}"',
         f'MODULE_MENU_NAME = "{resolved_module_title}"',
         f'MODULE_MENU_ICON = "{BUSINESS_MENU_ICON}"',
         "MODULE_MENU_ORDER = 8",
@@ -534,7 +545,11 @@ def gen_init_data(
         "",
         "",
         "def _route_path(route_name: str) -> str:",
-        "    return f\"/{route_name.replace('_', '/')}\"",
+        "    if route_name == MODULE_ROUTE_NAME:",
+        '        return f"/{MODULE_ROUTE_NAME}"',
+        "",
+        '    child_segment = route_name.removeprefix(f"{MODULE_ROUTE_NAME}_").replace("_", "/")',
+        '    return f"/{MODULE_ROUTE_NAME}/{child_segment}"',
         "",
         "",
         "def _title_from_route_name(route_name: str) -> str:",
@@ -569,19 +584,6 @@ def gen_init_data(
         '        "i18n_key": f"route.{MODULE_ROUTE_NAME}",',
         '        "children": MODULE_MENU_CHILDREN,',
         "    }",
-        "",
-        "    # module_name 含下划线时，前端路由会形成多级目录，如 utility -> utility_fee。",
-        '    parts = MODULE_ROUTE_NAME.split("_")',
-        "    for level in range(len(parts) - 1, 0, -1):",
-        '        parent_route = "_".join(parts[:level])',
-        "        tree = {",
-        '            "menu_name": _title_from_route_name(parent_route),',
-        '            "route_name": parent_route,',
-        '            "route_path": _route_path(parent_route),',
-        '            "order": MODULE_MENU_ORDER if level == 1 else 1,',
-        '            "i18n_key": f"route.{parent_route}",',
-        '            "children": [tree],',
-        "        }",
         "",
         '    tree["icon"] = MODULE_MENU_ICON',
         '    tree["order"] = MODULE_MENU_ORDER',
