@@ -64,27 +64,21 @@ def echo_file_result(path: str | Path, status: str) -> None:
 def run_just_format(target: str) -> bool:
     """Run the project-level formatter for a target."""
     label = f"just fmt {target}"
+    click.echo("")
+    click.echo(f"  [run] {label}")
     try:
         result = subprocess.run(
             ["just", "fmt", target],
             cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
             check=False,
         )
     except FileNotFoundError:
-        click.echo("")
         click.echo(f"  [warn] just 未安装，跳过 {label}")
         return False
 
     if result.returncode == 0:
-        click.echo("")
         click.echo(f"  [ok] {label} 完成")
         return True
 
-    output = (result.stderr or result.stdout).strip()
-    click.echo("")
     click.echo(f"  [warn] {label} 失败")
-    if output:
-        click.echo(f"  {output[:600]}")
     return False

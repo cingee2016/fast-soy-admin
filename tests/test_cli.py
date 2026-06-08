@@ -1,9 +1,11 @@
 import importlib
+import subprocess
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from app.cli import cli
+from app.cli import display as cli_display
 from app.cli.display import format_path
 from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas
 from app.cli.parser import parse_models
@@ -22,6 +24,25 @@ def test_cli_exposes_full_crud_commands():
 def test_format_path_uses_forward_slashes():
     assert format_path(r"app\business\inventory\models.py") == "app/business/inventory/models.py"
     assert format_path(Path("web") / "src" / "views") == "web/src/views"
+
+
+def test_run_just_format_streams_child_output(monkeypatch):
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(args[0], 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert cli_display.run_just_format("backend") is True
+
+    _, kwargs = calls[0]
+    assert kwargs["cwd"] == cli_display.PROJECT_ROOT
+    assert kwargs["check"] is False
+    assert "capture_output" not in kwargs
+    assert "stdout" not in kwargs
+    assert "stderr" not in kwargs
 
 
 def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
