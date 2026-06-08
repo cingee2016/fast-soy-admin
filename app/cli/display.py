@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import os
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -13,12 +15,46 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WRITTEN_STATUSES = {"created", "appended"}
 
 
+def restore_console_modes() -> None:
+    """Restore Windows console control-character and line-input handling."""
+    if os.name != "nt":
+        return
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    std_input_handle = -10
+    std_output_handle = -11
+    std_error_handle = -12
+    enable_processed_input = 0x0001
+    enable_line_input = 0x0002
+    enable_echo_input = 0x0004
+    enable_processed_output = 0x0001
+    enable_wrap_at_eol_output = 0x0002
+
+    def enable_flags(std_handle: int, flags: int) -> None:
+        handle = kernel32.GetStdHandle(std_handle)
+        if handle in (0, -1):
+            return
+
+        mode = ctypes.c_uint32()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return
+
+        new_mode = mode.value | flags
+        if new_mode != mode.value:
+            kernel32.SetConsoleMode(handle, new_mode)
+
+    enable_flags(std_input_handle, enable_processed_input | enable_line_input | enable_echo_input)
+    enable_flags(std_output_handle, enable_processed_output | enable_wrap_at_eol_output)
+    enable_flags(std_error_handle, enable_processed_output | enable_wrap_at_eol_output)
+
+
 def configure_output_encoding() -> None:
     """Use UTF-8 streams so CLI icons do not crash on legacy Windows codepages."""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
             reconfigure(encoding="utf-8", errors="replace")
+    restore_console_modes()
 
 
 def echo_lines(lines: Iterable[str]) -> None:
@@ -75,6 +111,8 @@ def run_just_format(target: str) -> bool:
     except FileNotFoundError:
         click.echo(f"  [warn] just 未安装，跳过 {label}")
         return False
+    finally:
+        restore_console_modes()
 
     if result.returncode == 0:
         click.echo(f"  [ok] {label} 完成")

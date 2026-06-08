@@ -28,12 +28,14 @@ def test_format_path_uses_forward_slashes():
 
 def test_run_just_format_streams_child_output(monkeypatch):
     calls = []
+    restores = []
 
     def fake_run(*args, **kwargs):
         calls.append((args, kwargs))
         return subprocess.CompletedProcess(args[0], 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(cli_display, "restore_console_modes", lambda: restores.append(True))
 
     assert cli_display.run_just_format("backend") is True
 
@@ -43,6 +45,7 @@ def test_run_just_format_streams_child_output(monkeypatch):
     assert "capture_output" not in kwargs
     assert "stdout" not in kwargs
     assert "stderr" not in kwargs
+    assert restores == [True]
 
 
 def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
