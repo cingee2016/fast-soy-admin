@@ -25,6 +25,7 @@ from app.core.log import log
 from app.system.controllers.user import user_controller
 from app.system.models import User
 from app.system.models.admin import Api, Button, Menu, Role
+from app.system.models.dictionary import Dictionary
 from app.system.security import get_password_hash
 
 _M = TypeVar("_M", bound=Model)
@@ -123,7 +124,9 @@ async def ensure_menu(
     for child in children or []:
         child_buttons = child.get("buttons")
         child_children = child.get("children")
-        child_extra = {k: v for k, v in child.items() if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children")}
+        child_extra = {
+            k: v for k, v in child.items() if k not in ("menu_name", "route_name", "route_path", "component", "order", "icon", "icon_type", "i18n_key", "menu_type", "buttons", "children", "reconcile")
+        }
         await ensure_menu(
             parent_route=route_name,
             menu_name=child["menu_name"],
@@ -337,3 +340,89 @@ async def ensure_user(
     await user_controller.update_roles_by_code(user, role_codes)
     log.info(f"ensure_user: synced user '{user_name}'")
     return user
+
+
+def _strip_menu_control_keys(menu: dict[str, Any]) -> dict[str, Any]:
+    payload = {key: value for key, value in menu.items() if key != "reconcile"}
+    if "children" in payload:
+        payload["children"] = [_strip_menu_control_keys(child) for child in payload.get("children") or []]
+    return payload
+
+
+def _collect_menu_route_names(menus: list[dict[str, Any]]) -> set[str]:
+    result: set[str] = set()
+    for menu in menus:
+        route_name = menu.get("route_name")
+        if route_name:
+            result.add(route_name)
+        result.update(_collect_menu_route_names(menu.get("children") or []))
+    return result
+
+
+def _collect_menu_button_codes(menus: list[dict[str, Any]]) -> set[str]:
+    result: set[str] = set()
+    for menu in menus:
+        for button in menu.get("buttons") or []:
+            button_code = button.get("button_code")
+            if button_code:
+                result.add(button_code)
+        result.update(_collect_menu_button_codes(menu.get("children") or []))
+    return result
+
+
+def _resolve_reconcile_config(reconcile: Any) -> tuple[bool, bool]:
+    if reconcile is True:
+        return True, True
+    if not reconcile:
+        return False, False
+    if isinstance(reconcile, dict):
+        return bool(reconcile.get("menus", True)), bool(reconcile.get("buttons", False))
+    return False, False
+
+
+async def _apply_menu_reconcile(menu: dict[str, Any]) -> None:
+    root_route = menu["route_name"]
+    reconcile_menus, reconcile_buttons = _resolve_reconcile_config(menu.get("reconcile"))
+    if reconcile_menus:
+        declared_routes = _collect_menu_route_names([menu])
+        declared_routes.discard(root_route)
+        await reconcile_menu_subtree(
+            root_route=root_route,
+            declared_route_names=declared_routes,
+            declared_button_codes=_collect_menu_button_codes([menu]) if reconcile_buttons else None,
+        )
+
+    for child in menu.get("children") or []:
+        await _apply_menu_reconcile(child)
+
+
+async def _apply_dictionary_seeds(seeds: list[dict[str, Any]]) -> None:
+    for seed in seeds:
+        await _safe_update_or_create(
+            Dictionary,
+            {"dict_type": seed["dict_type"], "value": seed["value"]},
+            {key: value for key, value in seed.items() if key not in {"dict_type", "value"}},
+        )
+
+
+async def apply_init_data(spec: dict[str, Any]) -> None:
+    """
+    Apply a declarative init-data spec.
+
+    Supported keys:
+    - menus: menu tree declarations. Buttons stay nested under the menu that owns them.
+    - roles: ensure_role payloads.
+    - users: ensure_user payloads.
+    - dictionaries: system dictionary seeds keyed by (dict_type, value).
+    """
+    for menu in spec.get("menus") or []:
+        await ensure_menu(**_strip_menu_control_keys(menu))
+        await _apply_menu_reconcile(menu)
+
+    for role_seed in spec.get("roles") or []:
+        await ensure_role(**role_seed)
+
+    for user_seed in spec.get("users") or []:
+        await ensure_user(**user_seed)
+
+    await _apply_dictionary_seeds(spec.get("dictionaries") or [])

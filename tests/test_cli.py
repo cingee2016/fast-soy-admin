@@ -88,6 +88,36 @@ def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
     assert "just cli-crud inventory inventory" not in models_content
 
 
+def test_cli_init_allows_existing_empty_module_dir(tmp_path: Path, monkeypatch):
+    init_module = importlib.import_module("app.cli.commands.init")
+    module_dir = tmp_path / "utility_fee2"
+    (module_dir / "api" / "__pycache__").mkdir(parents=True)
+    (module_dir / "api" / "__pycache__" / "manage.cpython-312.pyc").write_bytes(b"cache")
+    monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
+    monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+
+    result = CliRunner().invoke(cli, ["init", "utility_fee2"])
+
+    assert result.exit_code == 0, result.output
+    assert (module_dir / "__init__.py").exists()
+    assert (module_dir / "models.py").exists()
+
+
+def test_cli_init_rejects_existing_non_empty_module_dir(tmp_path: Path, monkeypatch):
+    init_module = importlib.import_module("app.cli.commands.init")
+    module_dir = tmp_path / "utility_fee2" / "api"
+    module_dir.mkdir(parents=True)
+    (module_dir / "manage.py").write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
+    monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+
+    result = CliRunner().invoke(cli, ["init", "utility_fee2"])
+
+    assert result.exit_code != 0
+    assert "模块目录已存在: utility_fee2" in result.output
+    assert (module_dir / "manage.py").read_text(encoding="utf-8") == "existing"
+
+
 def test_parse_models_uses_first_docstring_line(tmp_path: Path):
     models_path = tmp_path / "models.py"
     models_path.write_text(
@@ -208,17 +238,24 @@ class UtilityReading(BaseModel):
     content = gen_init_data("utility_fee2", models, module_title="水电费2")
 
     compile(content, "init_data.py", "exec")
-    assert 'MODULE_NAME = "utility_fee2"' in content
-    assert 'MODULE_ROUTE_NAME = "utility-fee2"' in content
-    assert 'MODULE_MENU_NAME = "水电费2"' in content
-    assert '"route_name": "utility-fee2_utility-price"' in content
-    assert '"route_path": "/utility-fee2/utility-price"' in content
-    assert '"component": "view.utility-fee2_utility-price"' in content
-    assert '"i18n_key": "route.utility-fee2_utility-price"' in content
-    assert "await ensure_menu(**_build_menu_tree())" in content
-    assert "root_route=MODULE_ROUTE_NAME" in content
+    assert "from app.system.services import apply_init_data" in content
+    assert "INIT_DATA = {'menus':" in content
+    assert "'menu_name': '水电费2'" in content
+    assert "'route_name': 'utility-fee2'" in content
+    assert "'route_name': 'utility-fee2_utility-price'" in content
+    assert "'route_path': '/utility-fee2/utility-price'" in content
+    assert "'component': 'view.utility-fee2_utility-price'" in content
+    assert "'i18n_key': 'route.utility-fee2_utility-price'" in content
+    assert "'reconcile': {'menus': True, 'buttons': False}" in content
+    assert "await apply_init_data(INIT_DATA)" in content
+    assert "await ensure_menu(**_build_menu_tree())" not in content
     assert 'parent_route = "_".join(parts[:level])' not in content
     assert "\\" not in content
+
+    content_with_buttons = gen_init_data("utility_fee2", models, module_title="水电费2", button_auth_models={"UtilityPrice"})
+    assert "'reconcile': {'menus': True, 'buttons': True}" in content_with_buttons
+    assert "'button_code': 'B_UTILITY_FEE2_UTILITY_PRICE_CREATE'" in content_with_buttons
+    assert "'button_desc': '创建水电费单价表'" in content_with_buttons
 
 
 def test_generate_web_uses_elegant_router_official_route_keys(tmp_path: Path):

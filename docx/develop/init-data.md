@@ -29,59 +29,59 @@
 
 ## 菜单/按钮对账：`reconcile_menu_subtree`
 
-`ensure_menu` 是前向应用（只 upsert，不删除），所以从 `init_data.py` 中**删除**条目不会自动清理数据库。为此 [app/system/services/init_helper.py](../../../app/system/services/init_helper.py) 提供了 `reconcile_menu_subtree`：以业务模块菜单子树为作用域，将 `init_data.py` 的声明集合与数据库对账。
+`ensure_menu` 是前向应用（只 upsert，不删除），所以从 `init_data.py` 中**删除**条目不会自动清理数据库。为此 [app/system/services/init_helper.py](../../../app/system/services/init_helper.py) 提供了 `apply_init_data` / `reconcile_menu_subtree`：业务模块只声明一个 `INIT_DATA` 字典，应用器会递归创建菜单/按钮，并按菜单子树做可选对账。
 
 ### 使用方式
 
-`just cli-gen` / `just cli-crud` 生成后端代码时，会在业务模块的 `init_data.py` 中自动写入 `MODULE_MENU_CHILDREN`、`ensure_menu()` 和 `reconcile_menu_subtree()`。默认会按所选模型对账菜单子树，但 `declared_button_codes=None`，因此不会清理 Web UI 中手工维护的按钮权限。若生成时传入 `--button-auth`，CLI 会同时声明 create/edit/delete 按钮，并把 `declared_button_codes` 指向声明集合，让按钮也进入 IaC。
+`just cli-gen` / `just cli-crud` 生成后端代码时，会在业务模块的 `init_data.py` 中自动写入 `INIT_DATA` 和 `apply_init_data(INIT_DATA)`。按钮挂在所属菜单节点的 `buttons` 下，菜单子树通过 `reconcile` 控制是否进入 IaC 对账。
 
-在业务模块的 `init_data.py` 中调用 `reconcile_menu_subtree`：
+推荐写法：
 
 ```python
-from app.system.services import ensure_menu, reconcile_menu_subtree
+from app.system.services import apply_init_data
 
 
-def _collect_declared_routes(children: list[dict]) -> set[str]:
-    result: set[str] = set()
-    for item in children:
-        result.add(item["route_name"])
-        if item.get("children"):
-            result.update(_collect_declared_routes(item["children"]))
-    return result
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "客户管理",
+            "route_name": "crm",
+            "route_path": "/crm",
+            "icon": "mdi:account-box",
+            "order": 8,
+            "reconcile": {
+                "menus": True,
+                "buttons": True,
+            },
+            "children": [
+                {
+                    "menu_name": "客户",
+                    "route_name": "crm_customer",
+                    "route_path": "/crm/customer",
+                    "component": "view.crm_customer",
+                    "buttons": [
+                        {"button_code": "B_CRM_CUSTOMER_CREATE", "button_desc": "创建客户"},
+                        {"button_code": "B_CRM_CUSTOMER_EDIT", "button_desc": "编辑客户"},
+                    ],
+                }
+            ],
+        }
+    ],
+    "roles": [],
+    "users": [],
+    "dictionaries": [],
+}
 
 
-def _collect_declared_buttons(children: list[dict]) -> set[str]:
-    result: set[str] = set()
-    for item in children:
-        for btn in item.get("buttons") or []:
-            result.add(btn["button_code"])
-        if item.get("children"):
-            result.update(_collect_declared_buttons(item["children"]))
-    return result
-
-
-async def _init_menu_data() -> None:
-    await ensure_menu(
-        menu_name="客户管理",
-        route_name="crm",
-        route_path="/crm",
-        icon="mdi:account-box",
-        order=8,
-        children=CRM_MENU_CHILDREN,
-    )
-    # CRM 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮
-    await reconcile_menu_subtree(
-        root_route="crm",
-        declared_route_names=_collect_declared_routes(CRM_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(CRM_MENU_CHILDREN),
-    )
+async def init() -> None:
+    await apply_init_data(INIT_DATA)
 ```
 
 ### 作用范围与语义
 
 - **作用域严格限定在子树内**：以 `root_route` 对应菜单为根，递归 BFS 收集整个子树，只清理该子树内的条目，不会误伤其他模块。
 - **菜单对账**：子树内 `route_name` 不在声明集合 ∪ `{root_route}` 的菜单会被 `delete()`（级联清 M2M 关系）。
-- **按钮对账**：仅处理"挂在本子树菜单上的按钮"，这些按钮的 `button_code` 不在声明集合中的会被 `delete()`。传 `declared_button_codes=None` 则跳过按钮对账。
+- **按钮对账**：仅处理"挂在本子树菜单上的按钮"，这些按钮的 `button_code` 不在声明集合中的会被 `delete()`。`"reconcile": {"buttons": False}` 则跳过按钮对账。
 - **幂等**：可重复执行，子树内无多余项时是 no-op。
 
 ### 心智转变
