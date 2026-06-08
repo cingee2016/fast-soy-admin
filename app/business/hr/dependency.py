@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from fastapi import Depends
 
-from app.business.hr.ctx import set_department_id
+from app.business.hr.ctx import set_current_department_id
 from app.business.hr.models import Department, Employee
 from app.core.code import Code
 from app.core.dependency import AuthControl
@@ -23,12 +23,23 @@ from app.core.exceptions import BizError
 from app.system.models import User
 
 
+async def _get_employee_for_user(user_id: int) -> Employee | None:
+    return await Employee.filter(user_id=user_id).select_related("department").first()
+
+
+async def bind_hr_scope_context(user: User = Depends(AuthControl.is_authed)) -> None:
+    """Bind current user's department as HR's request-local business scope."""
+    emp = await _get_employee_for_user(user.id)
+    set_current_department_id(emp.department_id if emp else None)
+
+
 async def get_current_employee(user: User = Depends(AuthControl.is_authed)) -> Employee:
     """解析当前用户对应的员工，并将部门 ID 写入上下文"""
-    emp = await Employee.filter(user_id=user.id).select_related("department").first()
+    emp = await _get_employee_for_user(user.id)
     if not emp:
+        set_current_department_id(None)
         raise BizError(code=Code.HR_USER_NOT_EMPLOYEE, msg="当前用户未关联员工信息")
-    set_department_id(emp.department_id)
+    set_current_department_id(emp.department_id)
     return emp
 
 
@@ -40,5 +51,6 @@ async def get_department_manager(emp: Employee = Depends(get_current_employee)) 
     return emp
 
 
+DependHrScope = Depends(bind_hr_scope_context)
 DependEmployee = Depends(get_current_employee)
 DependManager = Depends(get_department_manager)

@@ -8,6 +8,8 @@ from pathlib import Path
 from fastapi import APIRouter, Request, UploadFile
 
 from app.business.hr.controllers import department_controller, employee_controller, tag_controller
+from app.business.hr.ctx import get_current_department_id
+from app.business.hr.dependency import DependHrScope
 from app.business.hr.schemas import (
     DepartmentCreate,
     DepartmentSearch,
@@ -20,10 +22,12 @@ from app.business.hr.schemas import (
     TagSearch,
     TagUpdate,
 )
-from app.business.hr.services import create_employee, list_employees_with_relations, transition_employee, update_employee
+from app.business.hr.services import build_employee_list_query, create_employee, list_employees_with_relations, transition_employee, update_employee
 from app.core.config import APP_SETTINGS
+from app.core.data_scope import get_current_data_scope
 from app.core.sqids import encode_id
 from app.utils import (
+    CTX_USER_ID,
     CRUDRouter,
     DependPermission,
     Fail,
@@ -31,6 +35,7 @@ from app.utils import (
     SqidPath,
     Success,
     SuccessExtra,
+    build_scope_filter,
     require_buttons,
 )
 
@@ -97,11 +102,20 @@ async def _get_employee(item_id: SqidPath):
 
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
+    scope_q = build_scope_filter(
+        scope=scope,
+        user_id=CTX_USER_ID.get(),
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
+    )
+    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
-router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission])
+router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
 
 
 router.include_router(dept_crud.router)

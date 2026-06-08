@@ -28,7 +28,7 @@ HR 模块管理三类资源：
 app/business/hr/
 ├── __init__.py
 ├── config.py        # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
-├── ctx.py           # 模块上下文变量（如 get_org_unit_id）
+├── ctx.py           # 模块上下文变量（如 get_current_department_id）
 ├── dependency.py    # 模块 FastAPI 依赖（DependEmployee / DependManager）
 ├── models.py        # Tortoise 模型 + 状态枚举
 ├── schemas.py       # Pydantic schema（继承 SchemaBase）
@@ -107,7 +107,7 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
 | `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | 任意部门主管 |
 | `R_USER` | `self` | 无 | 普通员工，走 `/hr/my/*` |
 
-`R_DEPT_MGR` 是**通用部门主管角色**——所有部门的主管都用同一个 role_code，靠 `data_scope=scope` + `scope_id_field="org_unit_id"` 做行级隔离。
+`R_DEPT_MGR` 是**通用部门主管角色**——所有部门的主管都用同一个 role_code，靠 `data_scope=scope` + `scope_id_field="department_id"` 做行级隔离。
 
 ### 按钮粒度（资源 × 操作）
 
@@ -204,24 +204,28 @@ HR_ROLE_SEEDS = [
 ]
 ```
 
-### service 层使用方式
+### API override 使用方式
 
-业务接口在构建查询时拼入 scope 条件：
+HR 在模块依赖里先把当前登录用户绑定的部门写入 ContextVar，员工列表的 API override 再拼入 scope 条件：
 
 ```python
-# app/business/hr/services.py
-async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
-    q = employee_controller.build_search(search_in, ...)
+# app/business/hr/api/manage.py
+router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
 
-    scope = await get_current_data_scope(redis)
+
+@emp_crud.override("list")
+async def _list_employees(obj_in: EmployeeSearch, request: Request):
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
-        scope_id=get_org_unit_id(),
-        scope_id_field="org_unit_id",
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
     )
-    total, employees = await employee_controller.list(..., search=q & scope_q)
-    return total, records
+    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
+    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 
 多角色取最宽松：用户同时持有 `R_HR_ADMIN`(all) 和 `R_DEPT_MGR`(scope) 时，最终生效 `all`。
@@ -379,7 +383,16 @@ emp_crud = CRUDRouter(
 
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
+    q &= build_scope_filter(
+        scope=scope,
+        user_id=CTX_USER_ID.get(),
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
+    )
+    total, records = await list_employees_with_relations(obj_in, search=q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -407,25 +420,23 @@ async def _get_employee(item_id: SqidPath):
     dependencies=[require_buttons("B_HR_EMP_CREATE")],
 )
 async def create_emp(emp_in: EmployeeCreate, request: Request):
-    current_emp = await employee_controller.get_or_none(user_id=CTX_USER_ID.get())
-    return await create_employee(emp_in, current_emp, request.app.state.redis)
+    return await create_employee(emp_in, request.app.state.redis)
 ```
 
-`create_employee` 区分三类调用方：
+员工创建按入口分流：
 
 ```python
-# 超级管理员 / HR 管理员（持 B_HR_EMP_CREATE 但未绑定员工）→ 必须显式指定部门
-if is_super_admin() or (has_button_code("B_HR_EMP_CREATE") and not current_emp):
-    if not emp_in.org_unit_id:
+# HR 管理员入口：必须显式指定部门
+async def create_employee(emp_in: EmployeeCreate, redis):
+    if not emp_in.department_id:
         return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="创建员工需要指定部门")
-# 部门主管（持 B_HR_EMP_CREATE 且绑定的员工是某部门主管）→ 自动继承本部门
-elif has_button_code("B_HR_EMP_CREATE") and current_emp:
-    dept = await Department.filter(manager_id=current_emp.id).first()
-    if not dept:
-        return Fail(code=Code.HR_MANAGER_REQUIRED, msg="仅部门主管可创建员工")
-    emp_in.org_unit_id = dept.id
-else:
-    return Fail(code=Code.HR_CREATE_FORBIDDEN, msg="无权限创建员工")
+    return await _create_employee_core(emp_in, redis)
+
+
+# 部门主管入口：部门强制继承自主管所在部门
+async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, redis):
+    emp_in.department_id = mgr.department_id
+    return await _create_employee_core(emp_in, redis)
 ```
 
 随后在一个事务里创建系统用户（随机密码 + `must_change_password`）、员工、标签关联，并 `emit("employee.created", ...)` 触发事件。

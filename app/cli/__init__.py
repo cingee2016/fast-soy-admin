@@ -21,6 +21,11 @@ def cli():
       uv run python -m app.cli init inventory
       uv run python -m app.cli crud inventory --cn-name 库存 --yes
       uv run python -m app.cli crud inventory --models Item --contains Item:name --exact Item:status_type
+
+    查询字段:
+
+      --contains 适合普通 CharField/TextField 模糊查询。
+      --exact 适合外键 *_id、布尔、枚举字段/枚举类、唯一字段或字典值等精确匹配字段。
     """
     configure_output_encoding()
 

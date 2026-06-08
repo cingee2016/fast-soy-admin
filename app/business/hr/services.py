@@ -7,16 +7,14 @@ from tortoise.transactions import in_transaction
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.controllers import employee_controller, tag_controller
-from app.business.hr.ctx import get_department_id
 from app.business.hr.models import Department, Employee
 from app.business.hr.schemas import EmployeeCreate, EmployeeSearch, EmployeeUpdate
 from app.core.code import Code
-from app.core.data_scope import build_scope_filter, get_current_data_scope
 from app.core.events import emit
 from app.core.sqids import encode_id
 from app.core.state_machine import StateMachine
 from app.system.services import create_system_user
-from app.utils import CTX_USER_ID, Fail, Success, get_current_user_id, get_db_conn, radar_log
+from app.utils import Fail, Success, get_current_user_id, get_db_conn, radar_log
 
 # ---- 员工状态机 ----
 
@@ -91,16 +89,17 @@ async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, red
     return await _create_employee_core(emp_in, redis)
 
 
-async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
-    """员工分页列表 — 使用 select_related/prefetch_related 优化 N+1 查询 + 行级数据权限。"""
+def build_employee_list_query(search_in: EmployeeSearch) -> Q:
+    """Build the base employee list query before row-level data scope is applied."""
     q = employee_controller.build_search(search_in, contains_fields=["name", "email"], exact_fields=["status"], range_fields=["created_at"])
     if search_in.department_id:
         q &= Q(department_id=search_in.department_id)
+    return q
 
-    # 行级数据权限过滤
-    scope = await get_current_data_scope(redis)
-    scope_q = build_scope_filter(scope=scope, user_id=CTX_USER_ID.get(), scope_id=get_department_id(), scope_id_field="department_id")
-    q &= scope_q
+
+async def list_employees_with_relations(search_in: EmployeeSearch, *, search: Q | None = None):
+    """员工分页列表 — 使用 select_related/prefetch_related 优化 N+1 查询。"""
+    q = search if search is not None else build_employee_list_query(search_in)
     total, employees = await employee_controller.list(
         page=search_in.current,
         page_size=search_in.size,

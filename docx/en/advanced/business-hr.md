@@ -28,7 +28,7 @@ Four sets of endpoints:
 app/business/hr/
 ├── __init__.py
 ├── config.py        # BIZ_SETTINGS (per-module Pydantic Settings)
-├── ctx.py           # module ContextVars (e.g. get_org_unit_id)
+├── ctx.py           # module ContextVars (e.g. get_current_department_id)
 ├── dependency.py    # module FastAPI deps (DependEmployee / DependManager)
 ├── models.py        # Tortoise models + state enums
 ├── schemas.py       # Pydantic schemas (extend SchemaBase)
@@ -107,7 +107,7 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
 | `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | any department manager |
 | `R_USER` | `self` | none | regular employee, uses `/hr/my/*` |
 
-`R_DEPT_MGR` is a **generic department-manager role** — every department's manager uses the same role_code; row-level isolation comes from `data_scope=scope` + `scope_id_field="org_unit_id"`.
+`R_DEPT_MGR` is a **generic department-manager role** — every department's manager uses the same role_code; row-level isolation comes from `data_scope=scope` + `scope_id_field="department_id"`.
 
 ### Button granularity (resource × action)
 
@@ -204,24 +204,28 @@ HR_ROLE_SEEDS = [
 ]
 ```
 
-### Service-level usage
+### API override usage
 
-Business endpoints stitch the scope filter into their query:
+HR first binds the current user's department into a module-local ContextVar, then the employee-list API override stitches the scope filter into its query:
 
 ```python
-# app/business/hr/services.py
-async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
-    q = employee_controller.build_search(search_in, ...)
+# app/business/hr/api/manage.py
+router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
 
-    scope = await get_current_data_scope(redis)
+
+@emp_crud.override("list")
+async def _list_employees(obj_in: EmployeeSearch, request: Request):
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
-        scope_id=get_org_unit_id(),
-        scope_id_field="org_unit_id",
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
     )
-    total, employees = await employee_controller.list(..., search=q & scope_q)
-    return total, records
+    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
+    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 
 Multi-role: most permissive wins. A user holding both `R_HR_ADMIN`(all) and `R_DEPT_MGR`(scope) ends up with `all`.
@@ -379,7 +383,16 @@ emp_crud = CRUDRouter(
 
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
+    q &= build_scope_filter(
+        scope=scope,
+        user_id=CTX_USER_ID.get(),
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
+    )
+    total, records = await list_employees_with_relations(obj_in, search=q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -407,25 +420,23 @@ Creating an employee chains **system user creation + employee + tag association*
     dependencies=[require_buttons("B_HR_EMP_CREATE")],
 )
 async def create_emp(emp_in: EmployeeCreate, request: Request):
-    current_emp = await employee_controller.get_or_none(user_id=CTX_USER_ID.get())
-    return await create_employee(emp_in, current_emp, request.app.state.redis)
+    return await create_employee(emp_in, request.app.state.redis)
 ```
 
-`create_employee` distinguishes three callers:
+Employee creation is split by entrypoint:
 
 ```python
-# Super admin / HR admin (holds B_HR_EMP_CREATE, no employee binding) → must specify department
-if is_super_admin() or (has_button_code("B_HR_EMP_CREATE") and not current_emp):
-    if not emp_in.org_unit_id:
+# HR admin entrypoint: department must be explicit
+async def create_employee(emp_in: EmployeeCreate, redis):
+    if not emp_in.department_id:
         return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="department required")
-# Department manager (holds B_HR_EMP_CREATE and is bound as a manager) → auto inherit own department
-elif has_button_code("B_HR_EMP_CREATE") and current_emp:
-    dept = await Department.filter(manager_id=current_emp.id).first()
-    if not dept:
-        return Fail(code=Code.HR_MANAGER_REQUIRED, msg="manager only")
-    emp_in.org_unit_id = dept.id
-else:
-    return Fail(code=Code.HR_CREATE_FORBIDDEN, msg="no permission")
+    return await _create_employee_core(emp_in, redis)
+
+
+# Department-manager entrypoint: department is inherited from the manager
+async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, redis):
+    emp_in.department_id = mgr.department_id
+    return await _create_employee_core(emp_in, redis)
 ```
 
 Then in a transaction: create the system user (random password + `must_change_password`), employee, tag associations, and `emit("employee.created", ...)`.

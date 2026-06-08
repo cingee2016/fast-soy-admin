@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.code import Code
+from app.core.data_scope import build_scope_filter
 from app.core.sqids import encode_id
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -135,6 +136,35 @@ class TestEmployeeCRUD:
         assert resp.status_code == 200
         records = resp.json()["data"]["records"]
         assert len(records) >= 1
+
+    async def test_scoped_employee_query_limits_to_department(self, hr_data):
+        from app.business.hr.models import Department, Employee
+        from app.business.hr.schemas import EmployeeSearch
+        from app.business.hr.services import build_employee_list_query, list_employees_with_relations
+
+        other_dept = await Department.create(name="Scoped Other", code="SCOPE-OTHER", description="Other Department")
+        await Employee.create(
+            name="Other Department Employee",
+            employee_no="EMP-SCOPE-OTHER",
+            email="scope-other@test.com",
+            department=other_dept,
+        )
+
+        search = EmployeeSearch(current=1, size=50)
+        q = build_employee_list_query(search)
+        q &= build_scope_filter(
+            scope="scope",
+            user_id=hr_data["user"].id,
+            scope_id=hr_data["department"].id,
+            user_id_field="user_id",
+            scope_id_field="department_id",
+        )
+
+        total, records = await list_employees_with_relations(search, search=q)
+
+        assert total >= 1
+        assert all(record["departmentId"] == encode_id(hr_data["department"].id) for record in records)
+        assert all(record["departmentId"] != encode_id(other_dept.id) for record in records)
 
     async def test_create_employee(self, auth_client: AsyncClient, hr_data):
         """Create employee — auto-creates system user."""

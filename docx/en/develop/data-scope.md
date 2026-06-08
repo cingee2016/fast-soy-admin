@@ -54,21 +54,24 @@ BIZ_ROLE_SEEDS = [
 ## Use it in business endpoints
 
 ```python
-from app.utils import CTX_USER_ID, build_scope_filter, get_current_data_scope
+from app.business.crm.ctx import get_current_scope_id
+from app.business.crm.services import build_customer_list_query, list_customers_with_relations
+from app.core.data_scope import get_current_data_scope
+from app.utils import CTX_USER_ID, SuccessExtra, build_scope_filter
 
-async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
-    q = employee_controller.build_search(search_in, contains_fields=[...])
-
-    scope = await get_current_data_scope(redis)
+@customer_crud.override("list")
+async def _list_customers(obj_in: CustomerSearch, request: Request):
+    q = build_customer_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
     scope_q = build_scope_filter(
         scope=scope,
         user_id=CTX_USER_ID.get(),
         scope_id=get_current_scope_id(),       # module-local ctx helper
-        user_id_field="user_id",               # user column in your model
+        user_id_field="owner_id",              # user column in your model
         scope_id_field="tenant_id",            # business-scope column in your model
     )
-    total, employees = await employee_controller.list(..., search=q & scope_q)
-    return total, records
+    total, records = await list_customers_with_relations(obj_in, search=q & scope_q)
+    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 
 `build_scope_filter`:
@@ -137,7 +140,16 @@ Not every table needs scope. Rule of thumb:
 ```python
 @emp_crud.override("list")
 async def _list(obj_in: EmployeeSearch, request: Request):
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+    q = build_employee_list_query(obj_in)
+    scope = await get_current_data_scope(request.app.state.redis)
+    q &= build_scope_filter(
+        scope=scope,
+        user_id=CTX_USER_ID.get(),
+        scope_id=get_current_department_id(),
+        user_id_field="user_id",
+        scope_id_field="department_id",
+    )
+    total, records = await list_employees_with_relations(obj_in, search=q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 

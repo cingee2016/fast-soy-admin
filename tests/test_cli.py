@@ -21,6 +21,15 @@ def test_cli_exposes_full_crud_commands():
     assert "gen-all" in result.output
 
 
+def test_cli_help_explains_backend_search_field_usage():
+    result = CliRunner().invoke(cli, ["crud", "--help"])
+
+    assert result.exit_code == 0
+    assert "普通 CharField/TextField" in result.output
+    assert "外键 *_id" in result.output
+    assert "枚举字段/枚举类" in result.output
+
+
 def test_format_path_uses_forward_slashes():
     assert format_path(r"app\business\inventory\models.py") == "app/business/inventory/models.py"
     assert format_path(Path("web") / "src" / "views") == "web/src/views"

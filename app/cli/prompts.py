@@ -188,14 +188,14 @@ def default_exact_field_names(model: ModelInfo, candidates: list[PromptChoice]) 
 
 def prompt_contains_fields(models: list[ModelInfo]) -> dict[str, list[str]]:
     """Choose contains-based fuzzy search fields."""
-    return prompt_fields(models, "模糊查询字段", fuzzy_field_candidates)
+    return prompt_fields(models, "模糊查询字段（普通 CharField/TextField）", fuzzy_field_candidates)
 
 
 def prompt_exact_fields(models: list[ModelInfo], contains_map: dict[str, list[str]]) -> dict[str, list[str]]:
     """Choose exact-match search fields."""
     return prompt_fields(
         models,
-        "精确查询字段",
+        "精确查询字段（外键/布尔/枚举类/唯一字段等）",
         lambda model: exact_field_candidates(model, contains_map),
         default_names_fn=default_exact_field_names,
     )

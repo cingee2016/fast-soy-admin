@@ -37,9 +37,9 @@ router = APIRouter(prefix="/hr", tags=["HR团队"])
 
 
 @router.post("/team/employees/search", summary="[主管] 下属分页搜索")
-async def team_employees_search(obj_in: EmployeeSearch, request: Request, mgr: Employee = DependManager):
+async def team_employees_search(obj_in: EmployeeSearch, mgr: Employee = DependManager):
     obj_in.department_id = mgr.department_id  # type: ignore[attr-defined]
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+    total, records = await list_employees_with_relations(obj_in)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 

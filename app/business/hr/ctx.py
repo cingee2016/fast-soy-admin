@@ -3,13 +3,13 @@
 
 业务专属上下文，可由中间件或依赖注入函数写入。
 使用方式：
-    from app.business.hr.ctx import get_department_id, set_department_id
+    from app.business.hr.ctx import get_current_department_id, set_current_department_id
 
     # 在依赖或中间件中设置
-    set_department_id(dept_id)
+    set_current_department_id(dept_id)
 
     # 在业务逻辑中读取
-    dept_id = get_department_id()
+    dept_id = get_current_department_id()
 """
 
 from __future__ import annotations
@@ -20,11 +20,16 @@ import contextvars
 CTX_DEPARTMENT_ID: contextvars.ContextVar[int | None] = contextvars.ContextVar("biz_department_id", default=None)
 
 
-def get_department_id() -> int | None:
+def get_current_department_id() -> int | None:
     """获取当前上下文中的部门 ID"""
     return CTX_DEPARTMENT_ID.get()
 
 
-def set_department_id(dept_id: int | None) -> None:
+def set_current_department_id(dept_id: int | None) -> None:
     """设置当前上下文中的部门 ID"""
     CTX_DEPARTMENT_ID.set(dept_id)
+
+
+# Backward-compatible aliases for older HR services/imports.
+get_department_id = get_current_department_id
+set_department_id = set_current_department_id
