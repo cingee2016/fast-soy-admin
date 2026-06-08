@@ -62,7 +62,7 @@ After `just db-init`, the seed users (password = `123456`):
 | `Admin` | `R_ADMIN` |
 | `User` | `R_USER` |
 
-The HR demo (auto-loaded by `app/business/hr/init_data.py`) adds 9 more accounts (`9001`–`9009`, password `123456`) including 5 department managers; see [HR module](/en/develop/business-hr) for the full matrix.
+Business demo modules are not loaded by default. The historical HR reference has moved to [Advanced / HR reference](/en/advanced/business-hr).
 
 ## What's next
 

@@ -86,7 +86,7 @@ EMPLOYEE_FSM.allowed("pending", "active")    # → False
 EMPLOYEE_FSM.allowed_targets("pending")      # → ["onboarding"]
 ```
 
-前端能据此做"动态展示下一步动作"——参考 [HR 模块](./business-hr.md#状态机员工状态流转)。
+前端能据此做"动态展示下一步动作"——参考 [HR 模块](../advanced/business-hr.md#状态机员工状态流转)。
 
 ## 失败抛 TransitionError
 
@@ -155,5 +155,5 @@ async def test_pending_to_active_blocked():
 
 ## 相关
 
-- [HR 模块（员工状态流转完整实例）](./business-hr.md#状态机员工状态流转)
+- [HR 模块（员工状态流转完整实例）](../advanced/business-hr.md#状态机员工状态流转)
 - [事件总线](./events.md) — 状态变更后常用 `emit` 发布事件

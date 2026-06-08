@@ -74,8 +74,8 @@ Typical workflow (using the inventory module):
 
 1. Scaffold the backend module: `just cli-init inventory` → edit models → `just cli-gen inventory`
 2. Generate the frontend pages: `just cli-gen-web inventory Inventory`
-3. Call `ensure_menu()` in the module's `init_data.py` to register the menu (the generator leaves a template; you fill in the details)
-4. Use `ensure_role()` to grant menus / buttons / APIs to the appropriate roles
+3. The generated `init_data.py` already contains the business menu declaration; adjust icons, order or labels as needed
+4. Grant menus / buttons / APIs in Role Management, or add `ensure_role()` to the module's `init_data.py`
 5. Restart the backend; users with that role will see the menu after logging in
 
 Full walkthrough: [Development Guide](../../getting-started/workflow.md).

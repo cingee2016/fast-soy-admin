@@ -139,7 +139,7 @@ The seed didn't declare `data_scope` explicitly. The model default is `all` = fu
 ```python
 {
     "role_code": "R_DEPT_MGR",
-    "data_scope": DataScopeType.department,    # ← required
+    "data_scope": DataScopeType.scope,         # ← required
 }
 ```
 

@@ -84,7 +84,7 @@ User
     |-- M2M --> Button      in-page actionable buttons
     |-- M2M --> Api         callable backend endpoints
     |-- FK  --> Menu        role's default home page; by_role_home
-    `-- field: data_scope   row-level scope: all / department / self / custom
+    `-- field: data_scope   row-level scope: all / scope / self / custom
 ```
 
 - The super-admin role `R_SUPER` (`app.core.constants.SUPER_ADMIN_ROLE`) bypasses every check

@@ -41,6 +41,61 @@ just --list
 | `uv run python -m app.cli gen-all <MOD>` | `just cli-gen-all xxx [中文名]` | 一次选择并生成后端 + 前端 CRUD |
 | `uv run python -m app.cli crud <MOD>` | `just cli-crud xxx [中文名]` | 同上，完整 CRUD 生成别名 |
 
+### 参数化生成（AI 友好）
+
+所有生成命令都支持 `-h/--help` 查看完整参数。需要无交互生成时加 `--yes`：
+
+```bash
+uv run python -m app.cli crud utility_fee --cn-name 水电费 --yes --force
+```
+
+选择模型与字段时统一使用 `Model:field1,field2`，多个模型可重复参数或用分号分隔：
+
+```bash
+uv run python -m app.cli crud utility_fee \
+  --cn-name 水电费 \
+  --models UtilityConfig,UtilityBill \
+  --contains UtilityConfig:name,remark \
+  --exact UtilityConfig:enabled \
+  --list-fields UtilityBill:room_id,billing_date,total_amount,status \
+  --search-fields UtilityBill:room_id,billing_date,status
+```
+
+后端高级能力也可直接从 CLI 调用：
+
+```bash
+uv run python -m app.cli crud hr \
+  --cn-name 人事 \
+  --models Employee,Department \
+  --data-scope Employee:user_id,tenant_id \
+  --button-auth \
+  --soft-delete Employee \
+  --tree Department \
+  --list-order Employee:-created_at,id \
+  --enable-routes Department:list,get \
+  --list-cache Department:60 \
+  --rate-limit Employee:30/60
+```
+
+能力说明：
+
+| 参数 | 生成效果 |
+|---|---|
+| `--data-scope Model:user_id,scope_id` | 覆盖列表接口并拼接 `build_scope_filter()`；业务范围 ID 取值会生成 `_get_scope_id()` 钩子 |
+| `--button-auth` | 生成菜单按钮声明，并在 create/edit/delete/batch_delete 挂 `require_buttons()` |
+| `--soft-delete Model` | `CRUDRouter(..., soft_delete=True)`，模型需使用 `SoftDeleteMixin` |
+| `--tree Model` | `CRUDRouter(..., tree_endpoint=True)`，模型需使用 `TreeMixin` 或 `parent_id` |
+| `--list-cache Model:60` | 为列表 override 加 `@cache(expire=60, namespace=...)`，仅建议低组合度列表使用 |
+| `--rate-limit Model:30/60` | 在 `api/manage.py` 输出 `ENDPOINT_RATE_LIMITS`，启动时自动合并到 guard 配置 |
+| `--enable-routes Model:list,get` | 限制标准 CRUD 路由集合 |
+| `--exclude-fields Model:secret` | 设置 `to_dict()` 排除字段 |
+
+`just` 包装命令可通过最后一个参数透传 CLI 参数，例如：
+
+```bash
+just cli-crud utility_fee 水电费 "--yes --models UtilityConfig --button-auth"
+```
+
 详细使用流程见 [开发指南](../getting-started/workflow.md)。
 
 ## 前端（Frontend）

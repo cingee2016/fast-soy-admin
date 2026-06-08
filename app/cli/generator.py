@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+from app.cli.options import BackendFeatureOptions
 from app.cli.parser import FieldInfo, ModelInfo, RelationInfo, collect_extra_imports
 
 # Tortoise 整型字段 → 约束类型别名（来自 app.utils.types）
@@ -12,6 +14,19 @@ INT_FIELD_CONSTRAINT: dict[str, str] = {
     "IntField": "Int32",
     "BigIntField": "Int64",
 }
+BUSINESS_MENU_ICON = "mdi:application-cog-outline"
+BUSINESS_MODEL_ICON = "mdi:table"
+UTILS_SCHEMA_ENUM_TYPES = {"DataScopeType", "StatusType"}
+
+
+def _py_list(values: list[str]) -> str:
+    return repr(values)
+
+
+def _py_set(values: set[str]) -> str:
+    if not values:
+        return "set()"
+    return "{" + ", ".join(repr(value) for value in sorted(values)) + "}"
 
 
 def _field_type_hint(f: FieldInfo) -> str:
@@ -77,8 +92,10 @@ def gen_schemas(module_name: str, models: list[ModelInfo]) -> str:
     import_lines = sorted(extra_imports)
 
     int_types, needs_annotated = _collect_constrained_types(models)
-    # 收集被引用的 enum 类型
+    # 收集被引用的 enum 类型：框架内置枚举从 app.utils 导入，业务自定义枚举从本模块 models 导入。
     enum_types = {f.enum_type for m in models for f in m.schema_fields if f.enum_type}
+    utils_enum_types = enum_types & UTILS_SCHEMA_ENUM_TYPES
+    model_enum_types = enum_types - utils_enum_types
 
     lines = [
         "# pyright: reportIncompatibleVariableOverride=false",
@@ -94,7 +111,7 @@ def gen_schemas(module_name: str, models: list[ModelInfo]) -> str:
         lines.extend(import_lines)
         lines.append("")
 
-    utils_symbols = {"PageQueryBase", "SchemaBase"} | enum_types | int_types
+    utils_symbols = {"PageQueryBase", "SchemaBase"} | utils_enum_types | int_types
     has_fk = any(r.relation_type in ("ForeignKeyField", "OneToOneField") for m in models for r in m.relations)
     if has_fk:
         utils_symbols.add("SqidId")
@@ -103,6 +120,11 @@ def gen_schemas(module_name: str, models: list[ModelInfo]) -> str:
     lines.extend([
         "from pydantic import Field",
         "",
+    ])
+    if model_enum_types:
+        model_enum_imports = ", ".join(sorted(model_enum_types))
+        lines.append(f"from app.business.{module_name}.models import {model_enum_imports}")
+    lines.extend([
         f"from app.utils import {utils_imports}",
         "",
     ])
@@ -202,21 +224,161 @@ def gen_services(module_name: str, models: list[ModelInfo]) -> str:
 # ─── api/manage.py ───
 
 
+def _button_code(module_name: str, model: ModelInfo, action: str) -> str:
+    module_part = module_name.replace("-", "_").upper()
+    model_part = model.snake_name.upper()
+    return f"B_{module_part}_{model_part}_{action}"
+
+
+def _button_action_dependencies(module_name: str, model: ModelInfo) -> list[str]:
+    return [
+        "    action_dependencies={",
+        f'        "create": [require_buttons("{_button_code(module_name, model, "CREATE")}")],',
+        f'        "update": [require_buttons("{_button_code(module_name, model, "EDIT")}")],',
+        f'        "delete": [require_buttons("{_button_code(module_name, model, "DELETE")}")],',
+        f'        "batch_delete": [require_buttons("{_button_code(module_name, model, "DELETE")}")],',
+        "    },",
+    ]
+
+
+def _search_config_parts(contains: list[str], exact: list[str]) -> list[str]:
+    parts: list[str] = []
+    if contains:
+        parts.append(f"contains_fields={_py_list(contains)}")
+    if exact:
+        parts.append(f"exact_fields={_py_list(exact)}")
+    return parts
+
+
+def _append_rate_limit_hints(lines: list[str], module_name: str, models: list[ModelInfo], options: BackendFeatureOptions) -> None:
+    if not options.rate_limits:
+        return
+
+    lines.append("# 启动时由 app.core.autodiscover.discover_business_endpoint_rate_limits() 自动合并到 fastapi-guard")
+    lines.append("ENDPOINT_RATE_LIMITS = {")
+    for model in models:
+        rate = options.rate_limits.get(model.name)
+        if not rate:
+            continue
+        requests, window = rate
+        lines.append(f'    "/api/v1/business/{module_name}/{model.plural_snake}/search": ({requests}, {window}),')
+    lines.append("}")
+    lines.append("")
+
+
+def _append_scope_id_hook(lines: list[str], options: BackendFeatureOptions) -> None:
+    if not options.data_scope:
+        return
+    lines.extend([
+        "",
+        "def _get_scope_id() -> int | None:",
+        '    """返回当前用户所属业务范围 ID；需要范围级数据权限时在本模块替换实现。"""',
+        "    return None",
+        "",
+    ])
+
+
+def _append_list_override(
+    lines: list[str],
+    module_name: str,
+    model: ModelInfo,
+    contains: list[str],
+    exact: list[str],
+    options: BackendFeatureOptions,
+) -> None:
+    if not options.needs_list_override(model.name):
+        return
+
+    list_order = options.list_order.get(model.name, ["id"])
+    scope = options.data_scope.get(model.name)
+    cache_ttl = options.list_cache_ttl.get(model.name)
+
+    lines.append(f'@{model.snake_name}_crud.override("list")')
+    if cache_ttl:
+        lines.append(f'@cache(expire={cache_ttl}, namespace="{module_name}_{model.snake_name}_list")')
+        if scope:
+            lines.append("# 注意：该列表同时启用了 data_scope；生产前请确认缓存 key 不会跨用户复用。")
+    lines.append(f"async def _list_{model.snake_name}_items(obj_in: {model.name}Search, request: Request):")
+    lines.append(f"    q = {model.snake_name}_controller.build_search(")
+    lines.append("        obj_in,")
+    if contains:
+        lines.append(f"        contains_fields={_py_list(contains)},")
+    if exact:
+        lines.append(f"        exact_fields={_py_list(exact)},")
+    lines.append("    )")
+    if scope:
+        lines.extend([
+            "    scope = await get_current_data_scope(request.app.state.redis)",
+            "    scope_q = build_scope_filter(",
+            "        scope=scope,",
+            "        user_id=CTX_USER_ID.get(),",
+            "        scope_id=_get_scope_id(),",
+            f'        user_id_field="{scope.user_id_field}",',
+            f'        scope_id_field="{scope.scope_id_field}",',
+            "    )",
+            "    q &= scope_q",
+        ])
+    lines.extend([
+        '    current = getattr(obj_in, "current", 1)',
+        '    size = getattr(obj_in, "size", 10)',
+        f'    order = getattr(obj_in, "order_by", None) or {_py_list(list_order)}',
+        f"    total, objs = await {model.snake_name}_controller.list(page=current, page_size=size, search=q, order=order)",
+        "    records = [await obj.to_dict() for obj in objs]",
+        '    return SuccessExtra(data={"records": records}, total=total, current=current, size=size)',
+        "",
+    ])
+
+
 def gen_api_manage(
     module_name: str,
     models: list[ModelInfo],
     contains_map: dict[str, list[str]],
     exact_map: dict[str, list[str]] | None = None,
+    *,
+    backend_options: BackendFeatureOptions | None = None,
 ) -> str:
+    backend_options = backend_options or BackendFeatureOptions()
+    needs_request = any(backend_options.needs_list_override(model.name) for model in models)
+    needs_scope = bool(backend_options.data_scope)
+    needs_cache = bool(backend_options.list_cache_ttl)
+    needs_buttons = bool(backend_options.button_auth_models)
+    needs_search_config = any(contains_map.get(model.name) for model in models)
+    if exact_map is None:
+        needs_search_config = needs_search_config or any(any(f.enum_type or f.name == "status" for f in model.schema_fields) for model in models)
+    else:
+        needs_search_config = needs_search_config or any(exact_map.get(model.name) for model in models)
+
+    fastapi_imports = ["APIRouter"]
+    if needs_request:
+        fastapi_imports.append("Request")
+
+    utils_imports = ["CRUDRouter", "DependPermission"]
+    if needs_search_config:
+        utils_imports.append("SearchFieldConfig")
+    if needs_scope:
+        utils_imports.extend(["CTX_USER_ID", "SuccessExtra", "build_scope_filter"])
+    if needs_buttons:
+        utils_imports.append("require_buttons")
+
     lines = [
         '"""',
         f"{module_name} 管理接口 — CRUD。",
         '"""',
         "",
-        "from fastapi import APIRouter",
+        f"from fastapi import {', '.join(fastapi_imports)}",
         "",
-        "from app.utils import CRUDRouter, DependPermission, SearchFieldConfig",
     ]
+    if needs_cache:
+        lines.extend([
+            "from fastapi_cache.decorator import cache",
+            "",
+        ])
+    if needs_scope:
+        lines.extend([
+            "from app.core.data_scope import get_current_data_scope",
+            "",
+        ])
+    lines.append(f"from app.utils import {', '.join(sorted(utils_imports))}")
 
     # controller imports
     controller_imports = ", ".join(f"{m.snake_name}_controller" for m in models)
@@ -231,6 +393,8 @@ def gen_api_manage(
         lines.append(f"    {sn},")
     lines.append(")")
     lines.append("")
+    _append_rate_limit_hints(lines, module_name, models, backend_options)
+    _append_scope_id_hook(lines, backend_options)
 
     # CRUDRouter per model
     for m in models:
@@ -241,24 +405,32 @@ def gen_api_manage(
         else:
             exact = exact_map.get(m.name, [])
 
+        search_parts = _search_config_parts(contains, exact)
+
         lines.append(f"{m.snake_name}_crud = CRUDRouter(")
         lines.append(f'    prefix="/{m.plural_snake}",')
         lines.append(f"    controller={m.snake_name}_controller,")
         lines.append(f"    create_schema={m.name}Create,")
         lines.append(f"    update_schema={m.name}Update,")
         lines.append(f"    list_schema={m.name}Search,")
-
-        sf_parts = []
-        if contains:
-            sf_parts.append(f"contains_fields={contains}")
-        if exact:
-            sf_parts.append(f"exact_fields={exact}")
-        if sf_parts:
-            lines.append(f"    search_fields=SearchFieldConfig({', '.join(sf_parts)}),")
-
+        if search_parts:
+            lines.append(f"    search_fields=SearchFieldConfig({', '.join(search_parts)}),")
+        if m.name in backend_options.list_order:
+            lines.append(f"    list_order={_py_list(backend_options.list_order[m.name])},")
+        if m.name in backend_options.exclude_fields:
+            lines.append(f"    exclude_fields={_py_list(backend_options.exclude_fields[m.name])},")
+        if m.name in backend_options.enable_routes:
+            lines.append(f"    enable_routes={_py_set(backend_options.enable_routes[m.name])},")
+        if m.name in backend_options.soft_delete_models:
+            lines.append("    soft_delete=True,")
+        if m.name in backend_options.tree_models:
+            lines.append("    tree_endpoint=True,")
+        if m.name in backend_options.button_auth_models:
+            lines.extend(_button_action_dependencies(module_name, m))
         lines.append(f'    summary_prefix="{m.cn_name}",')
         lines.append(")")
         lines.append("")
+        _append_list_override(lines, module_name, m, contains, exact, backend_options)
 
     # router
     lines.append(f'router = APIRouter(prefix="/{module_name}", tags=["{module_name}"], dependencies=[DependPermission])')
@@ -288,7 +460,62 @@ def gen_api_init(module_name: str) -> str:
 # ─── init_data.py ───
 
 
-def gen_init_data(module_name: str) -> str:
+def _model_route_name(module_name: str, model: ModelInfo) -> str:
+    """Return the Elegant Router route key for a generated CRUD view."""
+    return f"{module_name}_{model.snake_name.replace('_', '-')}"
+
+
+def _route_path(route_name: str) -> str:
+    """Route path mirrors Elegant Router: underscores become path segments."""
+    return f"/{route_name.replace('_', '/')}"
+
+
+def _model_button_defs(module_name: str, model: ModelInfo) -> list[dict[str, str]]:
+    return [
+        {"button_code": _button_code(module_name, model, "CREATE"), "button_desc": f"创建{model.cn_name}"},
+        {"button_code": _button_code(module_name, model, "EDIT"), "button_desc": f"编辑{model.cn_name}"},
+        {"button_code": _button_code(module_name, model, "DELETE"), "button_desc": f"删除{model.cn_name}"},
+    ]
+
+
+def _model_menu_children(
+    module_name: str,
+    models: list[ModelInfo],
+    *,
+    button_auth_models: set[str] | None = None,
+) -> list[dict]:
+    children: list[dict] = []
+    button_auth_models = button_auth_models or set()
+    for index, model in enumerate(models, start=1):
+        route_name = _model_route_name(module_name, model)
+        item = {
+            "menu_name": model.cn_name,
+            "route_name": route_name,
+            "route_path": _route_path(route_name),
+            "component": f"view.{route_name}",
+            "order": index,
+            "icon": BUSINESS_MODEL_ICON,
+            "i18n_key": f"route.{module_name}_{model.snake_name}",
+        }
+        if model.name in button_auth_models:
+            item["buttons"] = _model_button_defs(module_name, model)
+        children.append(item)
+    return children
+
+
+def gen_init_data(
+    module_name: str,
+    models: list[ModelInfo],
+    *,
+    module_title: str | None = None,
+    button_auth_models: set[str] | None = None,
+) -> str:
+    """生成 init_data.py 内容，内置业务菜单声明。"""
+    button_auth_models = button_auth_models or set()
+    menu_children = json.dumps(_model_menu_children(module_name, models, button_auth_models=button_auth_models), ensure_ascii=False, indent=4)
+    resolved_module_title = module_title or module_name
+    declared_button_expr = "_collect_declared_buttons(MODULE_MENU_CHILDREN)" if button_auth_models else "None"
+
     lines = [
         '"""',
         f"{module_name} 初始化数据 — 菜单、角色、种子数据。",
@@ -297,14 +524,85 @@ def gen_init_data(module_name: str) -> str:
         "所有操作幂等，重复启动不会重复创建。",
         '"""',
         "",
-        "# from app.system.services import ensure_menu, ensure_role, reconcile_menu_subtree",
+        "from app.system.services import ensure_menu, reconcile_menu_subtree",
+        "",
+        f'MODULE_ROUTE_NAME = "{module_name}"',
+        f'MODULE_MENU_NAME = "{resolved_module_title}"',
+        f'MODULE_MENU_ICON = "{BUSINESS_MENU_ICON}"',
+        "MODULE_MENU_ORDER = 8",
+        f"MODULE_MENU_CHILDREN = {menu_children}",
         "",
         "",
-        "async def init():",
+        "def _route_path(route_name: str) -> str:",
+        "    return f\"/{route_name.replace('_', '/')}\"",
+        "",
+        "",
+        "def _title_from_route_name(route_name: str) -> str:",
+        '    return route_name.rsplit("_", maxsplit=1)[-1].replace("-", " ").title()',
+        "",
+        "",
+        "def _collect_declared_routes(children: list[dict]) -> set[str]:",
+        "    result: set[str] = set()",
+        "    for item in children:",
+        '        result.add(item["route_name"])',
+        '        if item.get("children"):',
+        '            result.update(_collect_declared_routes(item["children"]))',
+        "    return result",
+        "",
+        "",
+        "def _collect_declared_buttons(children: list[dict]) -> set[str]:",
+        "    result: set[str] = set()",
+        "    for item in children:",
+        '        for btn in item.get("buttons", []):',
+        '            result.add(btn["button_code"])',
+        '        if item.get("children"):',
+        '            result.update(_collect_declared_buttons(item["children"]))',
+        "    return result",
+        "",
+        "",
+        "def _build_menu_tree() -> dict:",
+        "    tree = {",
+        '        "menu_name": MODULE_MENU_NAME,',
+        '        "route_name": MODULE_ROUTE_NAME,',
+        '        "route_path": _route_path(MODULE_ROUTE_NAME),',
+        '        "order": 1,',
+        '        "i18n_key": f"route.{MODULE_ROUTE_NAME}",',
+        '        "children": MODULE_MENU_CHILDREN,',
+        "    }",
+        "",
+        "    # module_name 含下划线时，前端路由会形成多级目录，如 utility -> utility_fee。",
+        '    parts = MODULE_ROUTE_NAME.split("_")',
+        "    for level in range(len(parts) - 1, 0, -1):",
+        '        parent_route = "_".join(parts[:level])',
+        "        tree = {",
+        '            "menu_name": _title_from_route_name(parent_route),',
+        '            "route_name": parent_route,',
+        '            "route_path": _route_path(parent_route),',
+        '            "order": MODULE_MENU_ORDER if level == 1 else 1,',
+        '            "i18n_key": f"route.{parent_route}",',
+        '            "children": [tree],',
+        "        }",
+        "",
+        '    tree["icon"] = MODULE_MENU_ICON',
+        '    tree["order"] = MODULE_MENU_ORDER',
+        "    return tree",
+        "",
+        "",
+        "async def _init_menu_data() -> None:",
+        "    await ensure_menu(**_build_menu_tree())",
+        "    await reconcile_menu_subtree(",
+        "        root_route=MODULE_ROUTE_NAME,",
+        "        declared_route_names=_collect_declared_routes(MODULE_MENU_CHILDREN),",
+        "        # 启用 CLI --button-auth 时会同步按钮；否则保留 Web UI 中手工维护的按钮权限。",
+        f"        declared_button_codes={declared_button_expr},",
+        "    )",
+        "",
+        "",
+        "async def init() -> None:",
         '    """模块初始化入口 — 由 autodiscover 调用。"""',
-        "    # await _init_menu_data()",
+        "    await _init_menu_data()",
+        "    # 普通角色要看到该菜单，请在角色管理中授权，或在这里补充 _init_role_data()。",
         "    # await _init_role_data()",
-        "    pass",
         "",
     ]
     return "\n".join(lines)
@@ -337,6 +635,8 @@ def generate_all(
     contains_map: dict[str, list[str]],
     *,
     exact_map: dict[str, list[str]] | None = None,
+    module_title: str | None = None,
+    backend_options: BackendFeatureOptions | None = None,
     skip: set[str] | None = None,
     force: bool = False,
 ) -> list[tuple[str, str]]:
@@ -345,15 +645,21 @@ def generate_all(
     状态: "created" / "skipped" (已存在)
     """
     skip = skip or set()
+    backend_options = backend_options or BackendFeatureOptions()
     results: list[tuple[str, str]] = []
 
     generators = {
         "schemas.py": lambda: gen_schemas(module_name, models),
         "controllers.py": lambda: gen_controllers(module_name, models),
         "services.py": lambda: gen_services(module_name, models),
-        "init_data.py": lambda: gen_init_data(module_name),
+        "init_data.py": lambda: gen_init_data(
+            module_name,
+            models,
+            module_title=module_title,
+            button_auth_models=backend_options.button_auth_models,
+        ),
         "api/__init__.py": lambda: gen_api_init(module_name),
-        "api/manage.py": lambda: gen_api_manage(module_name, models, contains_map, exact_map),
+        "api/manage.py": lambda: gen_api_manage(module_name, models, contains_map, exact_map, backend_options=backend_options),
     }
 
     for rel_path, gen_fn in generators.items():

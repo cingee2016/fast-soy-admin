@@ -10,6 +10,7 @@ from guard.middleware import SecurityMiddleware
 from starlette.responses import Response
 from tortoise.contrib.fastapi import register_tortoise
 
+from app.core.autodiscover import discover_business_endpoint_rate_limits
 from app.core.code import Code
 from app.core.config import APP_SETTINGS
 from app.core.exceptions import (
@@ -52,6 +53,12 @@ async def _guard_response_modifier(response):
 
 def _make_guard_config():
     """根据应用配置构建 fastapi-guard 的 SecurityConfig。"""
+    endpoint_rate_limits = {
+        "/api/v1/auth/login": (5, 60),  # 每 60 秒最多 5 次请求
+        "/api/v1/auth/refresh-token": (10, 60),  # 每 60 秒最多 10 次请求
+    }
+    endpoint_rate_limits.update(discover_business_endpoint_rate_limits())
+
     return SecurityConfig(
         rate_limit=APP_SETTINGS.GUARD_RATE_LIMIT,
         rate_limit_window=APP_SETTINGS.GUARD_RATE_LIMIT_WINDOW,
@@ -65,10 +72,7 @@ def _make_guard_config():
         custom_log_file=str(APP_SETTINGS.LOGS_ROOT / "guard.log"),
         custom_response_modifier=_guard_response_modifier,
         exclude_paths=["/docs", "/redoc", "/openapi.json", "/favicon.ico", "/static"],
-        endpoint_rate_limits={
-            "/api/v1/auth/login": (5, 60),  # 每 60 秒最多 5 次请求
-            "/api/v1/auth/refresh-token": (10, 60),  # 每 60 秒最多 10 次请求
-        },
+        endpoint_rate_limits=endpoint_rate_limits,
     )
 
 

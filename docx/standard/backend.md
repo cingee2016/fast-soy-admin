@@ -82,7 +82,7 @@ return JSONResponse({"code": Code.FAIL, "msg": "失败"})
 - ✅ 模型一律继承 `BaseModel + AuditMixin`（持久化的）
 - ✅ 文件头 `# pyright: reportIncompatibleVariableOverride=false`（Tortoise + Pyright 已知误报）
 - ✅ 字段加 `description="..."`（CLI 生成 schema 时会用作 i18n 中文名，截断到第一个句号）
-- ✅ 类的 docstring 写中文资源名（`"""部门"""`），用作 API summary 前缀
+- ✅ 类的 docstring 写中文资源名（`"""客户"""`），用作 API summary 前缀
 - ✅ `Meta.table` 用 `biz_<module>_<entity>` 前缀（系统模型在 `app/system/models/` 下用语义化表名）
 - ✅ **每个 `ForeignKeyField` / `OneToOneField` 上方显式声明 `<name>_id: int`（或 `int | None`）类型注解**——见下方
 - ❌ 不要在 `models.py` 写业务逻辑——字段级校验放 schema、跨模型编排 / 事务 / 事件 / 缓存放 service
@@ -99,9 +99,9 @@ class Employee(BaseModel, AuditMixin):
     user: fields.ForeignKeyNullableRelation = fields.ForeignKeyField(
         "app_system.User", null=True, on_delete=fields.SET_NULL, related_name="employee",
     )
-    department_id: int
-    department: fields.ForeignKeyRelation["Department"] = fields.ForeignKeyField(
-        "app_system.Department", related_name="employees",
+    team_id: int
+    team: fields.ForeignKeyRelation["Team"] = fields.ForeignKeyField(
+        "app_system.Team", related_name="employees",
     )
 ```
 
@@ -109,19 +109,19 @@ class Employee(BaseModel, AuditMixin):
 
 | 需求 | 正确写法 | 错误写法 |
 |---|---|---|
-| 只要 ID（比较、日志、传给另一个模型的 FK 字段） | `emp.department_id` | `(await emp.department).id` — 多一次查询 |
-| 要关系对象的字段（`dept.name`） | 先 `prefetch_related("department")` 再读 `emp.department.name` | `emp.department.name` — 懒加载，循环中触发 N+1 |
-| 单对象场景、无批量 | `dept = await emp.department` | — |
+| 只要 ID（比较、日志、传给另一个模型的 FK 字段） | `emp.team_id` | `(await emp.team).id` — 多一次查询 |
+| 要关系对象的字段（`team.name`） | 先 `prefetch_related("team")` 再读 `emp.team.name` | `emp.team.name` — 懒加载，循环中触发 N+1 |
+| 单对象场景、无批量 | `team = await emp.team` | — |
 | M2M / 反向关系 | `prefetch_related("by_role_menus")` 后遍历；或显式 `.all()` | 直接 `for m in role.by_role_menus` — `RelatedManager` 不是可迭代对象 |
 
 ::: danger 创建 / 更新时不要把未 prefetch 的关系对象当值传
 ```python
-# ❌ 如果 other.department 没有 prefetch，这一行会触发查询；
+# ❌ 如果 other.team 没有 prefetch，这一行会触发查询；
 #    更糟的是 Tortoise 老版本会把 coroutine 对象赋值给 FK，写入时抛 TypeError
-new_emp = await Employee.create(department=other.department)
+new_emp = await Employee.create(team=other.team)
 
 # ✅ 总是传 _id
-new_emp = await Employee.create(department_id=other.department_id)
+new_emp = await Employee.create(team_id=other.team_id)
 ```
 
 这就是为什么 `_id: int` 注解是强制的——把"用 ID 安全路径"放到开发者眼前，IDE 自动补全也会优先提示。
@@ -197,4 +197,4 @@ just check  # 后端 + 前端所有质量检查
 - [架构](../getting-started/architecture.md) — 总览
 - [开发指南](../getting-started/workflow.md) — 用 CLI 创建模块的端到端流程
 - [API 约定](../develop/api.md) / [响应码](../reference/codes.md)
-- [HR 模块（最佳实践全集）](../develop/business-hr.md)
+- [HR 模块（最佳实践全集）](../advanced/business-hr.md)

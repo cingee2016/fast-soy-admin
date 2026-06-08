@@ -84,7 +84,7 @@ User
     |-- M2M --> Button      按钮权限：决定页面内可执行的操作
     |-- M2M --> Api         接口权限：决定可调用的后端接口
     |-- FK  --> Menu        角色首页 by_role_home
-    `-- field: data_scope   行级数据范围: all / department / self / custom
+    `-- field: data_scope   行级数据范围: all / scope / self / custom
 ```
 
 - 超级管理员 `R_SUPER`（[`app.core.constants.SUPER_ADMIN_ROLE`](../../../app/core/constants.py)）跳过所有权限校验

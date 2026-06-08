@@ -279,7 +279,16 @@ def _form_item_block(
     end = "      </NFormItem>"
 
     body: list[str]
-    if component == "input":
+    if f.field_type == "JSONField":
+        body = [
+            "        <NInput",
+            f'          :value="formatJsonInput(model.{name_camel})"',
+            '          type="textarea"',
+            f"          :placeholder=\"$t('{placeholder_key}')\"",
+            f'          @update:value="value => (model.{name_camel} = parseJsonInput(value))"',
+            "        />",
+        ]
+    elif component == "input":
         body = [f'        <NInput v-model:value="model.{name_camel}" :placeholder="$t(\'{placeholder_key}\')" />']
     elif component == "textarea":
         body = [f'        <NInput v-model:value="model.{name_camel}" type="textarea" :placeholder="$t(\'{placeholder_key}\')" />']
@@ -289,11 +298,32 @@ def _form_item_block(
         precision = 2
         body = [f'        <NInputNumber v-model:value="model.{name_camel}" :precision="{precision}" :placeholder="$t(\'{placeholder_key}\')" class="w-full" />']
     elif component == "switch":
-        body = [f'        <NSwitch v-model:value="model.{name_camel}" />']
+        body = [
+            "        <NSwitch",
+            f'          :value="Boolean(model.{name_camel})"',
+            f'          @update:value="value => (model.{name_camel} = value)"',
+            "        />",
+        ]
     elif component in ("date", "datetime"):
-        body = [f'        <NDatePicker v-model:value="model.{name_camel}" type="{component}" clearable class="w-full" />']
+        value_format = "yyyy-MM-dd" if component == "date" else "yyyy-MM-dd HH:mm:ss"
+        body = [
+            "        <NDatePicker",
+            f'          v-model:formatted-value="model.{name_camel}"',
+            f'          type="{component}"',
+            f'          value-format="{value_format}"',
+            "          clearable",
+            '          class="w-full"',
+            "        />",
+        ]
     elif component == "time":
-        body = [f'        <NTimePicker v-model:value="model.{name_camel}" clearable class="w-full" />']
+        body = [
+            "        <NTimePicker",
+            f'          v-model:formatted-value="model.{name_camel}"',
+            '          value-format="HH:mm:ss"',
+            "          clearable",
+            '          class="w-full"',
+            "        />",
+        ]
     elif component == "select-status":
         body = [
             "        <NSelect",
@@ -321,7 +351,9 @@ def _form_item_block(
 
 def _default_value_for_field(f: FieldInfo) -> str:
     """用于 createDefaultModel() 的字段默认值。"""
-    if f.field_type in ("CharField", "TextField", "UUIDField", "DatetimeField", "DateField", "TimeField"):
+    if f.field_type in ("DatetimeField", "DateField", "TimeField"):
+        return "null"
+    if f.field_type in ("CharField", "TextField", "UUIDField"):
         return "''"
     if f.field_type in ("IntField", "BigIntField", "SmallIntField", "DecimalField", "FloatField"):
         return "null"
@@ -509,7 +541,15 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
         elif component == "select-todo":
             body = f'              <NSelect v-model:value="model.{camel}" :options="[]" clearable :placeholder="$t(\'{placeholder_key}\')" />'
         elif component == "switch":
-            body = f'              <NSelect v-model:value="model.{camel}" :options="booleanOptions" clearable :placeholder="$t(\'{placeholder_key}\')" />'
+            body = (
+                "              <NSelect\n"
+                f'                :value="model.{camel} as any"\n'
+                '                :options="booleanOptions"\n'
+                "                clearable\n"
+                f"                :placeholder=\"$t('{placeholder_key}')\"\n"
+                f'                @update:value="value => (model.{camel} = value as boolean | null)"\n'
+                "              />"
+            )
         elif component == "date":
             body = f'              <NDatePicker v-model:formatted-value="model.{camel}" type="date" value-format="yyyy-MM-dd" clearable class="w-full" />'
         elif component == "datetime":
@@ -539,7 +579,7 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
 const booleanOptions = [
   { label: $t('common.yesOrNo.yes'), value: true },
   { label: $t('common.yesOrNo.no'), value: false }
-];
+] as any;
 """
 
     template = f"""<script setup lang="ts">
@@ -641,12 +681,38 @@ def gen_view_drawer(module: str, model: ModelInfo) -> str:
     entity_title_key = f"{i18n_page}.pageTitle"
     add_key = f"{i18n_page}.add{entity}"
     edit_key = f"{i18n_page}.edit{entity}"
+    needs_json_helpers = any(f.field_type == "JSONField" for f in fields)
+    form_hook_imports = "useFormRules, useNaiveForm" if required_rules else "useNaiveForm"
+    form_rules_setup = "const { defaultRequiredRule } = useFormRules();" if required_rules else ""
+    rules_block = (
+        f"""const rules: Record<string, App.Global.FormRule> = {{
+{("," + chr(10)).join(required_rules)}
+}};"""
+        if required_rules
+        else "const rules: Record<string, App.Global.FormRule> = {};"
+    )
+    json_helpers = (
+        """function formatJsonInput(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value, null, 2);
+}
+
+function parseJsonInput(value: string): Record<string, any> | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return JSON.parse(trimmed) as Record<string, any>;
+}
+"""
+        if needs_json_helpers
+        else ""
+    )
 
     template = f"""<script setup lang="ts">
 import {{ computed, ref, watch }} from 'vue';
 import {{ jsonClone }} from '@sa/utils';
 import {{ fetchAdd{entity}, fetchUpdate{entity} }} from '@/service/api';
-import {{ useFormRules, useNaiveForm }} from '@/hooks/common/form';
+import {{ {form_hook_imports} }} from '@/hooks/common/form';
 import {{ $t }} from '@/locales';
 {chr(10).join(extra_imports)}
 
@@ -666,7 +732,7 @@ interface Emits {{
 const emit = defineEmits<Emits>();
 const visible = defineModel<boolean>('visible', {{ default: false }});
 const {{ formRef, validate, restoreValidation }} = useNaiveForm();
-const {{ defaultRequiredRule }} = useFormRules();
+{form_rules_setup}
 
 const title = computed(() => {{
   const titles: Record<NaiveUI.TableOperateType, string> = {{
@@ -684,10 +750,9 @@ function createDefaultModel(): Api.{ns}.{entity}AddParams {{
   }} as unknown as Api.{ns}.{entity}AddParams;
 }}
 
-const rules: Record<string, App.Global.FormRule> = {{
-{("," + chr(10)).join(required_rules)}
-}};
+{rules_block}
 
+{json_helpers}
 function handleInitModel() {{
   model.value = createDefaultModel();
   if (props.operateType === 'edit' && props.rowData) {{

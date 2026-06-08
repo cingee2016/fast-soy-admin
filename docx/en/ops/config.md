@@ -93,6 +93,22 @@ TRUSTED_HOSTS=["10.0.0.0/8"]
 | `LOGS_ROOT` | `BASE_DIR / "logs/"` | mkdir at startup |
 | `STATIC_ROOT` | `BASE_DIR / "static/"` | mkdir at startup |
 
+### Business endpoint rate limits
+
+Global rate limiting is still controlled by `GUARD_RATE_LIMIT` / `GUARD_RATE_LIMIT_WINDOW`. For a stricter business endpoint limit, declare this in a business API module:
+
+```python
+ENDPOINT_RATE_LIMITS = {
+    "/api/v1/business/hr/employees/search": (30, 60),
+}
+```
+
+At startup, `discover_business_endpoint_rate_limits()` auto-merges these entries into fastapi-guard. The CLI can generate this declaration too:
+
+```bash
+uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
+```
+
 ## Module-local config
 
 A business module can declare its own Settings in `app/business/<name>/config.py`:

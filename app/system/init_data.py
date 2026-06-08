@@ -21,27 +21,6 @@ def _crud_apis(resource: str, *, with_tree: bool = False) -> list[tuple[str, str
     return apis
 
 
-SLIM_ROUTE_NAMES = {
-    "login",
-    "403",
-    "404",
-    "500",
-    "home",
-    "manage",
-    "manage_api",
-    "manage_user",
-    "manage_role",
-    "manage_menu",
-    "manage_user-detail",
-    "manage_radar",
-    "manage_radar_overview",
-    "manage_radar_requests",
-    "manage_radar_queries",
-    "manage_radar_exceptions",
-    "manage_radar_monitor",
-}
-
-
 SYSTEM_ROLE_SEEDS = [
     {
         "role_name": "管理员",
@@ -176,31 +155,6 @@ async def init_menus():
             ),
         ],
     )
-
-    await _prune_slim_menus()
-
-
-async def _prune_slim_menus() -> None:
-    """删除 slim 分支不再声明的旧示例菜单，并迁移旧角色首页。"""
-    keep_menus = await Menu.filter(route_name__in=SLIM_ROUTE_NAMES).only("id", "route_name")
-    keep_ids = {m.id for m in keep_menus}
-    home_menu = next((m for m in keep_menus if m.route_name == "home"), None)
-    if not keep_ids or home_menu is None:
-        return
-
-    await Role.exclude(by_role_home_id__in=list(keep_ids)).update(by_role_home_id=home_menu.id)
-
-    stale_menus = await Menu.exclude(route_name__in=SLIM_ROUTE_NAMES).only("id")
-    stale_ids = [m.id for m in stale_menus]
-    if stale_ids:
-        await Menu.filter(id__in=stale_ids).update(active_menu_id=None)
-        for menu_obj in await Menu.filter(id__in=stale_ids).order_by("-id"):
-            await menu_obj.delete()
-
-    for button_obj in await Button.all():
-        if await button_obj.by_button_menus.all():
-            continue
-        await button_obj.delete()
 
 
 async def _ensure_super_role() -> None:

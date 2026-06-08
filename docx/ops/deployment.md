@@ -240,7 +240,7 @@ grep -RnE "Soybean|Super|Admin|123456" web/src/views/_builtin/login  # 应无业
 2. 在该角色的「菜单权限」里，只勾选用户实际需要看到的页面（一般只有 `home` + 你的业务模块菜单）。
 3. 「按钮权限」里只勾选这些菜单下需要暴露的按钮码（如 `B_HR_DEPT_VIEW`，但不勾 `B_HR_DEPT_DELETE`）。
 4. 「接口权限」一定要把对应的 `(method, path)` 也勾上——按钮在前端隐藏不等于后端拒绝（参见 [RBAC](../develop/rbac.md)）。
-5. 「数据范围」按需选 `self` / `department` / `custom`，不要保留默认 `all`。
+5. 「数据范围」按需选 `self` / `scope` / `custom`，不要保留默认 `all`。
 6. 把所有真实业务用户从 `R_USER` 改挂到 `R_BIZ_USER`。
 
 **做法 B：直接修改 `R_USER`**

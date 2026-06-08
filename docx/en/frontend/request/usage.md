@@ -27,8 +27,8 @@ declare namespace Api {
       id: string;          // sqid
       employeeNo: string;
       status: string;
-      departmentId: string;
-      departmentName: string;
+      tenantId: string;
+      tenantName: string;
       tagIds: string[];
       tagNames: string[];
       createdAt: string;

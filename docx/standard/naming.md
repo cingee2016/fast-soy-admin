@@ -111,7 +111,7 @@ common.<key>         # 全局通用
 |---|---|
 | 表名 | `<scope>_<module>_<entity>`（小写 + 下划线，单数） |
 | 主键 | `id`（int） |
-| 外键字段 | `<entity>_id`（如 `department_id`） |
+| 外键字段 | `<entity>_id`（如 `team_id`） |
 | 时间字段 | `created_at` / `updated_at` / `deleted_at` |
 | 状态字段 | `status` 或 `status_type`（按前端期望） |
 

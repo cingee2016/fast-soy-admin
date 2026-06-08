@@ -27,7 +27,7 @@ monorepo 结构：`/app` 后端，`/web` 前端，`/deploy` Docker / Nginx。
 
 **安全与权限**
 
-- **三层 RBAC + 行级 `data_scope`** — 菜单 / API / 按钮三层鉴权，叠加 `all / department / self / custom` 数据范围；按钮权限下沉到 service
+- **三层 RBAC + 行级 `data_scope`** — 菜单 / API / 按钮三层鉴权，叠加 `all / scope / self / custom` 数据范围；按钮权限下沉到 service
 - **菜单/角色 IaC 对账** — `ensure_menu` / `reconcile_menu_subtree` / `refresh_api_list` 三档语义，明确哪些子树代码声明、哪些允许 UI 自由创建
 - **Sqid 对外 ID** — 自增 ID 不出库，防遍历枚举
 

@@ -42,7 +42,7 @@ from . import events  # noqa: F401  ← triggers @on registration
 # app/business/hr/services.py
 from app.utils import emit
 
-await emit("employee.created", employee_id=new_emp.id, department_id=dept.id)
+await emit("employee.created", employee_id=new_emp.id, team_id=dept.id)
 ```
 
 All kwargs are passed through to handlers.
@@ -128,12 +128,12 @@ async def test_xxx(monkeypatch):
 
 | Event | Source | kwargs | Purpose |
 |---|---|---|---|
-| `employee.created` | HR | `employee_id`, `department_id`, `created_by` | post-create notification / stats |
+| `employee.created` | HR | `employee_id`, `team_id`, `created_by` | post-create notification / stats |
 | `employee.status_changed` | HR | `employee_id`, `from_state`, `to_state`, `actor_id` | post-transition audit |
 
 > When you add a new event, append it here and add a comment at the emit site pointing to this page.
 
 ## See also
 
-- [HR module (event emit example)](/en/develop/business-hr)
+- [HR module (event emit example)](/en/advanced/business-hr)
 - [State machine](/en/develop/state-machine) — often paired with `emit` to publish audit events

@@ -161,4 +161,4 @@ Violating these still works at runtime — but the modular value autodiscover pr
 
 - [Development guide](/en/getting-started/workflow) — create a new module via the CLI
 - [Init data](/en/develop/init-data) — how `init()` runs and reconciles
-- [HR module](/en/develop/business-hr) — sample business module
+- [HR module](/en/advanced/business-hr) — sample business module

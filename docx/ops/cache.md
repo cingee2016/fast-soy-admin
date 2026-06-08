@@ -20,7 +20,7 @@
 | `role:{code}:menus` | 菜单 ID 列表 | `load_role_permissions` |
 | `role:{code}:apis` | `[{method, path, status}]` | 同上 |
 | `role:{code}:buttons` | 按钮编码列表 | 同上 |
-| `role:{code}:data_scope` | `all` / `department` / `self` / `custom` | 同上 |
+| `role:{code}:data_scope` | `all` / `scope` / `self` / `custom` | 同上 |
 | `user:{uid}:roles` | 角色编码列表 | `load_user_roles` |
 | `user:{uid}:role_home` | 首页 route_name | 同上 |
 | `token_version:{uid}` | 整数版本号（INCR） | `invalidate_user_session` 等 |

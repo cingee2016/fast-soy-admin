@@ -177,20 +177,20 @@ cli-init mod:
     uv run python -m app.cli init "{{mod}}"
 
 # Generate backend code from models.py.
-cli-gen mod:
-    uv run python -m app.cli gen "{{mod}}"
+cli-gen mod args='':
+    uv run python -m app.cli gen "{{mod}}" {{args}}
 
 # Generate frontend code from models.py.
-cli-gen-web mod cn='':
-    uv run python -m app.cli gen-web "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }}
+cli-gen-web mod cn='' args='':
+    uv run python -m app.cli gen-web "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }} {{args}}
 
 # Generate both backend and frontend code.
-cli-gen-all mod cn='':
-    uv run python -m app.cli gen-all "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }}
+cli-gen-all mod cn='' args='':
+    uv run python -m app.cli gen-all "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }} {{args}}
 
 # Generate full CRUD code (alias of cli-gen-all).
-cli-crud mod cn='':
-    uv run python -m app.cli crud "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }}
+cli-crud mod cn='' args='':
+    uv run python -m app.cli crud "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }} {{args}}
 
 # ---- E2E ----------------------------------------------------
 

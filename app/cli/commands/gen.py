@@ -8,8 +8,17 @@ import click
 
 from app.cli.display import echo_file_result, has_written_files, relative_path, run_just_format
 from app.cli.generator import generate_all
+from app.cli.options import all_choice_names, build_backend_feature_options, resolve_field_map
 from app.cli.parser import parse_models
-from app.cli.prompts import prompt_contains_fields, prompt_exact_fields, prompt_model_selection
+from app.cli.prompts import (
+    default_exact_field_names,
+    exact_field_candidates,
+    fuzzy_field_candidates,
+    prompt_contains_fields,
+    prompt_exact_fields,
+    prompt_model_selection,
+    resolve_model_selection,
+)
 
 BUSINESS_DIR = Path(__file__).resolve().parents[2] / "business"
 
@@ -20,7 +29,7 @@ GUIDE_TEXT = """\
 \033[1;33m📋 后续步骤：\033[0m
 
   \033[1m1.\033[0m 按需修改 \033[36mservices.py\033[0m 中的业务逻辑
-  \033[1m2.\033[0m 按需修改 \033[36minit_data.py\033[0m 添加菜单、角色、种子数据
+  \033[1m2.\033[0m \033[36minit_data.py\033[0m 已生成业务菜单；按需调整图标/排序，并补充角色、种子数据
   \033[1m3.\033[0m 执行数据库迁移：
 
      \033[36mjust mm\033[0m
@@ -31,14 +40,52 @@ GUIDE_TEXT = """\
 """
 
 
-@click.command()
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("module_name")
+@click.option("--models", "models_spec", default=None, help="要生成 CRUD 的模型，逗号分隔；支持序号、类名、all")
+@click.option("-y", "--yes", "assume_yes", is_flag=True, help="不进入交互，使用全模型与推荐默认配置")
+@click.option("--contains", "contains_specs", multiple=True, help="模糊查询字段，例: User:name,nick_name;Role:role_name")
+@click.option("--exact", "exact_specs", multiple=True, help="精确查询字段，例: User:status_type,tenant_id")
+@click.option("--list-order", "list_order_specs", multiple=True, help="列表默认排序，例: User:-created_at,id")
+@click.option("--enable-routes", "enable_route_specs", multiple=True, help="启用标准路由，例: User:list,get,create")
+@click.option("--exclude-fields", "exclude_field_specs", multiple=True, help="to_dict 排除字段，例: User:password,secret")
+@click.option("--soft-delete", "soft_delete_specs", multiple=True, help="启用软删除的模型，例: User 或 all")
+@click.option("--tree", "tree_specs", multiple=True, help="生成 tree 端点的模型，例: Department 或 all")
+@click.option("--button-auth", is_flag=True, help="为 create/edit/delete 生成按钮权限与菜单按钮声明")
+@click.option("--data-scope", "data_scope_specs", multiple=True, help="列表行级权限字段，例: Employee:user_id,tenant_id")
+@click.option("--list-cache", "list_cache_specs", multiple=True, help="列表接口缓存 TTL 秒数，例: Dict:60")
+@click.option("--rate-limit", "rate_limit_specs", multiple=True, help="输出 guard 限流配置提示，例: LoginLog:30/60")
 @click.option("--force", is_flag=True, help="强制覆盖已存在的文件")
 @click.option("--no-format", is_flag=True, help="跳过 just fmt backend")
-def gen(module_name: str, force: bool, no_format: bool):
+def gen(
+    module_name: str,
+    models_spec: str | None,
+    assume_yes: bool,
+    contains_specs: tuple[str, ...],
+    exact_specs: tuple[str, ...],
+    list_order_specs: tuple[str, ...],
+    enable_route_specs: tuple[str, ...],
+    exclude_field_specs: tuple[str, ...],
+    soft_delete_specs: tuple[str, ...],
+    tree_specs: tuple[str, ...],
+    button_auth: bool,
+    data_scope_specs: tuple[str, ...],
+    list_cache_specs: tuple[str, ...],
+    rate_limit_specs: tuple[str, ...],
+    force: bool,
+    no_format: bool,
+):
     """根据 models.py 生成 schemas / controllers / api 等文件。
 
     MODULE_NAME: 业务模块名（app/business/<MODULE_NAME>/）
+
+    示例:
+
+      uv run python -m app.cli gen hr --yes --models Employee,Department
+      uv run python -m app.cli gen hr --models Employee --contains Employee:name --exact Employee:status_type --data-scope Employee:user_id,tenant_id
     """
     module_dir = BUSINESS_DIR / module_name
     models_path = module_dir / "models.py"
@@ -56,15 +103,55 @@ def gen(module_name: str, force: bool, no_format: bool):
 
     click.echo(f"\n  \033[1m✓\033[0m 解析模块: \033[36m{relative_path(models_path)}\033[0m")
     click.echo(f"  \033[1m✓\033[0m 发现模型: {', '.join(f'{m.name} ({m.cn_name})' for m in models)}")
-    models = prompt_model_selection(models)
+    if models_spec:
+        models = resolve_model_selection(models, models_spec)
+        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+    elif assume_yes:
+        click.echo(f"  \033[1m✓\033[0m 本次生成 CRUD: {', '.join(model.name for model in models)}")
+    else:
+        models = prompt_model_selection(models)
 
     # 2. 交互选择搜索字段
-    contains_map = prompt_contains_fields(models)
-    exact_map = prompt_exact_fields(models, contains_map)
+    if contains_specs or assume_yes:
+        contains_map = resolve_field_map(
+            models,
+            contains_specs,
+            fuzzy_field_candidates,
+            default_names_fn=all_choice_names,
+            defaults_when_missing=assume_yes,
+            option_name="--contains",
+        )
+    else:
+        contains_map = prompt_contains_fields(models)
+
+    if exact_specs or assume_yes:
+        exact_map = resolve_field_map(
+            models,
+            exact_specs,
+            lambda model: exact_field_candidates(model, contains_map),
+            default_names_fn=default_exact_field_names,
+            defaults_when_missing=assume_yes,
+            option_name="--exact",
+        )
+    else:
+        exact_map = prompt_exact_fields(models, contains_map)
+
+    backend_options = build_backend_feature_options(
+        models,
+        list_order_specs=list_order_specs,
+        enable_route_specs=enable_route_specs,
+        exclude_field_specs=exclude_field_specs,
+        soft_delete_specs=soft_delete_specs,
+        tree_specs=tree_specs,
+        button_auth=button_auth,
+        data_scope_specs=data_scope_specs,
+        list_cache_specs=list_cache_specs,
+        rate_limit_specs=rate_limit_specs,
+    )
 
     # 3. 生成文件
     click.echo("")
-    results = generate_all(module_dir, module_name, models, contains_map, exact_map=exact_map, force=force)
+    results = generate_all(module_dir, module_name, models, contains_map, exact_map=exact_map, backend_options=backend_options, force=force)
 
     for rel_path, status in results:
         echo_file_result(f"app/business/{module_name}/{rel_path}", status)

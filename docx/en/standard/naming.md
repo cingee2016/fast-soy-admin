@@ -111,7 +111,7 @@ common.<key>         # global
 |---|---|
 | Table name | `<scope>_<module>_<entity>` (lowercase + underscore, singular) |
 | PK | `id` (int) |
-| FK field | `<entity>_id` (e.g. `department_id`) |
+| FK field | `<entity>_id` (e.g. `team_id`) |
 | Time fields | `created_at` / `updated_at` / `deleted_at` |
 | Status field | `status` or `status_type` (matching frontend expectation) |
 

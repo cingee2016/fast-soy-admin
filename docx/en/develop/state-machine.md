@@ -86,7 +86,7 @@ EMPLOYEE_FSM.allowed("pending", "active")    # → False
 EMPLOYEE_FSM.allowed_targets("pending")      # → ["onboarding"]
 ```
 
-The frontend can use this to show a "next action" button dynamically. See [HR module](/en/develop/business-hr#state-machine-employee-state-transitions).
+The frontend can use this to show a "next action" button dynamically. See [HR module](/en/advanced/business-hr#state-machine-employee-state-transitions).
 
 ## Failure → TransitionError
 
@@ -146,5 +146,5 @@ async def test_pending_to_active_blocked():
 
 ## See also
 
-- [HR module (full employee state transition example)](/en/develop/business-hr#state-machine-employee-state-transitions)
+- [HR module (full employee state transition example)](/en/advanced/business-hr#state-machine-employee-state-transitions)
 - [Event bus](/en/develop/events) — emit audit events after transitions

@@ -101,7 +101,7 @@ await ensure_menu(
 
 #### 3. 公开接口
 
-接口放在 `/<module>/public/*` 前缀下，**不要**挂 `DependAuth / DependPermission`，**不要**返回 PII。详见 [HR 模块 · 公开接口](../../develop/business-hr.md#_5-公开接口-常量路由示例)。
+接口放在 `/<module>/public/*` 前缀下，**不要**挂 `DependAuth / DependPermission`，**不要**返回 PII。详见 [HR 模块 · 公开接口](../../advanced/business-hr.md#_5-公开接口-常量路由示例)。
 
 ## meta.roles（仅静态路由）
 

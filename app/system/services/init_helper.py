@@ -158,7 +158,7 @@ async def ensure_role(
     关系同步语义：None=不修改，[]=清空，[...]=替换为声明的集合。
 
     Args:
-        data_scope: 行级数据范围（``all`` / ``department`` / ``self`` / ``custom``）。
+        data_scope: 行级数据范围（``all`` / ``scope`` / ``self`` / ``custom``）。
             None 时不写入该字段，沿用 Role 模型默认值（``all``）。
         menus: route_name 列表
         buttons: button_code 列表

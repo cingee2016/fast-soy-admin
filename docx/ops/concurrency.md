@@ -603,8 +603,8 @@ async def import_employees(redis: Redis, file_id: str, rows: list[EmployeeCreate
         async with in_transaction(get_db_conn(Employee)):
             for row in rows:
                 emp = await Employee.create(**row.model_dump())
-                # 3) 乐观锁: 对同一个部门的 head_count 做原子 +1
-                await Department.filter(id=row.department_id).update(
+                # 3) 乐观锁: 对同一个团队的 head_count 做原子 +1
+                await Team.filter(id=row.team_id).update(
                     head_count=F("head_count") + 1,
                 )
         return Success(msg="导入成功")
