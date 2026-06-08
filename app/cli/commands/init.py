@@ -55,13 +55,13 @@ from app.utils import AuditMixin, BaseModel, StatusType
 def _guide_lines(module_name: str, module_path: str, models_path: str) -> list[str]:
     return [
         "",
-        f"[OK] 模块 {module_name} 创建成功！",
+        f"✅ 模块 {module_name} 创建成功！",
         "",
-        f"  {module_path}/",
+        f"  📂 {module_path}/",
         "     - __init__.py",
         "     - models.py          <- 请在这里定义你的模型",
         "",
-        "[NEXT] 下一步：",
+        "📋 下一步：",
         "",
         f"  1. 用编辑器打开 {models_path}",
         "     参照注释中的示例，定义你的 Tortoise ORM 模型。",
