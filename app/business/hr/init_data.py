@@ -410,7 +410,7 @@ async def _init_menu_data() -> None:
         route_name="hr",
         route_path="/hr",
         icon="mdi:account-group",
-        order=8,
+        order=20,
         children=HR_MENU_CHILDREN,
     )
     # HR 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮。
