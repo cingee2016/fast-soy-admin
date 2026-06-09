@@ -268,6 +268,14 @@ SYSTEM_INIT_DATA = {
                     "icon": "material-symbols:route",
                 },
                 {
+                    "menu_name": "代码生成",
+                    "route_name": "manage_codegen",
+                    "route_path": "/manage/codegen",
+                    "component": "view.manage_codegen",
+                    "order": 5,
+                    "icon": "mdi:code-json",
+                },
+                {
                     "menu_name": "用户详情",
                     "route_name": "manage_user-detail",
                     "route_path": "/manage/user-detail/:id",
@@ -495,6 +503,7 @@ SYSTEM_INIT_DATA = {
                 "manage_role",
                 "manage_menu",
                 "manage_api",
+                "manage_codegen",
                 "manage_radar",
                 "manage_radar_overview",
                 "manage_radar_requests",

@@ -146,7 +146,7 @@ def _parse_field(name: str, call: ast.Call) -> FieldInfo | RelationInfo | None:
     # CharEnumField / IntEnumField: 提取 enum_type
     enum_type = None
     if field_type in ("CharEnumField", "IntEnumField"):
-        enum_node = _get_keyword_value(call, "enum_type")
+        enum_node = _get_keyword_value(call, "enum_type") or (call.args[0] if call.args else None)
         enum_type = str(_eval_const(enum_node)) if enum_node else None
         # 如果有 enum_type，python_type 改成该类型名
         if enum_type:

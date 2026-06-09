@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from app.cli.display import echo_file_result, echo_lines, format_path, has_written_files, relative_path, run_just_format
+from app.cli.git_tools import ensure_committed_worktree
 from app.cli.options import all_choice_names, resolve_field_map
 from app.cli.parser import parse_models
 from app.cli.prompts import frontend_list_field_candidates, frontend_search_field_candidates, prompt_fields, prompt_model_selection, resolve_model_selection
@@ -31,7 +32,12 @@ def _guide_lines(module: str) -> list[str]:
         "",
         "  2. 搜索生成代码中的 TODO 注释，补充外键 / 枚举的 options 数据源",
         "",
-        "  3. 启动前端验证（首次启动会自动更新 elegant-router.d.ts 的路由类型）：",
+        "  3. 如需撤销本次生成，先预览再执行：",
+        "",
+        '     just cli-undo "--dry-run"',
+        "     just cli-undo",
+        "",
+        "  4. 启动前端验证（首次启动会自动更新 elegant-router.d.ts 的路由类型）：",
         "",
         "     cd web && pnpm dev",
     ]
@@ -84,6 +90,8 @@ def gen_web(
 
     if not WEB_ROOT.exists():
         raise click.ClickException(f"找不到前端目录 {format_path(WEB_ROOT)}")
+
+    ensure_committed_worktree()
 
     # 1. 解析模型
     models = parse_models(models_path)

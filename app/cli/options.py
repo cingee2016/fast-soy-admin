@@ -67,6 +67,10 @@ def _normalize_choice(choice: ChoiceInput) -> PromptChoice:
     return PromptChoice(choice, choice)
 
 
+def _display_choices(choices: Sequence[PromptChoice]) -> str:
+    return " | ".join(f"{index}.{choice.name}({choice.description or choice.name})" for index, choice in enumerate(choices, start=1))
+
+
 def _model_lookup(models: Sequence[ModelInfo]) -> dict[str, ModelInfo]:
     lookup: dict[str, ModelInfo] = {}
     for model in models:
@@ -119,6 +123,8 @@ def resolve_model_set(models: Sequence[ModelInfo], values: Sequence[str] | None,
 
 def _candidate_names(model: ModelInfo) -> set[str]:
     names = {"id", "created_at", "updated_at"}
+    if model.has_audit_mixin:
+        names.update({"created_by", "updated_by"})
     names.update(field.name for field in model.fields)
     names.update(f"{relation.name}_id" for relation in model.relations if relation.relation_type in ("ForeignKeyField", "OneToOneField"))
     return names
@@ -265,6 +271,91 @@ def resolve_data_scope_map(models: Sequence[ModelInfo], values: Sequence[str] | 
     return result
 
 
+def _data_scope_field_choices(model: ModelInfo) -> list[PromptChoice]:
+    """Fields that are likely to be usable in build_scope_filter()."""
+    choices: list[PromptChoice] = [PromptChoice("id", "主键")]
+    seen = {"id"}
+    preferred_types = {"IntField", "BigIntField", "SmallIntField"}
+
+    if model.has_audit_mixin:
+        choices.extend([
+            PromptChoice("created_by", "创建人"),
+            PromptChoice("updated_by", "更新人"),
+        ])
+        seen.update({"created_by", "updated_by"})
+
+    for field_info in model.schema_fields:
+        if field_info.field_type not in preferred_types and not field_info.name.endswith("_id"):
+            continue
+        if field_info.name in seen:
+            continue
+        seen.add(field_info.name)
+        choices.append(PromptChoice(field_info.name, field_info.description or field_info.name))
+
+    for relation in model.relations:
+        if relation.relation_type not in ("ForeignKeyField", "OneToOneField"):
+            continue
+        name = f"{relation.name}_id"
+        if name in seen:
+            continue
+        seen.add(name)
+        choices.append(PromptChoice(name, relation.description or relation.name))
+
+    return choices
+
+
+def _first_existing(candidates: Sequence[PromptChoice], names: Sequence[str], fallback: str = "id") -> str:
+    available = {choice.name for choice in candidates}
+    for name in names:
+        if name in available:
+            return name
+    return fallback if fallback in available else candidates[0].name
+
+
+def _prompt_single_data_scope_field(label: str, choices: list[PromptChoice], default_name: str) -> str:
+    raw = click.prompt(label, default=default_name, show_default=True)
+    names = _resolve_field_names(raw, choices, option_name="--data-scope")
+    if len(names) != 1:
+        valid = ", ".join(choice.name for choice in choices)
+        raise click.ClickException(f"--data-scope: {label.strip()} 只能选择一个字段。可选值: {valid}")
+    return names[0]
+
+
+def prompt_data_scope_map(models: Sequence[ModelInfo]) -> dict[str, DataScopeOption]:
+    """Interactively choose row-level data-scope fields."""
+    click.echo("")
+    if not click.confirm("  是否为列表接口启用行级数据权限 data_scope？", default=False):
+        return {}
+
+    result: dict[str, DataScopeOption] = {}
+    for model in models:
+        choices = _data_scope_field_choices(model)
+        if not choices:
+            click.echo(f"  ➖ {model.name} 没有可用的整型/FK 字段，跳过 data_scope")
+            continue
+
+        default_enabled = any(choice.name in {"user_id", "owner_id", "department_id", "tenant_id", "scope_id"} for choice in choices)
+        click.echo("")
+        if not click.confirm(f"  {model.name} ({model.cn_name}) 启用 data_scope？", default=default_enabled):
+            continue
+
+        click.echo(f"  可用范围字段: {_display_choices(choices)}")
+        user_field = _prompt_single_data_scope_field(
+            "  用户字段 user_id_field（self 范围会匹配它）",
+            choices,
+            _first_existing(choices, ["user_id", "owner_id", "created_by"]),
+        )
+        scope_field = _prompt_single_data_scope_field(
+            "  业务范围字段 scope_id_field（scope/custom 范围会匹配它）",
+            choices,
+            _first_existing(choices, ["scope_id", "department_id", "tenant_id", "project_id", "store_id"]),
+        )
+        result[model.name] = DataScopeOption(user_id_field=user_field, scope_id_field=scope_field)
+        click.echo(f"  ✅ {model.name}: --data-scope {model.name}:{user_field},{scope_field}")
+
+    return result
+
+
 def resolve_ttl_map(models: Sequence[ModelInfo], values: Sequence[str] | None) -> dict[str, int]:
     result: dict[str, int] = {}
     for spec in split_specs(values):
@@ -326,6 +417,7 @@ def build_backend_feature_options(
     tree_specs: Sequence[str] | None = None,
     button_auth: bool = False,
     data_scope_specs: Sequence[str] | None = None,
+    data_scope_map: dict[str, DataScopeOption] | None = None,
     list_cache_specs: Sequence[str] | None = None,
     rate_limit_specs: Sequence[str] | None = None,
 ) -> BackendFeatureOptions:
@@ -336,7 +428,7 @@ def build_backend_feature_options(
         soft_delete_models=resolve_model_set(models, soft_delete_specs, option_name="--soft-delete"),
         tree_models=resolve_model_set(models, tree_specs, option_name="--tree"),
         button_auth_models={model.name for model in models} if button_auth else set(),
-        data_scope=resolve_data_scope_map(models, data_scope_specs),
+        data_scope=data_scope_map if data_scope_map is not None else resolve_data_scope_map(models, data_scope_specs),
         list_cache_ttl=resolve_ttl_map(models, list_cache_specs),
         rate_limits=resolve_rate_limit_map(models, rate_limit_specs),
     )

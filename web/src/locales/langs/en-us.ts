@@ -279,6 +279,7 @@ const local: App.I18n.BaseSchema = {
     'manage_user-detail': 'User Detail',
     manage_role: 'Role Manage',
     manage_menu: 'Menu Manage',
+    manage_codegen: 'Code Generator',
     manage_radar: 'Radar',
     manage_radar_overview: 'Dashboard',
     manage_radar_requests: 'Requests',

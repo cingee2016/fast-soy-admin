@@ -86,3 +86,4 @@ app_system_e2e.sqlite3*
 .claude/
 
 tmp/
+codegen_backups/

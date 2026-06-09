@@ -1,8 +1,25 @@
 import pytest
 
+from app.system.init_data import SYSTEM_INIT_DATA
 from app.system.services import init_helper
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_system_init_data_exposes_codegen_menu_to_admin():
+    manage_menu = next(menu for menu in SYSTEM_INIT_DATA["menus"] if menu["route_name"] == "manage")
+    codegen_menu = next(child for child in manage_menu["children"] if child["route_name"] == "manage_codegen")
+    admin_role = next(role for role in SYSTEM_INIT_DATA["roles"] if role["role_code"] == "R_ADMIN")
+
+    assert codegen_menu == {
+        "menu_name": "代码生成",
+        "route_name": "manage_codegen",
+        "route_path": "/manage/codegen",
+        "component": "view.manage_codegen",
+        "order": 5,
+        "icon": "mdi:code-json",
+    }
+    assert "manage_codegen" in admin_role["menus"]
 
 
 async def test_apply_init_data_applies_menus_roles_users_and_dictionaries(monkeypatch):

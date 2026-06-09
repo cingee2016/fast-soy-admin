@@ -38,6 +38,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   hr_tag: () => import("@/views/hr/tag/index.vue"),
   hr_team: () => import("@/views/hr/team/index.vue"),
   manage_api: () => import("@/views/manage/api/index.vue"),
+  manage_codegen: () => import("@/views/manage/codegen/index.vue"),
   manage_menu: () => import("@/views/manage/menu/index.vue"),
   manage_radar_exceptions: () => import("@/views/manage/radar/exceptions/index.vue"),
   manage_radar_monitor: () => import("@/views/manage/radar/monitor/index.vue"),

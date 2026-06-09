@@ -7,6 +7,7 @@ from app.cli.commands.gen_all import gen_all
 from app.cli.commands.gen_web import gen_web
 from app.cli.commands.init import init
 from app.cli.commands.initdb import initdb
+from app.cli.commands.undo import undo
 from app.cli.display import configure_output_encoding
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
@@ -21,6 +22,7 @@ def cli():
       uv run python -m app.cli init inventory
       uv run python -m app.cli crud inventory --cn-name 库存 --yes
       uv run python -m app.cli crud inventory --models Item --contains Item:name --exact Item:status_type
+      uv run python -m app.cli undo --dry-run
 
     查询字段:
 
@@ -36,3 +38,4 @@ cli.add_command(gen_all, name="gen-all")
 cli.add_command(gen_all, name="crud")
 cli.add_command(gen_web, name="gen-web")
 cli.add_command(initdb)
+cli.add_command(undo)

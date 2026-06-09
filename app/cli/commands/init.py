@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 
 from app.cli.display import echo_lines, relative_path
+from app.cli.git_tools import ensure_committed_worktree
 
 BUSINESS_DIR = Path(__file__).resolve().parents[2] / "business"
 
@@ -74,7 +75,12 @@ def _guide_lines(module_name: str, module_path: str, models_path: str) -> list[s
         "     - 外键字段上方必须声明 <name>_id: int（或 int | None）注解；",
         "       使用时一律用 obj.<name>_id，访问关系对象字段前先 prefetch_related(...)",
         "",
-        "  2. 模型写好后，运行代码生成（后端 + 前端 CRUD 一次生成）：",
+        "  2. 如需撤销刚创建的模块，先预览再执行：",
+        "",
+        '     just cli-undo "--dry-run"',
+        "     just cli-undo",
+        "",
+        "  3. 模型写好后，运行代码生成（后端 + 前端 CRUD 一次生成）：",
         "",
         f"     just cli-crud {module_name}",
         "",
@@ -85,11 +91,11 @@ def _guide_lines(module_name: str, module_path: str, models_path: str) -> list[s
         "     将自动生成后端 schemas.py / controllers.py / services.py / api/，",
         "     以及前端 service / typings / views / i18n 等文件。",
         "",
-        "  3. 生成后执行数据库迁移：",
+        "  4. 生成后执行数据库迁移：",
         "",
         "     just mm",
         "",
-        "  4. 启动服务验证：",
+        "  5. 启动服务验证：",
         "",
         "     just run",
     ]
@@ -135,6 +141,8 @@ def init(module_name: str, cn_name: str | None):
 
     if module_dir.exists() and _has_module_content(module_dir):
         raise click.ClickException(f"模块目录已存在: {relative_path(module_dir)}")
+
+    ensure_committed_worktree()
 
     # 创建目录
     module_dir.mkdir(parents=True, exist_ok=True)
