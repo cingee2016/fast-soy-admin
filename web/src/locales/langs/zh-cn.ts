@@ -240,6 +240,7 @@ const local: App.I18n.BaseSchema = {
     'manage_user-detail': '用户详情',
     manage_role: '角色管理',
     manage_menu: '菜单管理',
+    manage_codegen: '代码生成',
     manage_radar: '性能监控',
     manage_radar_overview: '仪表盘',
     manage_radar_requests: '请求列表',

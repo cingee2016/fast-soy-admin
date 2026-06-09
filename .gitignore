@@ -85,3 +85,5 @@ app_system_e2e.sqlite3*
 .codex/
 .claude/
 
+tmp/
+codegen_backups/

@@ -211,6 +211,10 @@ cli-gen-all mod cn='' args='':
 cli-crud mod cn='' args='':
     uv run python -m app.cli crud "{{mod}}"{{ if cn == "" { "" } else { " --cn-name \"" + cn + "\"" } }} {{args}}
 
+# Undo generated frontend/backend code after backing it up.
+cli-undo args='':
+    uv run python -m app.cli undo {{args}}
+
 # ---- E2E ----------------------------------------------------
 
 # Reset E2E sqlite and create schema from current models.

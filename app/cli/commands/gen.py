@@ -8,7 +8,8 @@ import click
 
 from app.cli.display import echo_file_result, echo_lines, has_written_files, relative_path, run_just_format
 from app.cli.generator import generate_all
-from app.cli.options import all_choice_names, build_backend_feature_options, resolve_field_map
+from app.cli.git_tools import ensure_committed_worktree
+from app.cli.options import all_choice_names, build_backend_feature_options, prompt_data_scope_map, resolve_field_map
 from app.cli.parser import parse_models
 from app.cli.prompts import (
     default_exact_field_names,
@@ -30,11 +31,16 @@ GUIDE_LINES = [
     "",
     "  1. 按需修改 services.py 中的业务逻辑",
     "  2. init_data.py 已生成业务菜单；按需调整图标/排序，并补充角色、种子数据",
-    "  3. 执行数据库迁移：",
+    "  3. 如需撤销本次生成，先预览再执行：",
+    "",
+    '     just cli-undo "--dry-run"',
+    "     just cli-undo",
+    "",
+    "  4. 执行数据库迁移：",
     "",
     "     just mm",
     "",
-    "  4. 启动服务验证：",
+    "  5. 启动服务验证：",
     "",
     "     just run",
 ]
@@ -96,6 +102,8 @@ def gen(
     if not models_path.exists():
         raise click.ClickException(f"models.py 不存在: {relative_path(models_path)}")
 
+    ensure_committed_worktree()
+
     # 1. 解析模型
     models = parse_models(models_path)
     if not models:
@@ -137,6 +145,7 @@ def gen(
     else:
         exact_map = prompt_exact_fields(models, contains_map)
 
+    data_scope_map = None if data_scope_specs or assume_yes else prompt_data_scope_map(models)
     backend_options = build_backend_feature_options(
         models,
         list_order_specs=list_order_specs,
@@ -146,6 +155,7 @@ def gen(
         tree_specs=tree_specs,
         button_auth=button_auth,
         data_scope_specs=data_scope_specs,
+        data_scope_map=data_scope_map,
         list_cache_specs=list_cache_specs,
         rate_limit_specs=rate_limit_specs,
     )

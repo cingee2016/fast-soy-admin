@@ -1,15 +1,20 @@
 import importlib
+import json
 import subprocess
 from pathlib import Path
 
+import click
+import pytest
 from click.testing import CliRunner
 
 from app.cli import cli
 from app.cli import display as cli_display
+from app.cli import git_tools
 from app.cli.display import format_path
 from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas
+from app.cli.options import BackendFeatureOptions, DataScopeOption, resolve_data_scope_map
 from app.cli.parser import parse_models
-from app.cli.prompts import resolve_model_selection
+from app.cli.prompts import default_exact_field_names, exact_field_candidates, resolve_model_selection
 from app.cli.web_generator import gen_view_drawer, gen_view_search, generate_web
 
 
@@ -74,6 +79,7 @@ def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
     init_module = importlib.import_module("app.cli.commands.init")
     monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
     monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+    monkeypatch.setattr(init_module, "ensure_committed_worktree", lambda: None)
 
     result = CliRunner().invoke(cli, ["init", "inventory"])
 
@@ -85,6 +91,7 @@ def test_cli_init_does_not_prompt_for_cn_name(tmp_path: Path, monkeypatch):
     models_content = (tmp_path / "inventory" / "models.py").read_text(encoding="utf-8")
     assert "inventory — 业务模型定义" in models_content
     assert "just cli-crud inventory" in models_content
+    assert 'just cli-undo "--dry-run"' in result.output
     assert "just cli-crud inventory inventory" not in models_content
 
 
@@ -95,6 +102,7 @@ def test_cli_init_allows_existing_empty_module_dir(tmp_path: Path, monkeypatch):
     (module_dir / "api" / "__pycache__" / "manage.cpython-312.pyc").write_bytes(b"cache")
     monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
     monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+    monkeypatch.setattr(init_module, "ensure_committed_worktree", lambda: None)
 
     result = CliRunner().invoke(cli, ["init", "utility_fee2"])
 
@@ -110,12 +118,26 @@ def test_cli_init_rejects_existing_non_empty_module_dir(tmp_path: Path, monkeypa
     (module_dir / "manage.py").write_text("existing", encoding="utf-8")
     monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
     monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+    monkeypatch.setattr(init_module, "ensure_committed_worktree", lambda: None)
 
     result = CliRunner().invoke(cli, ["init", "utility_fee2"])
 
     assert result.exit_code != 0
     assert "模块目录已存在: utility_fee2" in result.output
     assert (module_dir / "manage.py").read_text(encoding="utf-8") == "existing"
+
+
+def test_cli_init_requires_clean_git_before_writing(tmp_path: Path, monkeypatch):
+    init_module = importlib.import_module("app.cli.commands.init")
+    monkeypatch.setattr(init_module, "BUSINESS_DIR", tmp_path)
+    monkeypatch.setattr(init_module, "relative_path", lambda path: path.relative_to(tmp_path).as_posix())
+    monkeypatch.setattr(init_module, "ensure_committed_worktree", lambda: (_ for _ in ()).throw(click.ClickException("dirty tree")))
+
+    result = CliRunner().invoke(cli, ["init", "inventory"])
+
+    assert result.exit_code != 0
+    assert "dirty tree" in result.output
+    assert not (tmp_path / "inventory").exists()
 
 
 def test_parse_models_uses_first_docstring_line(tmp_path: Path):
@@ -145,6 +167,43 @@ class InventoryItem(BaseModel):
     [model] = parse_models(models_path)
 
     assert model.cn_name == "库存项"
+
+
+def test_parse_models_supports_positional_enum_fields_and_exact_defaults(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from enum import IntEnum
+from tortoise import fields
+
+from app.utils import BaseModel, StatusType
+
+
+class PayGrade(IntEnum):
+    p1 = 1
+    p2 = 2
+
+
+class Employee(BaseModel):
+    """员工"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="姓名")
+    status = fields.CharEnumField(StatusType, default=StatusType.enable, description="状态")
+    pay_grade = fields.IntEnumField(PayGrade, default=PayGrade.p1, description="职级")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    fields = {field.name: field for field in model.schema_fields}
+    assert fields["status"].enum_type == "StatusType"
+    assert fields["pay_grade"].enum_type == "PayGrade"
+
+    candidates = exact_field_candidates(model, {"Employee": ["name"]})
+    defaults = default_exact_field_names(model, candidates)
+    assert "status" in defaults
+    assert "pay_grade" in defaults
 
 
 def test_resolve_model_selection_supports_indexes_and_names(tmp_path: Path):
@@ -207,6 +266,45 @@ class UtilityPrice(BaseModel):
     assert "contains_fields=['remark']" in content
     assert "exact_fields=['enabled']" in content
     assert "exact_fields=['status']" not in content
+
+
+def test_gen_api_manage_generates_data_scope_list_override(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import AuditMixin, BaseModel
+
+
+class Employee(BaseModel, AuditMixin):
+    """员工"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="姓名")
+    user_id = fields.IntField(null=True, description="关联系统用户")
+    department_id = fields.IntField(description="所属部门")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    content = gen_api_manage(
+        "hr",
+        [model],
+        {"Employee": ["name"]},
+        {"Employee": ["department_id"]},
+        backend_options=BackendFeatureOptions(data_scope={"Employee": DataScopeOption("user_id", "department_id")}),
+    )
+
+    assert '@employee_crud.override("list")' in content
+    assert "scope = await get_current_data_scope(request.app.state.redis)" in content
+    assert 'user_id_field="user_id"' in content
+    assert 'scope_id_field="department_id"' in content
+    assert "return SuccessExtra" in content
+
+    data_scope = resolve_data_scope_map([model], ["Employee:created_by,department_id"])
+    assert data_scope["Employee"] == DataScopeOption("created_by", "department_id")
 
 
 def test_gen_init_data_includes_business_menus(tmp_path: Path):
@@ -390,3 +488,95 @@ class UtilityReading(BaseModel):
     assert "model.rawData = parseJsonInput(value)" in drawer
     assert ':value="model.enabled as any"' in search
     assert "value => (model.enabled = value as boolean | null)" in search
+
+
+def test_git_preflight_rejects_dirty_worktree(monkeypatch):
+    def fake_run_git(args, *, check=True):
+        if args == ["rev-parse", "--show-toplevel"]:
+            return subprocess.CompletedProcess(["git", *args], 0, stdout=f"{git_tools.PROJECT_ROOT}\n", stderr="")
+        if args == ["rev-parse", "--verify", "HEAD"]:
+            return subprocess.CompletedProcess(["git", *args], 0, stdout="abc123\n", stderr="")
+        if args == ["status", "--porcelain=v1", "--untracked-files=all"]:
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                0,
+                stdout=" M app/cli/generator.py\n?? web/src/views/demo/index.vue\n",
+                stderr="",
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(git_tools, "_run_git", fake_run_git)
+
+    with pytest.raises(click.ClickException) as exc_info:
+        git_tools.ensure_committed_worktree()
+
+    message = str(exc_info.value)
+    assert "代码生成前需要一个已提交且干净的工作区" in message
+    assert "app/cli/generator.py" in message
+    assert "web/src/views/demo/index.vue" in message
+
+
+def test_collect_codegen_changes_keeps_non_codegen_paths(monkeypatch):
+    def fake_run_git(args, *, check=True):
+        if args == ["rev-parse", "--show-toplevel"]:
+            return subprocess.CompletedProcess(["git", *args], 0, stdout=f"{git_tools.PROJECT_ROOT}\n", stderr="")
+        if args == ["rev-parse", "--verify", "HEAD"]:
+            return subprocess.CompletedProcess(["git", *args], 0, stdout="abc123\n", stderr="")
+        if args == ["status", "--porcelain=v1", "--untracked-files=all"]:
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                0,
+                stdout=(
+                    " M app/business/hr/schemas.py\n"
+                    " M README.md\n"
+                    " M web/src/router/elegant/routes.ts\n"
+                    " M web/src/typings/components.d.ts\n"
+                    "?? web/src/locales/langs/_generated/hr/zh-cn.ts\n"
+                ),
+                stderr="",
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(git_tools, "_run_git", fake_run_git)
+
+    selected, skipped = git_tools.collect_codegen_changes()
+
+    assert [change.path for change in selected] == [
+        "app/business/hr/schemas.py",
+        "web/src/router/elegant/routes.ts",
+        "web/src/typings/components.d.ts",
+        "web/src/locales/langs/_generated/hr/zh-cn.ts",
+    ]
+    assert [change.path for change in skipped] == ["README.md"]
+
+
+def test_backup_and_undo_codegen_changes_use_git(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(git_tools, "PROJECT_ROOT", tmp_path)
+    source = tmp_path / "app/business/hr/schemas.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("generated schema", encoding="utf-8")
+
+    changes = [
+        git_tools.GitChange(" M", "app/business/hr/schemas.py"),
+        git_tools.GitChange("??", "web/src/views/hr/employee/index.vue"),
+    ]
+
+    backup_path = git_tools.backup_codegen_changes(changes, tmp_path / "codegen_backups")
+    manifest = json.loads((backup_path / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["changes"][0]["path"] == "app/business/hr/schemas.py"
+    assert (backup_path / "app/business/hr/schemas.py").read_text(encoding="utf-8") == "generated schema"
+
+    calls: list[list[str]] = []
+
+    def fake_run_git(args, *, check=True):
+        calls.append(args)
+        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+
+    monkeypatch.setattr(git_tools, "_run_git", fake_run_git)
+
+    git_tools.undo_codegen_changes(changes)
+
+    assert calls == [
+        ["restore", "--staged", "--worktree", "--", "app/business/hr/schemas.py"],
+        ["clean", "-fd", "--", "web/src/views/hr/employee/index.vue"],
+    ]

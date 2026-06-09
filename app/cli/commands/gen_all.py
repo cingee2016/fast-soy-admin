@@ -8,7 +8,8 @@ import click
 
 from app.cli.display import echo_file_result, echo_lines, format_path, has_written_files, relative_path, run_just_format
 from app.cli.generator import generate_all
-from app.cli.options import all_choice_names, build_backend_feature_options, resolve_field_map
+from app.cli.git_tools import ensure_committed_worktree
+from app.cli.options import all_choice_names, build_backend_feature_options, prompt_data_scope_map, resolve_field_map
 from app.cli.parser import parse_models
 from app.cli.prompts import (
     default_exact_field_names,
@@ -37,15 +38,20 @@ GUIDE_LINES = [
     "",
     "  1. 搜索生成代码中的 TODO，补充外键 / 枚举的 options 数据源",
     "  2. init_data.py 已生成业务菜单；按需调整图标/排序，并补充业务逻辑、角色、种子数据",
-    "  3. 执行数据库迁移：",
+    "  3. 如需撤销本次生成，先预览再执行：",
+    "",
+    '     just cli-undo "--dry-run"',
+    "     just cli-undo",
+    "",
+    "  4. 执行数据库迁移：",
     "",
     "     just mm",
     "",
-    "  4. 启动服务验证：",
+    "  5. 启动服务验证：",
     "",
     "     just run",
     "",
-    "  5. 提交前运行完整质量检查：",
+    "  6. 提交前运行完整质量检查：",
     "",
     "     just check",
 ]
@@ -131,6 +137,8 @@ def gen_all(
     if not WEB_ROOT.exists():
         raise click.ClickException(f"找不到前端目录 {format_path(WEB_ROOT)}")
 
+    ensure_committed_worktree()
+
     models = parse_models(models_path)
     if not models:
         raise click.ClickException("未在 models.py 中发现任何继承 BaseModel 的模型类")
@@ -178,6 +186,7 @@ def gen_all(
     else:
         exact_map = prompt_exact_fields(models, contains_map)
 
+    data_scope_map = None if data_scope_specs or assume_yes else prompt_data_scope_map(models)
     backend_options = build_backend_feature_options(
         models,
         list_order_specs=list_order_specs,
@@ -187,6 +196,7 @@ def gen_all(
         tree_specs=tree_specs,
         button_auth=button_auth,
         data_scope_specs=data_scope_specs,
+        data_scope_map=data_scope_map,
         list_cache_specs=list_cache_specs,
         rate_limit_specs=rate_limit_specs,
     )

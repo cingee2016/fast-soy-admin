@@ -84,6 +84,18 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'manage_codegen',
+        path: '/manage/codegen',
+        component: 'view.manage_codegen',
+        meta: {
+          title: 'manage_codegen',
+          i18nKey: 'route.manage_codegen',
+          icon: 'mdi:code-json',
+          order: 5,
+          roles: ['R_ADMIN']
+        }
+      },
+      {
         name: 'manage_menu',
         path: '/manage/menu',
         component: 'view.manage_menu',
