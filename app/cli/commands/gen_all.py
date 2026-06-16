@@ -94,6 +94,7 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 
 @click.option("--list-cache", "list_cache_specs", multiple=True, help="列表接口缓存 TTL 秒数，例: Dict:60")
 @click.option("--rate-limit", "rate_limit_specs", multiple=True, help="输出 guard 限流配置提示，例: LoginLog:30/60")
 @click.option("--force", is_flag=True, help="强制覆盖已存在的文件")
+@click.option("--dry-run", is_flag=True, help="只预览将创建/覆盖/追加的文件，不写入磁盘")
 @click.option("--no-format", is_flag=True, help="跳过 just fmt backend/frontend")
 def gen_all(
     module_name: str,
@@ -114,6 +115,7 @@ def gen_all(
     list_cache_specs: tuple[str, ...],
     rate_limit_specs: tuple[str, ...],
     force: bool,
+    dry_run: bool,
     no_format: bool,
 ):
     """根据 models.py 一次生成后端 + 前端 CRUD 代码。
@@ -137,7 +139,8 @@ def gen_all(
     if not WEB_ROOT.exists():
         raise click.ClickException(f"找不到前端目录 {format_path(WEB_ROOT)}")
 
-    ensure_committed_worktree()
+    if not dry_run:
+        ensure_committed_worktree()
 
     models = parse_models(models_path)
     if not models:
@@ -247,6 +250,7 @@ def gen_all(
         module_title=module_cn,
         backend_options=backend_options,
         force=force,
+        dry_run=dry_run,
     )
     for rel_path, status in backend_results:
         echo_file_result(f"app/business/{module_name}/{rel_path}", status)
@@ -260,7 +264,9 @@ def gen_all(
         models,
         list_fields_map=list_fields,
         search_fields_map=search_fields,
+        button_auth_models=backend_options.button_auth_models,
         force=force,
+        dry_run=dry_run,
     )
     for rel_path, status in frontend_results:
         echo_file_result(f"web/{rel_path}", status)

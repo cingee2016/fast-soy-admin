@@ -85,6 +85,12 @@ def echo_file_result(path: str | Path, status: str) -> None:
     display_path = format_path(path)
     if status == "created":
         click.echo(f"  ✅ {display_path}")
+    elif status == "would-create":
+        click.echo(f"  👀 {display_path} (将创建)")
+    elif status == "would-overwrite":
+        click.echo(f"  👀 {display_path} (将覆盖)")
+    elif status == "would-append":
+        click.echo(f"  👀 {display_path} (将追加 export)")
     elif status == "appended":
         click.echo(f"  ➕ {display_path} (已追加 export)")
     elif status == "exists":

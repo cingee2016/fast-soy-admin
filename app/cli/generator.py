@@ -295,9 +295,7 @@ def _append_list_override(
 
     lines.append(f'@{model.snake_name}_crud.override("list")')
     if cache_ttl:
-        lines.append(f'@cache(expire={cache_ttl}, namespace="{module_name}_{model.snake_name}_list")')
-        if scope:
-            lines.append("# 注意：该列表同时启用了 data_scope；生产前请确认缓存 key 不会跨用户复用。")
+        lines.append(f"# TODO: 如确需缓存本列表，请在 service/cache_utils 中按用户/范围/分页/查询参数组成 key，TTL={cache_ttl}s，并在写接口后主动失效。")
     lines.append(f"async def _list_{model.snake_name}_items(obj_in: {model.name}Search, request: Request):")
     lines.append(f"    q = {model.snake_name}_controller.build_search(")
     lines.append("        obj_in,")
@@ -340,7 +338,6 @@ def gen_api_manage(
     backend_options = backend_options or BackendFeatureOptions()
     needs_request = any(backend_options.needs_list_override(model.name) for model in models)
     needs_scope = bool(backend_options.data_scope)
-    needs_cache = bool(backend_options.list_cache_ttl)
     needs_buttons = bool(backend_options.button_auth_models)
     needs_search_config = any(contains_map.get(model.name) for model in models)
     if exact_map is None:
@@ -355,8 +352,10 @@ def gen_api_manage(
     utils_imports = ["CRUDRouter", "DependPermission"]
     if needs_search_config:
         utils_imports.append("SearchFieldConfig")
+    if needs_request:
+        utils_imports.append("SuccessExtra")
     if needs_scope:
-        utils_imports.extend(["CTX_USER_ID", "SuccessExtra", "build_scope_filter"])
+        utils_imports.extend(["CTX_USER_ID", "build_scope_filter"])
     if needs_buttons:
         utils_imports.append("require_buttons")
 
@@ -368,11 +367,6 @@ def gen_api_manage(
         f"from fastapi import {', '.join(fastapi_imports)}",
         "",
     ]
-    if needs_cache:
-        lines.extend([
-            "from fastapi_cache.decorator import cache",
-            "",
-        ])
     if needs_scope:
         lines.extend([
             "from app.core.data_scope import get_current_data_scope",
@@ -610,6 +604,7 @@ def generate_all(
     backend_options: BackendFeatureOptions | None = None,
     skip: set[str] | None = None,
     force: bool = False,
+    dry_run: bool = False,
 ) -> list[tuple[str, str]]:
     """生成所有文件，返回 [(相对路径, 状态)] 列表。
 
@@ -639,8 +634,13 @@ def generate_all(
             continue
 
         target = module_dir / rel_path
-        if target.exists() and not force:
+        target_exists = target.exists()
+        if target_exists and not force:
             results.append((rel_path, "exists"))
+            continue
+
+        if dry_run:
+            results.append((rel_path, "would-overwrite" if target_exists else "would-create"))
             continue
 
         target.parent.mkdir(parents=True, exist_ok=True)

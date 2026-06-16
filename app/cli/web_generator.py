@@ -36,6 +36,42 @@ def model_route_key(module: str, model: ModelInfo) -> str:
     return f"{module_route_key(module)}_{route_segment(model.snake_name)}"
 
 
+def camel_to_kebab(s: str) -> str:
+    """camelCase → kebab-case."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "-", s).lower()
+
+
+def relation_id_name(r: RelationInfo) -> str:
+    return f"{r.name}_id"
+
+
+def relation_camel_name(r: RelationInfo) -> str:
+    return f"{snake_to_camel(r.name)}Id"
+
+
+def relation_label_key(r: RelationInfo) -> str:
+    return snake_to_camel(r.name)
+
+
+def option_prop_name(name: str) -> str:
+    return f"{snake_to_camel(name)}Options"
+
+
+def find_fk_relation(model: ModelInfo, name: str) -> RelationInfo | None:
+    for relation in model.relations:
+        if relation.relation_type not in ("ForeignKeyField", "OneToOneField"):
+            continue
+        if name in {relation.name, relation_id_name(relation)}:
+            return relation
+    return None
+
+
+def _button_code(module: str, model: ModelInfo, action: str) -> str:
+    module_part = module.replace("-", "_").upper()
+    model_part = model.snake_name.upper()
+    return f"B_{module_part}_{model_part}_{action}"
+
+
 def cn_title(description: str, fallback: str) -> str:
     """从 description 中提取中文标题：截断到第一个句号前。"""
     if not description:
@@ -208,7 +244,7 @@ def gen_typings_dts(module: str, models: list[ModelInfo], search_fields_map: dic
             camel = snake_to_camel(f.name)
             lines.append(_ts_field_line(camel, field_ts_type(f), optional=False, nullable=not f.required))
         for r in fk_relations:
-            camel = snake_to_camel(r.name) + "Id"
+            camel = relation_camel_name(r)
             lines.append(_ts_field_line(camel, "string", optional=False, nullable=r.nullable))
         lines.append("    }>;")
         lines.append("")
@@ -219,7 +255,7 @@ def gen_typings_dts(module: str, models: list[ModelInfo], search_fields_map: dic
             camel = snake_to_camel(f.name)
             lines.append(_ts_field_line(camel, field_ts_type(f), optional=not f.required, nullable=not f.required))
         for r in fk_relations:
-            camel = snake_to_camel(r.name) + "Id"
+            camel = relation_camel_name(r)
             lines.append(_ts_field_line(camel, "string", optional=r.nullable, nullable=r.nullable))
         lines.append("    };")
         lines.append("")
@@ -240,6 +276,10 @@ def gen_typings_dts(module: str, models: list[ModelInfo], search_fields_map: dic
             if f:
                 camel = snake_to_camel(name)
                 lines.append(f"        {camel}?: {field_ts_type(f)};")
+                continue
+            r = find_fk_relation(model, name)
+            if r:
+                lines.append(f"        {relation_camel_name(r)}?: string;")
         if has_status_enum and "status" not in search_names:
             lines.append("        status?: string;")
         lines.append("      } & CommonSearchParams")
@@ -266,21 +306,23 @@ def _form_item_block(
     i18n_page: str,
     *,
     is_relation: bool = False,
+    option_expr: str | None = None,
 ) -> list[str]:
     """为单个字段生成 <NFormItem> 块（用于 operate-drawer）。"""
     if is_relation:
-        name_camel = snake_to_camel(f.name) + "Id"  # type: ignore[attr-defined]
-        label_key = f"{i18n_page}.{snake_to_camel(f.name)}"  # type: ignore[attr-defined]
-        placeholder_key = f"{i18n_page}.form.{snake_to_camel(f.name)}"  # type: ignore[attr-defined]
+        assert isinstance(f, RelationInfo)
+        name_camel = relation_camel_name(f)
+        label_key = f"{i18n_page}.{relation_label_key(f)}"
+        placeholder_key = f"{i18n_page}.form.{relation_label_key(f)}"
         return [
             f'      <NFormItem :label="$t(\'{label_key}\')" path="{name_camel}">',
             "        <NSelect",
             f'          v-model:value="model.{name_camel}"',
-            '          :options="[]"',  # TODO
+            f'          :options="{option_expr or "[]"}"',
             "          clearable",
+            "          filterable",
             f"          :placeholder=\"$t('{placeholder_key}')\"",
             "        />",
-            f"        <!-- TODO: 配置 {name_camel} 的 options 数据源 -->",
             "      </NFormItem>",
         ]
 
@@ -352,11 +394,11 @@ def _form_item_block(
         body = [
             "        <NSelect",
             f'          v-model:value="model.{name_camel}"',
-            '          :options="[]"',
+            f'          :options="{option_expr or "[]"}"',
             "          clearable",
+            "          filterable",
             f"          :placeholder=\"$t('{placeholder_key}')\"",
             "        />",
-            f"        <!-- TODO: 配置 {name_camel} 的 options 数据源 -->",
         ]
     else:
         body = [f'        <NInput v-model:value="model.{name_camel}" :placeholder="$t(\'{placeholder_key}\')" />']
@@ -379,7 +421,7 @@ def _default_value_for_field(f: FieldInfo) -> str:
     return "null"
 
 
-def gen_view_index(module: str, model: ModelInfo, list_fields: list[str]) -> str:
+def gen_view_index(module: str, model: ModelInfo, list_fields: list[str], *, button_auth: bool = False) -> str:
     """生成 views/<module>/<entity>/index.vue"""
     entity = model.name
     entity_snake = model.snake_name
@@ -389,6 +431,26 @@ def gen_view_index(module: str, model: ModelInfo, list_fields: list[str]) -> str
 
     fields = model.schema_fields
     fk_relations = [r for r in model.relations if r.relation_type in ("ForeignKeyField", "OneToOneField")]
+    custom_enum_fields = [f for f in fields if field_form_component(f) == "select-todo"]
+    option_props = [option_prop_name(f.name) for f in custom_enum_fields] + [option_prop_name(r.name) for r in fk_relations]
+    option_ref_lines = [
+        "type SelectOptionItem = { label: string; value: string | number };",
+        "",
+    ]
+    for prop in option_props:
+        option_ref_lines.append(f"const {prop} = ref<SelectOptionItem[]>([]);")
+    if option_props:
+        option_ref_lines.extend([
+            "",
+            "// TODO: 在这里加载真实 options 数据源，并传给搜索区和抽屉。",
+            "",
+        ])
+    else:
+        option_ref_lines = []
+
+    vue_imports = ["reactive"]
+    if option_props:
+        vue_imports.append("ref")
 
     # 列定义
     col_lines = [
@@ -399,10 +461,10 @@ def gen_view_index(module: str, model: ModelInfo, list_fields: list[str]) -> str
         f = next((x for x in fields if x.name == name), None)
         if not f:
             # 可能是外键
-            r = next((x for x in fk_relations if x.name == name), None)
+            r = find_fk_relation(model, name)
             if r:
-                camel = snake_to_camel(r.name) + "Id"
-                col_lines.append(f"    {{ key: '{camel}', title: $t('{i18n_page}.{snake_to_camel(r.name)}'), align: 'center', minWidth: 120 }},")
+                camel = relation_camel_name(r)
+                col_lines.append(f"    {{ key: '{camel}', title: $t('{i18n_page}.{relation_label_key(r)}'), align: 'center', minWidth: 120 }},")
             continue
         camel = snake_to_camel(f.name)
         col_lines.append(f"    {{ key: '{camel}', title: $t('{i18n_page}.{camel}'), align: 'center', minWidth: 120 }},")
@@ -411,17 +473,110 @@ def gen_view_index(module: str, model: ModelInfo, list_fields: list[str]) -> str
     search_param_lines = ["  current: 1,", "  size: 10,"]
     # 搜索参数不在这里定义，只定义 list 列；search 字段在 search.vue 里
 
+    search_prop_lines = [f'      :{camel_to_kebab(prop)}="{prop}"' for prop in option_props]
+    drawer_prop_lines = [f'        :{camel_to_kebab(prop)}="{prop}"' for prop in option_props]
+
+    search_component = "\n".join([
+        f"    <{entity}Search",
+        '      v-model:model="searchParams"',
+        *search_prop_lines,
+        '      @search="getDataByPage"',
+        "    />",
+    ])
+    drawer_component = "\n".join([
+        f"      <{entity}OperateDrawer",
+        '        v-model:visible="drawerVisible"',
+        '        :operate-type="operateType"',
+        '        :row-data="editingData"',
+        *drawer_prop_lines,
+        '        @submitted="getDataByPage"',
+        "      />",
+    ])
+
+    button_auth_lines: list[str] = []
+    if button_auth:
+        button_auth_lines = [
+            "import { useAuth } from '@/hooks/business/auth';",
+        ]
+
+    auth_setup = "const { hasAuth } = useAuth();" if button_auth else ""
+    edit_button = (
+        f"""{{hasAuth('{_button_code(module, model, "EDIT")}') && (
+              <NButton type="primary" ghost size="small" onClick={{() => edit(row.id)}}>
+                {{$t('common.edit')}}
+              </NButton>
+            )}}"""
+        if button_auth
+        else """<NButton type="primary" ghost size="small" onClick={() => edit(row.id)}>
+              {$t('common.edit')}
+            </NButton>"""
+    )
+    delete_button = (
+        f"""{{hasAuth('{_button_code(module, model, "DELETE")}') && (
+              <NPopconfirm onPositiveClick={{() => handleDelete(row.id)}}>
+                {{{{
+                  default: () => $t('common.confirmDelete'),
+                  trigger: () => (
+                    <NButton type="error" ghost size="small">
+                      {{$t('common.delete')}}
+                    </NButton>
+                  )
+                }}}}
+              </NPopconfirm>
+            )}}"""
+        if button_auth
+        else """<NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+              {{
+                default: () => $t('common.confirmDelete'),
+                trigger: () => (
+                  <NButton type="error" ghost size="small">
+                    {$t('common.delete')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>"""
+    )
+    if button_auth:
+        header_operation = f"""        <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData">
+          <NButton v-if="hasAuth('{_button_code(module, model, "CREATE")}')" size="small" ghost type="primary" @click="handleAdd">
+            <template #icon><icon-ic-round-plus class="text-icon" /></template>
+            {{{{ $t('common.add') }}}}
+          </NButton>
+          <NPopconfirm v-if="hasAuth('{_button_code(module, model, "DELETE")}')" @positive-click="handleBatchDelete">
+            <template #trigger>
+              <NButton size="small" ghost type="error" :disabled="checkedRowKeys.length === 0">
+                <template #icon><icon-ic-round-delete class="text-icon" /></template>
+                {{{{ $t('common.batchDelete') }}}}
+              </NButton>
+            </template>
+            {{{{ $t('common.confirmDelete') }}}}
+          </NPopconfirm>
+        </TableHeaderOperation>"""
+    else:
+        header_operation = """        <TableHeaderOperation
+          v-model:columns="columnChecks"
+          :disabled-delete="checkedRowKeys.length === 0"
+          :loading="loading"
+          @add="handleAdd"
+          @delete="handleBatchDelete"
+          @refresh="getData"
+        />"""
+
     template = f"""<script setup lang="tsx">
-import {{ reactive }} from 'vue';
+import {{ {", ".join(vue_imports)} }} from 'vue';
 import {{ NButton, NPopconfirm }} from 'naive-ui';
 import {{ fetchBatchDelete{entity}, fetchDelete{entity}, fetchGet{entity}List }} from '@/service/api';
 import {{ useAppStore }} from '@/store/modules/app';
 import {{ defaultTransform, useNaivePaginatedTable, useTableOperate }} from '@/hooks/common/table';
+{chr(10).join(button_auth_lines)}
 import {{ $t }} from '@/locales';
 import {entity}OperateDrawer from './modules/{entity_kebab}-operate-drawer.vue';
 import {entity}Search from './modules/{entity_kebab}-search.vue';
 
 const appStore = useAppStore();
+{auth_setup}
+
+{chr(10).join(option_ref_lines)}
 
 const searchParams: Api.{ns}.{entity}SearchParams = reactive({{
   current: 1,
@@ -444,19 +599,8 @@ const {{ columns, columnChecks, data, loading, getData, getDataByPage, mobilePag
       width: 130,
       render: row => (
         <div class="flex-center gap-8px">
-          <NButton type="primary" ghost size="small" onClick={{() => edit(row.id)}}>
-            {{$t('common.edit')}}
-          </NButton>
-          <NPopconfirm onPositiveClick={{() => handleDelete(row.id)}}>
-            {{{{
-              default: () => $t('common.confirmDelete'),
-              trigger: () => (
-                <NButton type="error" ghost size="small">
-                  {{$t('common.delete')}}
-                </NButton>
-              )
-            }}}}
-          </NPopconfirm>
+          {edit_button}
+          {delete_button}
         </div>
       )
     }}
@@ -483,17 +627,10 @@ function edit(id: string) {{
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <{entity}Search v-model:model="searchParams" @search="getDataByPage" />
+{search_component}
     <NCard :title="$t('{i18n_page}.pageTitle')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
-        <TableHeaderOperation
-          v-model:columns="columnChecks"
-          :disabled-delete="checkedRowKeys.length === 0"
-          :loading="loading"
-          @add="handleAdd"
-          @delete="handleBatchDelete"
-          @refresh="getData"
-        />
+{header_operation}
       </template>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
@@ -508,12 +645,7 @@ function edit(id: string) {{
         :pagination="mobilePagination"
         class="sm:h-full"
       />
-      <{entity}OperateDrawer
-        v-model:visible="drawerVisible"
-        :operate-type="operateType"
-        :row-data="editingData"
-        @submitted="getDataByPage"
-      />
+{drawer_component}
     </NCard>
   </div>
 </template>
@@ -532,13 +664,36 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
     i18n_page = f"page.{module}.{entity_snake}"
 
     fields = model.schema_fields
+    option_props: list[str] = []
 
     # 生成 form items
     form_items: list[str] = []
     for name in search_field_names:
         f = next((x for x in fields if x.name == name), None)
         if not f:
+            r = find_fk_relation(model, name)
+            if not r:
+                continue
+            camel = relation_camel_name(r)
+            label_key = f"{i18n_page}.{relation_label_key(r)}"
+            placeholder_key = f"{i18n_page}.form.{relation_label_key(r)}"
+            prop = option_prop_name(r.name)
+            if prop not in option_props:
+                option_props.append(prop)
+            item_start = f'            <NFormItemGi span="24 s:12 m:6" :label="$t(\'{label_key}\')" path="{camel}" class="pr-24px">'
+            item_end = "            </NFormItemGi>"
+            body = (
+                "              <NSelect\n"
+                f'                v-model:value="model.{camel}"\n'
+                f'                :options="props.{prop}"\n'
+                "                clearable\n"
+                "                filterable\n"
+                f"                :placeholder=\"$t('{placeholder_key}')\"\n"
+                "              />"
+            )
+            form_items.extend([item_start, body, item_end])
             continue
+
         camel = snake_to_camel(name)
         label_key = f"{i18n_page}.{camel}"
         placeholder_key = f"{i18n_page}.form.{camel}"
@@ -554,7 +709,18 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
         elif component == "select-status":
             body = f'              <NSelect v-model:value="model.{camel}" :options="statusTypeOptions" clearable :placeholder="$t(\'{placeholder_key}\')" />'
         elif component == "select-todo":
-            body = f'              <NSelect v-model:value="model.{camel}" :options="[]" clearable :placeholder="$t(\'{placeholder_key}\')" />'
+            prop = option_prop_name(f.name)
+            if prop not in option_props:
+                option_props.append(prop)
+            body = (
+                "              <NSelect\n"
+                f'                v-model:value="model.{camel}"\n'
+                f'                :options="props.{prop}"\n'
+                "                clearable\n"
+                "                filterable\n"
+                f"                :placeholder=\"$t('{placeholder_key}')\"\n"
+                "              />"
+            )
         elif component == "switch":
             body = (
                 "              <NSelect\n"
@@ -597,9 +763,30 @@ const booleanOptions = [
 ] as any;
 """
 
+    props_block = ""
+    if option_props:
+        props_lines = [
+            "type SelectOptionItem = { label: string; value: string | number };",
+            "",
+            "interface Props {",
+        ]
+        props_lines.extend(f"  {prop}?: SelectOptionItem[];" for prop in option_props)
+        props_lines.extend([
+            "}",
+            "",
+            "const props = withDefaults(defineProps<Props>(), {",
+        ])
+        props_lines.extend(f"  {prop}: () => []," for prop in option_props)
+        props_lines.extend([
+            "});",
+            "",
+        ])
+        props_block = "\n".join(props_lines)
+
     template = f"""<script setup lang="ts">
 {chr(10).join(imports)}
 {boolean_options}
+{props_block}
 
 defineOptions({{ name: '{entity}Search' }});
 
@@ -658,13 +845,16 @@ def gen_view_drawer(module: str, model: ModelInfo) -> str:
 
     fields = model.schema_fields
     fk_relations = [r for r in model.relations if r.relation_type in ("ForeignKeyField", "OneToOneField")]
+    custom_enum_fields = [f for f in fields if field_form_component(f) == "select-todo"]
+    option_props = [option_prop_name(f.name) for f in custom_enum_fields] + [option_prop_name(r.name) for r in fk_relations]
 
     # 生成 form items
     form_items: list[str] = []
     for f in fields:
-        form_items.extend(_form_item_block(f, i18n_page, is_relation=False))
+        option_expr = f"props.{option_prop_name(f.name)}" if field_form_component(f) == "select-todo" else None
+        form_items.extend(_form_item_block(f, i18n_page, is_relation=False, option_expr=option_expr))
     for r in fk_relations:
-        form_items.extend(_form_item_block(r, i18n_page, is_relation=True))
+        form_items.extend(_form_item_block(r, i18n_page, is_relation=True, option_expr=f"props.{option_prop_name(r.name)}"))
 
     # 默认 model
     default_entries: list[str] = []
@@ -672,7 +862,7 @@ def gen_view_drawer(module: str, model: ModelInfo) -> str:
         camel = snake_to_camel(f.name)
         default_entries.append(f"    {camel}: {_default_value_for_field(f)}")
     for r in fk_relations:
-        camel = snake_to_camel(r.name) + "Id"
+        camel = relation_camel_name(r)
         default_entries.append(f"    {camel}: null")
 
     # 必填规则
@@ -683,7 +873,7 @@ def gen_view_drawer(module: str, model: ModelInfo) -> str:
             required_rules.append(f"  {camel}: defaultRequiredRule")
     for r in fk_relations:
         if not r.nullable:
-            camel = snake_to_camel(r.name) + "Id"
+            camel = relation_camel_name(r)
             required_rules.append(f"  {camel}: defaultRequiredRule")
 
     # 是否需要 statusTypeOptions
@@ -722,6 +912,30 @@ function parseJsonInput(value: string): Record<string, any> | null {
         if needs_json_helpers
         else ""
     )
+    props_lines = [
+        "interface Props {",
+        "  operateType: NaiveUI.TableOperateType;",
+        f"  rowData?: Api.{ns}.{entity} | null;",
+    ]
+    if option_props:
+        props_lines.insert(0, "type SelectOptionItem = { label: string; value: string | number };\n")
+        props_lines.extend(f"  {prop}?: SelectOptionItem[];" for prop in option_props)
+        props_lines.extend([
+            "}",
+            "",
+            "const props = withDefaults(defineProps<Props>(), {",
+        ])
+        props_lines.extend(f"  {prop}: () => []," for prop in option_props)
+        props_lines.extend([
+            "});",
+        ])
+    else:
+        props_lines.extend([
+            "}",
+            "",
+            "const props = defineProps<Props>();",
+        ])
+    props_block = "\n".join(props_lines)
 
     template = f"""<script setup lang="ts">
 import {{ computed, ref, watch }} from 'vue';
@@ -733,12 +947,7 @@ import {{ $t }} from '@/locales';
 
 defineOptions({{ name: '{entity}OperateDrawer' }});
 
-interface Props {{
-  operateType: NaiveUI.TableOperateType;
-  rowData?: Api.{ns}.{entity} | null;
-}}
-
-const props = defineProps<Props>();
+{props_block}
 
 interface Emits {{
   (e: 'submitted'): void;
@@ -985,7 +1194,7 @@ def gen_i18n_schema_dts(module: str, models: list[ModelInfo]) -> str:
 # ─── 幂等追加 service/api/index.ts ───
 
 
-def append_to_index_ts(web_root: Path, module: str) -> str:
+def append_to_index_ts(web_root: Path, module: str, *, dry_run: bool = False) -> str:
     """向 service/api/index.ts 追加 export，已存在则跳过。返回状态。"""
     index_path = web_root / "src" / "service" / "api" / "index.ts"
     if not index_path.exists():
@@ -995,6 +1204,9 @@ def append_to_index_ts(web_root: Path, module: str) -> str:
     export_line = f"export * from './{module}-manage';"
     if export_line in content:
         return "exists"
+
+    if dry_run:
+        return "would-append"
 
     new_content = content.rstrip() + "\n" + export_line + "\n"
     index_path.write_text(new_content, encoding="utf-8")
@@ -1012,15 +1224,22 @@ def generate_web(
     *,
     list_fields_map: dict[str, list[str]],
     search_fields_map: dict[str, list[str]],
+    button_auth_models: set[str] | None = None,
     force: bool = False,
+    dry_run: bool = False,
 ) -> list[tuple[str, str]]:
     """生成前端所有文件，返回 [(相对路径, 状态)] 列表。"""
     results: list[tuple[str, str]] = []
+    button_auth_models = button_auth_models or set()
 
     def write(path: Path, content: str) -> None:
         rel = path.relative_to(web_root).as_posix()
-        if path.exists() and not force:
+        path_exists = path.exists()
+        if path_exists and not force:
             results.append((rel, "exists"))
+            return
+        if dry_run:
+            results.append((rel, "would-overwrite" if path_exists else "would-create"))
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
@@ -1047,7 +1266,7 @@ def generate_web(
         list_fields = list_fields_map.get(model.name, [f.name for f in model.schema_fields[:5]])
         search_fields = search_fields_map.get(model.name, [])
 
-        write(view_dir / "index.vue", gen_view_index(module, model, list_fields))
+        write(view_dir / "index.vue", gen_view_index(module, model, list_fields, button_auth=model.name in button_auth_models))
         write(view_dir / "modules" / f"{entity_kebab}-search.vue", gen_view_search(module, model, search_fields))
         write(view_dir / "modules" / f"{entity_kebab}-operate-drawer.vue", gen_view_drawer(module, model))
 
@@ -1058,7 +1277,7 @@ def generate_web(
     write(i18n_dir / "types.d.ts", gen_i18n_schema_dts(module, models))
 
     # 追加 index.ts
-    status = append_to_index_ts(web_root, module)
+    status = append_to_index_ts(web_root, module, dry_run=dry_run)
     results.append(("src/service/api/index.ts", status))
 
     return results

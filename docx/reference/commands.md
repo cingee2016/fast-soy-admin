@@ -49,6 +49,12 @@ just --list
 uv run python -m app.cli crud utility_fee --cn-name 水电费 --yes --force
 ```
 
+生成前可加 `--dry-run` 预览将创建、覆盖或追加的文件；dry-run 不写磁盘，也不要求当前 Git 工作区干净：
+
+```bash
+just cli-crud inventory 库存管理 "--yes --dry-run"
+```
+
 选择模型与字段时统一使用 `Model:field1,field2`，多个模型可重复参数或用分号分隔：
 
 ```bash

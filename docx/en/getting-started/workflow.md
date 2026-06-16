@@ -147,7 +147,7 @@ Type contract:
 
 ### 6. Resolve TODOs
 
-Foreign keys / custom enums in the frontend can't auto-derive their dropdown source. Search for `// TODO` and fill in `options` (typically `fetchGetXxxList`).
+Foreign keys / custom enums in the frontend can't auto-derive their dropdown source. The list page generates centralized `options` wiring points with `// TODO`; fill them in there (typically with `fetchGetXxxList`) and the search area plus add/edit drawer reuse the same options via props.
 
 ### 7. Migrate the database
 
@@ -183,8 +183,8 @@ CLI maps Tortoise field types to TS / form widgets:
 | `DateField` | `string` | `date` | `NDatePicker type="date"` | — |
 | `DatetimeField` | `string` | `datetime` | `NDatePicker type="datetime"` | — |
 | `CharEnumField(StatusType)` | `string` | `StatusType` | `NSelect statusTypeOptions` | same |
-| `CharEnumField(other)` | `string` | `str` | `NSelect` + TODO | same |
-| `ForeignKeyField` | `number` | `int` | `NSelect` + TODO | same |
+| `CharEnumField(other)` | `string` | `str` | `NSelect` + parent-page options TODO | same |
+| `ForeignKeyField` | `string` | `SqidId` | `NSelect` + parent-page options TODO | same |
 
 ## i18n naming
 

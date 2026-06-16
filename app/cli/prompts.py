@@ -201,12 +201,27 @@ def prompt_exact_fields(models: list[ModelInfo], contains_map: dict[str, list[st
     )
 
 
-def frontend_list_field_candidates(model: ModelInfo) -> list[FieldInfo]:
-    return [field for field in model.schema_fields if field.field_type not in ("TextField",)][:6]
+def _fk_relation_candidates(model: ModelInfo) -> list[RelationInfo]:
+    return [relation for relation in model.relations if relation.relation_type in ("ForeignKeyField", "OneToOneField")]
 
 
-def frontend_search_field_candidates(model: ModelInfo) -> list[FieldInfo]:
-    return [field for field in model.schema_fields if field.field_type not in ("JSONField",)]
+def frontend_list_field_candidates(model: ModelInfo) -> list[ChoiceInput]:
+    choices: list[ChoiceInput] = []
+    for field in [field for field in model.schema_fields if field.field_type not in ("TextField",)][:6]:
+        choices.append(field)
+    for relation in _fk_relation_candidates(model):
+        choices.append(relation)
+    return choices
+
+
+def frontend_search_field_candidates(model: ModelInfo) -> list[ChoiceInput]:
+    choices: list[ChoiceInput] = []
+    for field in model.schema_fields:
+        if field.field_type != "JSONField":
+            choices.append(field)
+    for relation in _fk_relation_candidates(model):
+        choices.append(relation)
+    return choices
 
 
 def default_frontend_search_field_names(search_maps: Sequence[dict[str, list[str]]]) -> Callable[[ModelInfo, list[PromptChoice]], Sequence[str]]:
