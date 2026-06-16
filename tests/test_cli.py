@@ -11,11 +11,11 @@ from app.cli import cli
 from app.cli import display as cli_display
 from app.cli import git_tools
 from app.cli.display import format_path
-from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas
-from app.cli.options import BackendFeatureOptions, DataScopeOption, resolve_data_scope_map
+from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas, generate_all
+from app.cli.options import BackendFeatureOptions, DataScopeOption, resolve_data_scope_map, resolve_field_map
 from app.cli.parser import parse_models
-from app.cli.prompts import default_exact_field_names, exact_field_candidates, resolve_model_selection
-from app.cli.web_generator import gen_view_drawer, gen_view_search, generate_web
+from app.cli.prompts import default_exact_field_names, exact_field_candidates, frontend_list_field_candidates, frontend_search_field_candidates, resolve_model_selection
+from app.cli.web_generator import gen_view_drawer, gen_view_index, gen_view_search, generate_web
 
 
 def test_cli_exposes_full_crud_commands():
@@ -307,6 +307,40 @@ class Employee(BaseModel, AuditMixin):
     assert data_scope["Employee"] == DataScopeOption("created_by", "department_id")
 
 
+def test_gen_api_manage_list_cache_uses_explicit_cache_todo_instead_of_decorator(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class DictItem(BaseModel):
+    """字典项"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="名称")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    content = gen_api_manage(
+        "dict",
+        [model],
+        {"DictItem": ["name"]},
+        {"DictItem": []},
+        backend_options=BackendFeatureOptions(list_cache_ttl={"DictItem": 60}),
+    )
+
+    compile(content, "manage.py", "exec")
+    assert "from fastapi_cache.decorator import cache" not in content
+    assert "@cache(" not in content
+    assert "SuccessExtra" in content
+    assert "TTL=60s" in content
+
+
 def test_gen_init_data_includes_business_menus(tmp_path: Path):
     models_path = tmp_path / "models.py"
     models_path.write_text(
@@ -394,6 +428,173 @@ class UtilityPrice(BaseModel):
     zh_content = (web_root / "src" / "locales" / "langs" / "_generated" / "utility_fee2" / "zh-cn.ts").read_text(encoding="utf-8")
     assert "'utility-fee2': '水电费2'" in zh_content
     assert "'utility-fee2_utility-price': '水电费单价表'" in zh_content
+
+
+def test_codegen_dry_run_reports_changes_without_writing_files(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class UtilityPrice(BaseModel):
+    """水电费单价表"""
+
+    id = fields.IntField(primary_key=True)
+    remark = fields.CharField(max_length=500, null=True, description="备注")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    module_dir = tmp_path / "app" / "business" / "utility_fee"
+    backend_results = generate_all(module_dir, "utility_fee", [model], {"UtilityPrice": ["remark"]}, dry_run=True)
+
+    web_root = tmp_path / "web"
+    (web_root / "src" / "service" / "api").mkdir(parents=True)
+    (web_root / "src" / "service" / "api" / "index.ts").write_text("", encoding="utf-8")
+    frontend_results = generate_web(
+        web_root,
+        "utility_fee",
+        "水电费",
+        [model],
+        list_fields_map={"UtilityPrice": ["remark"]},
+        search_fields_map={},
+        dry_run=True,
+    )
+
+    assert ("schemas.py", "would-create") in backend_results
+    assert ("src/service/api/utility_fee-manage.ts", "would-create") in frontend_results
+    assert ("src/service/api/index.ts", "would-append") in frontend_results
+    assert not (module_dir / "schemas.py").exists()
+    assert not (web_root / "src" / "service" / "api" / "utility_fee-manage.ts").exists()
+    assert (web_root / "src" / "service" / "api" / "index.ts").read_text(encoding="utf-8") == ""
+
+
+def test_cli_gen_dry_run_skips_clean_worktree_preflight(tmp_path: Path, monkeypatch):
+    gen_module = importlib.import_module("app.cli.commands.gen")
+    business_dir = tmp_path / "business"
+    module_dir = business_dir / "inventory"
+    module_dir.mkdir(parents=True)
+    (module_dir / "models.py").write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class InventoryItem(BaseModel):
+    """库存项"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="名称")
+''',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gen_module, "BUSINESS_DIR", business_dir)
+    monkeypatch.setattr(gen_module, "relative_path", lambda path: Path(path).as_posix())
+    monkeypatch.setattr(gen_module, "ensure_committed_worktree", lambda: (_ for _ in ()).throw(click.ClickException("dirty tree")))
+
+    result = CliRunner().invoke(cli, ["gen", "inventory", "--yes", "--dry-run", "--no-format"])
+
+    assert result.exit_code == 0
+    assert "将创建" in result.output
+    assert not (module_dir / "schemas.py").exists()
+
+
+def test_frontend_field_options_accept_relation_id_fields(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel
+
+
+class Employee(BaseModel):
+    """员工"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="姓名")
+    department_id: int
+    department = fields.ForeignKeyField("models.Department", description="所属部门")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    list_fields = resolve_field_map(
+        [model],
+        ["Employee:name,department_id"],
+        frontend_list_field_candidates,
+        option_name="--list-fields",
+    )
+    search_fields = resolve_field_map(
+        [model],
+        ["Employee:name,department_id"],
+        frontend_search_field_candidates,
+        option_name="--search-fields",
+    )
+
+    assert list_fields["Employee"] == ["name", "department_id"]
+    assert search_fields["Employee"] == ["name", "department_id"]
+
+
+def test_generated_frontend_uses_button_auth_and_option_props(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel, StatusType, StrEnum
+
+
+class EmployeeStatus(StrEnum):
+    active = "active"
+
+
+class Employee(BaseModel):
+    """员工"""
+
+    id = fields.IntField(primary_key=True)
+    name = fields.CharField(max_length=50, description="姓名")
+    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    employee_status = fields.CharEnumField(enum_type=EmployeeStatus, default=EmployeeStatus.active, description="员工状态")
+    department_id: int
+    department = fields.ForeignKeyField("models.Department", description="所属部门")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    index = gen_view_index("hr", model, ["name", "department_id", "employee_status"], button_auth=True)
+    search = gen_view_search("hr", model, ["name", "department_id", "employee_status"])
+    drawer = gen_view_drawer("hr", model)
+
+    assert "import { useAuth } from '@/hooks/business/auth';" in index
+    assert "const { hasAuth } = useAuth();" in index
+    assert "hasAuth('B_HR_EMPLOYEE_CREATE')" in index
+    assert "hasAuth('B_HR_EMPLOYEE_EDIT')" in index
+    assert "hasAuth('B_HR_EMPLOYEE_DELETE')" in index
+    assert "const departmentOptions = ref<SelectOptionItem[]>([]);" in index
+    assert "const employeeStatusOptions = ref<SelectOptionItem[]>([]);" in index
+    assert ':department-options="departmentOptions"' in index
+    assert ':employee-status-options="employeeStatusOptions"' in index
+    assert '@add="handleAdd"' not in index
+
+    assert "departmentOptions?: SelectOptionItem[];" in search
+    assert "employeeStatusOptions?: SelectOptionItem[];" in search
+    assert ':options="props.departmentOptions"' in search
+    assert ':options="props.employeeStatusOptions"' in search
+    assert ':options="[]"' not in search
+
+    assert "departmentOptions?: SelectOptionItem[];" in drawer
+    assert "employeeStatusOptions?: SelectOptionItem[];" in drawer
+    assert ':options="props.departmentOptions"' in drawer
+    assert ':options="props.employeeStatusOptions"' in drawer
+    assert ':options="[]"' not in drawer
 
 
 def test_gen_schemas_imports_custom_enums_from_business_models(tmp_path: Path):

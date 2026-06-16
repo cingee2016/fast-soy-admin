@@ -3,12 +3,22 @@ import { computed, reactive, ref, watch } from 'vue';
 import type { DataTableColumns, SelectOption } from 'naive-ui';
 
 type FieldType = 'text' | 'number' | 'enum' | 'relation' | 'date' | 'boolean';
+type ConfigMode = 'simple' | 'advanced';
 
 interface FieldConfig {
   name: string;
   label: string;
   type: FieldType;
   note?: string;
+  relationName?: string;
+  relatedModel?: string;
+}
+
+interface RelationLookupConfig {
+  fieldName: string;
+  relationName: string;
+  relatedModel: string;
+  labelField: string;
 }
 
 interface ModelConfig {
@@ -28,6 +38,7 @@ interface ModelConfig {
   searchFields: string[];
   listOrder: string[];
   fields: FieldConfig[];
+  relationLookups: RelationLookupConfig[];
 }
 
 type SavedModelConfigMap = Record<string, ModelConfig>;
@@ -36,7 +47,9 @@ const CODEGEN_CONFIG_STORAGE_KEY = 'fast-soy-admin:codegen:model-config:v1';
 const moduleName = ref('hr');
 const moduleCn = ref('HR管理');
 const commandKind = ref<'crud' | 'gen' | 'gen-web'>('crud');
+const configMode = ref<ConfigMode>('simple');
 const buttonAuth = ref(true);
+const dryRun = ref(false);
 const activeModelName = ref('Employee');
 const currentStep = ref(1);
 const savedConfigTick = ref(0);
@@ -47,6 +60,11 @@ const commandKindOptions = [
   { label: '前后端 CRUD', value: 'crud' },
   { label: '仅后端', value: 'gen' },
   { label: '仅前端', value: 'gen-web' }
+];
+
+const configModeOptions = [
+  { label: '简单版', value: 'simple' },
+  { label: '高级版', value: 'advanced' }
 ];
 
 const fieldTypeOptions: { label: string; value: FieldType }[] = [
@@ -60,14 +78,14 @@ const fieldTypeOptions: { label: string; value: FieldType }[] = [
 
 const guideSteps = [
   { title: '选择起点', description: '示例或 Model' },
-  { title: '确认配置', description: '模块与字段' },
+  { title: '配置模型', description: '外键与搜索' },
   { title: '预览页面', description: '搜索与表格' },
   { title: '复制命令', description: '执行与撤销' }
 ];
 
 const guideTips = [
-  '先载入 HR 示例，或粘贴 models.py 中的 Model 代码。',
-  '确认模块名、生成范围、字段、搜索条件和数据权限。',
+  '先载入 HR 示例、水电费示例，或粘贴 models.py 中的 Model 代码。',
+  '简单版只配置模型、外键关联字段和搜索条件；高级版可细调所有 CLI 参数。',
   '检查生成后的 CRUD 搜索区和列表列是否符合预期。',
   '复制命令到终端执行；需要回退时先复制撤销命令。'
 ];
@@ -89,6 +107,7 @@ const hrModelDefaults: ModelConfig[] = [
     listFields: ['name', 'code', 'manager_id', 'status'],
     searchFields: ['name', 'code', 'status'],
     listOrder: ['order', 'id'],
+    relationLookups: [],
     fields: [
       { name: 'name', label: '部门名称', type: 'text' },
       { name: 'code', label: '部门编码', type: 'text' },
@@ -112,6 +131,10 @@ const hrModelDefaults: ModelConfig[] = [
     listFields: ['name', 'employee_no', 'position', 'department_id', 'hire_date', 'status'],
     searchFields: ['name', 'department_id', 'status', 'hire_date'],
     listOrder: ['-created_at', 'id'],
+    relationLookups: [
+      { fieldName: 'user_id', relationName: 'user', relatedModel: 'app_system.User', labelField: 'username' },
+      { fieldName: 'department_id', relationName: 'department', relatedModel: 'app_system.Department', labelField: 'name' }
+    ],
     fields: [
       { name: 'name', label: '员工姓名', type: 'text' },
       { name: 'employee_no', label: '工号', type: 'text' },
@@ -119,8 +142,14 @@ const hrModelDefaults: ModelConfig[] = [
       { name: 'phone', label: '电话', type: 'text' },
       { name: 'position', label: '职位', type: 'text' },
       { name: 'hire_date', label: '入职日期', type: 'date' },
-      { name: 'user_id', label: '关联系统用户', type: 'relation' },
-      { name: 'department_id', label: '所属部门', type: 'relation' },
+      { name: 'user_id', label: '关联系统用户', type: 'relation', relationName: 'user', relatedModel: 'app_system.User' },
+      {
+        name: 'department_id',
+        label: '所属部门',
+        type: 'relation',
+        relationName: 'department',
+        relatedModel: 'app_system.Department'
+      },
       { name: 'status', label: '员工状态', type: 'enum', note: 'EmployeeStatus' }
     ]
   },
@@ -140,6 +169,7 @@ const hrModelDefaults: ModelConfig[] = [
     listFields: ['name', 'category', 'description'],
     searchFields: ['name', 'category'],
     listOrder: ['id'],
+    relationLookups: [],
     fields: [
       { name: 'name', label: '标签名称', type: 'text' },
       { name: 'category', label: '标签分类', type: 'enum', note: '字典 tag_category' },
@@ -156,7 +186,8 @@ function cloneModel(model: ModelConfig): ModelConfig {
     listFields: [...model.listFields],
     searchFields: [...model.searchFields],
     listOrder: [...model.listOrder],
-    fields: model.fields.map(field => ({ ...field }))
+    fields: model.fields.map(field => ({ ...field })),
+    relationLookups: (model.relationLookups ?? []).map(lookup => ({ ...lookup }))
   };
 }
 
@@ -227,7 +258,8 @@ function mergeSavedModelConfig(base: ModelConfig, saved: ModelConfig) {
     listFields: [...saved.listFields],
     searchFields: [...saved.searchFields],
     listOrder: [...saved.listOrder],
-    fields
+    fields,
+    relationLookups: (saved.relationLookups ?? base.relationLookups ?? []).map(lookup => ({ ...lookup }))
   };
 
   pruneFieldSelections(merged);
@@ -239,6 +271,7 @@ function hydrateModels(sourceModels: ModelConfig[]) {
 
   return sourceModels.map(model => {
     const baseline = cloneModel(model);
+    pruneFieldSelections(baseline);
     const tableKey = tableConfigKey(baseline.table);
     rememberModelBaseline(baseline);
 
@@ -268,6 +301,148 @@ const modelSourcePlaceholder = `class Employee(BaseModel, AuditMixin, SoftDelete
 
     class Meta:
         table = "biz_employee"`;
+
+const utilityExampleSource = `# pyright: reportIncompatibleVariableOverride=false
+from tortoise import fields
+
+from app.utils import AuditMixin, BaseModel, StrEnum
+
+
+class ReadingSource(StrEnum):
+    external = "external"
+    manual = "manual"
+
+
+class SyncType(StrEnum):
+    manual = "manual"
+    scheduled = "scheduled"
+
+
+class SyncStatus(StrEnum):
+    success = "success"
+    failed = "failed"
+
+
+class UtilityConfig(BaseModel, AuditMixin):
+    """水电费配置"""
+
+    id = fields.IntField(primary_key=True)
+    config_name = fields.CharField(max_length=80, unique=True, description="配置名称")
+    provider_name = fields.CharField(max_length=120, null=True, blank=True, description="外部平台名称")
+    external_app_code = fields.CharField(max_length=120, null=True, blank=True, description="外部系统编码")
+    sync_enabled = fields.BooleanField(default=True, description="是否开启自动同步")
+    sync_cron = fields.CharField(max_length=120, default="10 0 * * *", description="自动同步 cron 表达式")
+    last_sync_at = fields.DatetimeField(null=True, description="上次同步时间")
+    next_sync_at = fields.DatetimeField(null=True, description="下次预计同步时间")
+    remark = fields.CharField(max_length=500, null=True, blank=True, description="备注")
+
+    class Meta:
+        table = "biz_utility_config"
+        table_description = "水电费配置"
+
+
+class UtilityPrice(BaseModel, AuditMixin):
+    """水电费单价"""
+
+    id = fields.IntField(primary_key=True)
+    water_price = fields.DecimalField(max_digits=12, decimal_places=4, description="水费单价")
+    electricity_price = fields.DecimalField(max_digits=12, decimal_places=4, description="电费单价")
+    effective_date = fields.DateField(description="生效日期")
+    enabled = fields.BooleanField(default=True, description="是否启用")
+    remark = fields.CharField(max_length=500, null=True, blank=True, description="备注")
+
+    class Meta:
+        table = "biz_utility_price"
+        table_description = "水电费单价"
+        ordering = ["-effective_date", "-id"]
+
+
+class UtilitySyncLog(BaseModel, AuditMixin):
+    """水电费同步日志"""
+
+    id = fields.IntField(primary_key=True)
+    sync_type = fields.CharEnumField(enum_type=SyncType, default=SyncType.scheduled, description="同步类型")
+    status = fields.CharEnumField(enum_type=SyncStatus, db_index=True, description="状态")
+    message = fields.CharField(max_length=500, null=True, blank=True, description="同步结果说明")
+    started_at = fields.DatetimeField(description="开始时间")
+    finished_at = fields.DatetimeField(null=True, description="结束时间")
+
+    class Meta:
+        table = "biz_utility_sync_log"
+        table_description = "水电费同步日志"
+        ordering = ["-started_at", "-id"]
+
+
+class UtilityReading(BaseModel, AuditMixin):
+    """水电费读数"""
+
+    id = fields.IntField(primary_key=True)
+    sync_log_id: int | None
+    sync_log: fields.ForeignKeyNullableRelation["UtilitySyncLog"] = fields.ForeignKeyField(
+        "app_system.UtilitySyncLog",
+        related_name="readings",
+        null=True,
+        on_delete=fields.SET_NULL,
+        description="关联同步日志",
+    )
+    water_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="水表读数")
+    electricity_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="电表读数")
+    reading_time = fields.DatetimeField(db_index=True, description="读数时间")
+    source = fields.CharEnumField(enum_type=ReadingSource, default=ReadingSource.external, description="来源")
+    external_record_id = fields.CharField(max_length=128, unique=True, null=True, description="外部记录ID或去重指纹")
+    remark = fields.CharField(max_length=500, null=True, blank=True, description="备注")
+
+    class Meta:
+        table = "biz_utility_reading"
+        table_description = "水电费读数"
+        ordering = ["-reading_time", "-id"]
+
+
+class UtilityBill(BaseModel, AuditMixin):
+    """水电费日账单"""
+
+    id = fields.IntField(primary_key=True)
+    start_reading_id: int | None
+    start_reading: fields.ForeignKeyNullableRelation["UtilityReading"] = fields.ForeignKeyField(
+        "app_system.UtilityReading",
+        related_name="start_bills",
+        null=True,
+        on_delete=fields.SET_NULL,
+        description="期初读数记录",
+    )
+    end_reading_id: int | None
+    end_reading: fields.ForeignKeyNullableRelation["UtilityReading"] = fields.ForeignKeyField(
+        "app_system.UtilityReading",
+        related_name="end_bills",
+        null=True,
+        on_delete=fields.SET_NULL,
+        description="期末读数记录",
+    )
+    price_id: int | None
+    price: fields.ForeignKeyNullableRelation["UtilityPrice"] = fields.ForeignKeyField(
+        "app_system.UtilityPrice",
+        related_name="bills",
+        null=True,
+        on_delete=fields.SET_NULL,
+        description="计费用单价",
+    )
+    billing_date = fields.DateField(unique=True, db_index=True, description="账单日期")
+    water_start_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="水表期初读数")
+    water_end_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="水表期末读数")
+    water_usage = fields.DecimalField(max_digits=14, decimal_places=4, description="水用量")
+    water_amount = fields.DecimalField(max_digits=14, decimal_places=2, description="水费")
+    electricity_start_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="电表期初读数")
+    electricity_end_reading = fields.DecimalField(max_digits=14, decimal_places=4, description="电表期末读数")
+    electricity_usage = fields.DecimalField(max_digits=14, decimal_places=4, description="电用量")
+    electricity_amount = fields.DecimalField(max_digits=14, decimal_places=2, description="电费")
+    total_amount = fields.DecimalField(max_digits=14, decimal_places=2, description="总金额")
+    generated_at = fields.DatetimeField(description="生成时间")
+    remark = fields.CharField(max_length=500, null=True, blank=True, description="备注")
+
+    class Meta:
+        table = "biz_utility_bill"
+        table_description = "水电费日账单"
+        ordering = ["-billing_date", "-id"]`;
 
 const sampleRows: Record<string, Record<string, string>[]> = {
   Department: [
@@ -303,6 +478,60 @@ const sampleRows: Record<string, Record<string, string>[]> = {
   Tag: [
     { id: 'T001', name: '远程协作', category: '工作方式', description: '适应远程与混合办公节奏' },
     { id: 'T002', name: '新人导师', category: '团队角色', description: '愿意承担新人带教与融入支持' }
+  ],
+  UtilityConfig: [
+    {
+      id: 'C001',
+      config_name: '默认同步',
+      provider_name: '园区能源平台',
+      external_app_code: 'UTILITY_MAIN',
+      sync_enabled: '是',
+      sync_cron: '10 0 * * *',
+      last_sync_at: '2026-06-15 00:10',
+      next_sync_at: '2026-06-17 00:10'
+    }
+  ],
+  UtilityPrice: [
+    { id: 'P001', water_price: '3.2000', electricity_price: '0.8200', effective_date: '2026-01-01', enabled: '是', remark: '默认单价' },
+    { id: 'P002', water_price: '3.4000', electricity_price: '0.8600', effective_date: '2026-07-01', enabled: '否', remark: '待启用' }
+  ],
+  UtilitySyncLog: [
+    { id: 'L001', sync_type: 'scheduled', status: 'success', message: '同步 24 条读数', started_at: '2026-06-15 00:10', finished_at: '2026-06-15 00:11' },
+    { id: 'L002', sync_type: 'manual', status: 'failed', message: '外部系统超时', started_at: '2026-06-14 09:30', finished_at: '2026-06-14 09:31' }
+  ],
+  UtilityReading: [
+    {
+      id: 'R001',
+      sync_log_id: 'L001',
+      water_reading: '1820.4500',
+      electricity_reading: '9056.3000',
+      reading_time: '2026-06-15 00:00',
+      source: 'external',
+      external_record_id: 'EXT-20260615'
+    },
+    {
+      id: 'R002',
+      sync_log_id: 'L001',
+      water_reading: '1832.1000',
+      electricity_reading: '9098.5000',
+      reading_time: '2026-06-16 00:00',
+      source: 'external',
+      external_record_id: 'EXT-20260616'
+    }
+  ],
+  UtilityBill: [
+    {
+      id: 'B001',
+      start_reading_id: 'R001',
+      end_reading_id: 'R002',
+      price_id: 'P001',
+      billing_date: '2026-06-16',
+      water_usage: '11.6500',
+      water_amount: '37.28',
+      electricity_usage: '42.2000',
+      electricity_amount: '34.60',
+      total_amount: '71.88'
+    }
   ]
 };
 
@@ -365,8 +594,9 @@ const previewSearchControls = computed(() => {
 const selectedFieldSummary = computed(() => {
   const totalFields = selectedModels.value.reduce((total, model) => total + model.fields.length, 0);
   const searchFields = selectedModels.value.reduce((total, model) => total + model.searchFields.length, 0);
+  const relationLookups = selectedModels.value.reduce((total, model) => total + model.relationLookups.length, 0);
   const scoped = selectedModels.value.filter(model => model.dataScopeEnabled).length;
-  return { totalFields, searchFields, scoped };
+  return { totalFields, searchFields, relationLookups, scoped };
 });
 
 const currentStepTip = computed(() => guideTips[currentStep.value - 1] ?? guideTips[0]);
@@ -388,6 +618,103 @@ function fieldOptions(model: ModelConfig) {
     label: `${field.label} (${field.name})`,
     value: field.name
   }));
+}
+
+function relationNameFromField(field: FieldConfig) {
+  return field.relationName || field.name.replace(/_id$/, '');
+}
+
+function compactRelatedModelName(value: string) {
+  return value.split('.').filter(Boolean).pop() ?? value;
+}
+
+function relationFields(model: ModelConfig) {
+  return model.fields.filter(field => field.type === 'relation');
+}
+
+function relatedLocalModel(relatedModel: string) {
+  const name = compactRelatedModelName(relatedModel);
+  return models.find(model => model.name === name);
+}
+
+function preferredLabelFieldNames(relationName: string) {
+  const normalized = relationName.toLowerCase();
+  if (['user', 'owner', 'manager', 'creator'].some(token => normalized.includes(token))) {
+    return ['username', 'nickname', 'name', 'real_name', 'phone', 'email'];
+  }
+  if (['dept', 'department', 'org', 'tenant', 'project', 'store'].some(token => normalized.includes(token))) {
+    return ['name', 'title', 'code', 'short_name'];
+  }
+  return ['name', 'title', 'code', 'label', 'username'];
+}
+
+function defaultRelationLabelField(field: FieldConfig) {
+  const preferred = preferredLabelFieldNames(relationNameFromField(field));
+  return preferred[0] ?? 'name';
+}
+
+function normalizeRelationLookups(model: ModelConfig) {
+  const saved = new Map((model.relationLookups ?? []).map(lookup => [lookup.fieldName, lookup]));
+  model.relationLookups = relationFields(model).map(field => {
+    const previous = saved.get(field.name);
+    return {
+      fieldName: field.name,
+      relationName: relationNameFromField(field),
+      relatedModel: field.relatedModel ?? previous?.relatedModel ?? '',
+      labelField: previous?.labelField || defaultRelationLabelField(field)
+    };
+  });
+}
+
+function relationLabelFieldOptions(model: ModelConfig, lookup: RelationLookupConfig) {
+  const field = model.fields.find(item => item.name === lookup.fieldName);
+  const preferred = preferredLabelFieldNames(lookup.relationName);
+  const related = relatedLocalModel(lookup.relatedModel);
+  const names = related
+    ? related.fields.filter(item => item.type !== 'relation').map(item => item.name)
+    : [...preferred, 'display_name', 'full_name'];
+  const values = [...new Set([lookup.labelField, ...preferred, ...names].filter(Boolean))];
+
+  return values.map(value => ({
+    label: field && value === lookup.labelField ? `${value}（当前）` : value,
+    value
+  }));
+}
+
+function relationFieldLabel(model: ModelConfig, lookup: RelationLookupConfig) {
+  const field = model.fields.find(item => item.name === lookup.fieldName);
+  return field ? `${field.label} (${field.name})` : lookup.fieldName;
+}
+
+function isExactSearchField(field: FieldConfig | undefined) {
+  return Boolean(field && field.type !== 'text');
+}
+
+function simpleContainsFields(model: ModelConfig) {
+  return model.searchFields.filter(fieldName => model.fields.find(field => field.name === fieldName)?.type === 'text');
+}
+
+function simpleExactFields(model: ModelConfig) {
+  return model.searchFields.filter(fieldName => isExactSearchField(model.fields.find(field => field.name === fieldName)));
+}
+
+function effectiveContainsFields(model: ModelConfig) {
+  return configMode.value === 'simple' ? simpleContainsFields(model) : model.contains;
+}
+
+function effectiveExactFields(model: ModelConfig) {
+  return configMode.value === 'simple' ? simpleExactFields(model) : model.exact;
+}
+
+function syncSimpleSearchFields(model: ModelConfig) {
+  if (configMode.value !== 'simple') return;
+  model.contains = simpleContainsFields(model);
+  model.exact = simpleExactFields(model);
+}
+
+function updateSimpleSearchFields(model: ModelConfig, value: Array<string | number>) {
+  model.searchFields = value.map(String);
+  syncSimpleSearchFields(model);
 }
 
 function scopeFieldOptions(model: ModelConfig) {
@@ -558,7 +885,7 @@ function optionFromMap(flag: string, getter: (model: ModelConfig) => string[]) {
       return values.length ? `${model.name}:${values.join(',')}` : '';
     })
     .filter(Boolean);
-  return specs.length ? `${flag} ${specs.join(';')}` : '';
+  return specs.map(spec => `${flag} ${spec}`).join(' ');
 }
 
 function optionFromModels(flag: string, predicate: (model: ModelConfig) => boolean) {
@@ -574,14 +901,15 @@ const cliArgs = computed(() => {
   const args = [
     '--yes',
     selectedModels.value.length ? `--models ${selectedModels.value.map(model => model.name).join(',')}` : '',
-    optionFromMap('--contains', model => model.contains),
-    optionFromMap('--exact', model => model.exact),
+    optionFromMap('--contains', effectiveContainsFields),
+    optionFromMap('--exact', effectiveExactFields),
     optionFromMap('--list-fields', model => model.listFields),
     optionFromMap('--search-fields', model => model.searchFields),
     optionFromMap('--list-order', model => model.listOrder),
     optionFromModels('--soft-delete', model => model.softDelete),
     optionFromModels('--tree', model => model.tree),
     buttonAuth.value ? '--button-auth' : '',
+    dryRun.value ? '--dry-run' : '',
     ...selectedModels.value
       .filter(model => model.dataScopeEnabled)
       .map(model => `--data-scope ${model.name}:${model.userField},${model.scopeField}`)
@@ -611,15 +939,37 @@ function loadHrExample() {
   moduleName.value = 'hr';
   moduleCn.value = 'HR管理';
   commandKind.value = 'crud';
+  configMode.value = 'simple';
   buttonAuth.value = true;
+  dryRun.value = false;
   replaceModels(hrModelDefaults, 'Employee');
   goStep(2);
   window.$message?.success('已载入 HR 管理示例');
 }
 
+function loadUtilityExample() {
+  moduleName.value = 'utility';
+  moduleCn.value = '水电费';
+  const parsed = parseModelsFromSource(utilityExampleSource);
+  if (!parsed.length) {
+    window.$message?.warning('水电费示例解析失败');
+    return;
+  }
+
+  commandKind.value = 'crud';
+  configMode.value = 'simple';
+  buttonAuth.value = true;
+  dryRun.value = false;
+  modelSource.value = utilityExampleSource;
+  replaceModels(parsed, 'UtilityBill');
+  goStep(2);
+  window.$message?.success('已载入水电费示例');
+}
+
 function replaceModels(sourceModels: ModelConfig[], activeName?: string) {
   const hydrated = hydrateModels(sourceModels);
   models.splice(0, models.length, ...hydrated);
+  models.forEach(pruneFieldSelections);
   activeModelName.value = hydrated.find(model => model.name === activeName)?.name ?? hydrated[0]?.name ?? '';
 }
 
@@ -669,6 +1019,7 @@ function addModel() {
     listFields: ['name', 'status'],
     searchFields: ['name', 'status'],
     listOrder: ['id'],
+    relationLookups: [],
     fields: [
       { name: 'name', label: '名称', type: 'text' },
       { name: 'status', label: '状态', type: 'enum', note: 'StatusType' }
@@ -705,9 +1056,11 @@ function pruneFieldSelections(model: ModelConfig) {
   for (const key of ['contains', 'exact', 'listFields', 'searchFields'] as const) {
     model[key] = model[key].filter(fieldName => available.has(fieldName));
   }
+  normalizeRelationLookups(model);
   const scopeValues = scopeFieldOptions(model).map(option => option.value);
   if (!scopeValues.includes(model.userField)) model.userField = scopeValues[0] ?? 'id';
   if (!scopeValues.includes(model.scopeField)) model.scopeField = scopeValues[0] ?? 'id';
+  syncSimpleSearchFields(model);
 }
 
 function addField(model: ModelConfig) {
@@ -726,7 +1079,13 @@ function addField(model: ModelConfig) {
   }
 
   const label = fieldDraft.label.trim() || name;
-  const field = { name, label, type: fieldDraft.type, note: fieldDraft.note?.trim() || undefined };
+  const field = {
+    name,
+    label,
+    type: fieldDraft.type,
+    note: fieldDraft.note?.trim() || undefined,
+    relationName: fieldDraft.type === 'relation' ? name.replace(/_id$/, '') : undefined
+  };
   model.fields.push(field);
   model.listFields.push(name);
   model.searchFields.push(name);
@@ -735,6 +1094,7 @@ function addField(model: ModelConfig) {
   } else {
     model.exact.push(name);
   }
+  normalizeRelationLookups(model);
   fieldDraft.name = '';
   fieldDraft.label = '';
   fieldDraft.type = 'text';
@@ -764,6 +1124,11 @@ function extractEnumNote(fieldType: string, args: string) {
   if (keyword) return keyword[1].split('.').pop();
   const positional = args.match(/^\s*([A-Za-z_][A-Za-z0-9_.]*)/);
   return positional?.[1]?.split('.').pop();
+}
+
+function extractRelatedModel(args: string) {
+  const positional = args.match(/^\s*["']([^"']+)["']/);
+  return positional?.[1] ?? '';
 }
 
 function fieldTypeFromTortoise(fieldType: string): FieldType {
@@ -832,11 +1197,13 @@ function parseFieldsFromBody(body: string) {
       name,
       label: extractStringValue(args, 'description') || name,
       type,
-      note: extractEnumNote(fieldType, args)
+      note: extractEnumNote(fieldType, args),
+      relationName: type === 'relation' ? rawName : undefined,
+      relatedModel: type === 'relation' ? extractRelatedModel(args) : undefined
     });
   }
 
-  relationIds.forEach(name => fields.push({ name, label: name, type: 'relation' }));
+  relationIds.forEach(name => fields.push({ name, label: name, type: 'relation', relationName: name.replace(/_id$/, '') }));
   return uniqueFields(fields);
 }
 
@@ -862,6 +1229,14 @@ function buildModelFromSource(name: string, bases: string, body: string): ModelC
       ['department_id', 'tenant_id', 'project_id', 'store_id', 'scope_id'].includes(field.name)
     )?.name || 'id';
   const title = firstDocLine(doc?.[1] ?? '') || extractStringValue(body, 'table_description') || name;
+  const relationLookups = fields
+    .filter(field => field.type === 'relation')
+    .map(field => ({
+      fieldName: field.name,
+      relationName: relationNameFromField(field),
+      relatedModel: field.relatedModel ?? '',
+      labelField: defaultRelationLabelField(field)
+    }));
 
   return {
     name,
@@ -883,7 +1258,8 @@ function buildModelFromSource(name: string, bases: string, body: string): ModelC
       (field, index, array) => array.indexOf(field) === index
     ),
     listOrder: ['id'],
-    fields
+    fields,
+    relationLookups
   };
 }
 
@@ -915,9 +1291,16 @@ function parseModelSource() {
   }
 
   replaceModels(parsed, parsed[0].name);
+  configMode.value = 'simple';
   goStep(2);
   window.$message?.success(`已解析 ${parsed.length} 个 Model`);
 }
+
+watch(configMode, mode => {
+  if (mode === 'simple') {
+    models.forEach(syncSimpleSearchFields);
+  }
+});
 
 watch(models, persistChangedModelConfigs, { deep: true });
 </script>
@@ -931,6 +1314,7 @@ watch(models, persistChangedModelConfigs, { deep: true });
             <NTag type="primary" size="small">CLI</NTag>
             <NTag type="success" size="small">Git 安全撤销</NTag>
             <NTag type="info" size="small">HR 示例</NTag>
+            <NTag type="warning" size="small">水电费示例</NTag>
           </div>
           <h2 class="m-0 text-20px font-semibold">代码生成配置台</h2>
           <p class="m-0 mt-8px text-13px text-gray-500">
@@ -938,9 +1322,18 @@ watch(models, persistChangedModelConfigs, { deep: true });
           </p>
         </div>
         <NSpace>
+          <NRadioGroup v-model:value="configMode" size="small">
+            <NRadioButton v-for="item in configModeOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </NRadioButton>
+          </NRadioGroup>
           <NButton secondary @click="loadHrExample">
             <template #icon><icon-ic-round-workspaces class="text-icon" /></template>
             HR 示例
+          </NButton>
+          <NButton secondary @click="loadUtilityExample">
+            <template #icon><icon-ic-round-workspaces class="text-icon" /></template>
+            水电费示例
           </NButton>
           <NButton type="primary" ghost @click="copyText(command, '生成命令')">
             <template #icon><icon-ic-round-content-copy class="text-icon" /></template>
@@ -976,7 +1369,7 @@ watch(models, persistChangedModelConfigs, { deep: true });
     </NCard>
 
     <NGrid v-show="currentStep === 1" responsive="screen" item-responsive :x-gap="16" :y-gap="16">
-      <NGridItem span="24 l:8">
+      <NGridItem span="24 l:6">
         <NCard :bordered="false" size="small" class="quick-start-card h-full">
           <NSpace vertical :size="14">
             <div>
@@ -991,7 +1384,22 @@ watch(models, persistChangedModelConfigs, { deep: true });
           </NSpace>
         </NCard>
       </NGridItem>
-      <NGridItem span="24 l:16">
+      <NGridItem span="24 l:6">
+        <NCard :bordered="false" size="small" class="quick-start-card h-full">
+          <NSpace vertical :size="14">
+            <div>
+              <NTag type="warning" size="small">示例二</NTag>
+              <h3 class="m-0 mt-10px text-18px font-semibold">水电费示例</h3>
+              <p class="m-0 mt-6px text-13px text-gray-500">配置、单价、同步日志、读数和日账单，覆盖枚举、外键和金额字段。</p>
+            </div>
+            <NButton type="primary" size="large" block ghost @click="loadUtilityExample">
+              <template #icon><icon-ic-round-workspaces class="text-icon" /></template>
+              载入水电费示例
+            </NButton>
+          </NSpace>
+        </NCard>
+      </NGridItem>
+      <NGridItem span="24 l:12">
         <NCard title="粘贴 Model" :bordered="false" size="small" class="card-wrapper h-full">
           <NSpace vertical :size="12">
             <NInput
@@ -1025,17 +1433,23 @@ watch(models, persistChangedModelConfigs, { deep: true });
                   <NInput v-model:value="moduleCn" placeholder="例如 HR管理" />
                 </NFormItemGi>
               </NGrid>
-              <NFormItem label="生成范围">
+              <NFormItem v-if="configMode === 'advanced'" label="生成范围">
                 <NRadioGroup v-model:value="commandKind">
                   <NRadioButton v-for="item in commandKindOptions" :key="item.value" :value="item.value">
                     {{ item.label }}
                   </NRadioButton>
                 </NRadioGroup>
               </NFormItem>
-              <NFormItem label="按钮权限">
+              <NFormItem v-if="configMode === 'advanced'" label="按钮权限">
                 <NSwitch v-model:value="buttonAuth">
                   <template #checked>生成 create/edit/delete 按钮</template>
                   <template #unchecked>不生成按钮权限</template>
+                </NSwitch>
+              </NFormItem>
+              <NFormItem v-if="configMode === 'advanced'" label="预览模式">
+                <NSwitch v-model:value="dryRun">
+                  <template #checked>只预览文件影响</template>
+                  <template #unchecked>生成时写入文件</template>
                 </NSwitch>
               </NFormItem>
             </NForm>
@@ -1054,8 +1468,10 @@ watch(models, persistChangedModelConfigs, { deep: true });
                 <span class="summary-label">搜索项</span>
               </div>
               <div>
-                <span class="summary-value">{{ selectedFieldSummary.scoped }}</span>
-                <span class="summary-label">数据范围</span>
+                <span class="summary-value">
+                  {{ configMode === 'simple' ? selectedFieldSummary.relationLookups : selectedFieldSummary.scoped }}
+                </span>
+                <span class="summary-label">{{ configMode === 'simple' ? '外键' : '数据范围' }}</span>
               </div>
             </div>
           </NSpace>
@@ -1079,7 +1495,8 @@ watch(models, persistChangedModelConfigs, { deep: true });
               </NButton>
             </NSpace>
             <NAlert type="warning">
-              CLI 生成前会检查 Git 工作区，要求当前代码已提交且没有未跟踪文件。撤销会先备份到
+              CLI 写入前会检查 Git 工作区，要求当前代码已提交且没有未跟踪文件；dry-run
+              只预览文件影响，不写磁盘。撤销会先备份到
               <NText code>codegen_backups/</NText>
               ，再使用 git restore / git clean 退回生成结果。
             </NAlert>
@@ -1088,7 +1505,87 @@ watch(models, persistChangedModelConfigs, { deep: true });
       </NGridItem>
     </NGrid>
 
-    <NCard v-show="currentStep === 2" title="模型与字段配置" :bordered="false" size="small" class="card-wrapper">
+    <NCard
+      v-show="currentStep === 2 && configMode === 'simple'"
+      title="简单配置"
+      :bordered="false"
+      size="small"
+      class="card-wrapper"
+    >
+      <template #header-extra>
+        <NSpace>
+          <NText v-if="activeModelConfigChanged" :depth="3" class="hidden text-12px sm:inline">
+            已按 {{ activeModel.table }} 保存
+          </NText>
+          <NButton size="small" secondary :disabled="!activeModelConfigChanged" @click="resetActiveModelConfig">
+            <template #icon><icon-ic-round-refresh class="text-icon" /></template>
+            重置配置
+          </NButton>
+          <NButton size="small" secondary @click="addModel">
+            <template #icon><icon-ic-round-plus class="text-icon" /></template>
+            新增模型
+          </NButton>
+        </NSpace>
+      </template>
+      <div class="simple-model-list">
+        <div v-for="model in models" :key="model.name" class="simple-model-row">
+          <div class="simple-model-main">
+            <div class="simple-model-title">
+              <NSwitch v-model:value="model.selected" size="small">
+                <template #checked>生成</template>
+                <template #unchecked>跳过</template>
+              </NSwitch>
+              <div class="min-w-0">
+                <div class="truncate text-15px font-medium">{{ model.title }}</div>
+                <div class="truncate text-12px text-gray-500">{{ model.name }} · {{ model.table }}</div>
+              </div>
+            </div>
+            <NGrid responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="simple-model-grid">
+              <NGridItem span="24 l:9">
+                <div class="field-panel simple-panel">
+                  <div class="field-title">外键关联字段</div>
+                  <NSpace v-if="model.relationLookups.length" vertical :size="8">
+                    <div v-for="lookup in model.relationLookups" :key="lookup.fieldName" class="relation-lookup-row">
+                      <NText class="relation-lookup-name" :depth="2">
+                        {{ relationFieldLabel(model, lookup) }}
+                      </NText>
+                      <NSelect
+                        v-model:value="lookup.labelField"
+                        :options="relationLabelFieldOptions(model, lookup)"
+                        size="small"
+                        filterable
+                        tag
+                      />
+                    </div>
+                  </NSpace>
+                  <NEmpty v-else size="small" description="无外键" />
+                </div>
+              </NGridItem>
+              <NGridItem span="24 l:15">
+                <div class="field-panel simple-panel">
+                  <div class="field-title">搜索条件</div>
+                  <NCheckboxGroup :value="model.searchFields" @update:value="value => updateSimpleSearchFields(model, value)">
+                    <NSpace>
+                      <NCheckbox v-for="field in fieldOptions(model)" :key="field.value" :value="field.value">
+                        {{ field.label }}
+                      </NCheckbox>
+                    </NSpace>
+                  </NCheckboxGroup>
+                </div>
+              </NGridItem>
+            </NGrid>
+          </div>
+        </div>
+      </div>
+    </NCard>
+
+    <NCard
+      v-show="currentStep === 2 && configMode === 'advanced'"
+      title="模型与字段配置"
+      :bordered="false"
+      size="small"
+      class="card-wrapper"
+    >
       <template #header-extra>
         <NSpace>
           <NText v-if="activeModelConfigChanged" :depth="3" class="hidden text-12px sm:inline">
@@ -1422,11 +1919,55 @@ watch(models, persistChangedModelConfigs, { deep: true });
   border-bottom: 1px solid var(--codegen-border);
 }
 
+.simple-model-list {
+  display: grid;
+  gap: 10px;
+}
+
+.simple-model-row {
+  padding: 12px;
+  border: 1px solid var(--codegen-border);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.simple-model-main {
+  display: grid;
+  gap: 12px;
+}
+
+.simple-model-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.simple-model-grid {
+  min-width: 0;
+}
+
+.relation-lookup-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(160px, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.relation-lookup-name {
+  min-width: 0;
+}
+
 .field-panel {
   min-height: 130px;
   padding: 12px;
   border: 1px solid var(--codegen-border);
   border-radius: 8px;
+}
+
+.field-panel.simple-panel {
+  min-height: 108px;
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .field-list-panel {
@@ -1514,6 +2055,10 @@ watch(models, persistChangedModelConfigs, { deep: true });
 
   .preview-model-select {
     width: 100%;
+  }
+
+  .relation-lookup-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

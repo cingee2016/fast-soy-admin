@@ -63,7 +63,9 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 
 @click.option("-y", "--yes", "assume_yes", is_flag=True, help="不进入交互，使用全模型与默认字段")
 @click.option("--list-fields", "list_field_specs", multiple=True, help="前端列表字段，例: Employee:name,tenant_id,status_type")
 @click.option("--search-fields", "search_field_specs", multiple=True, help="前端搜索字段，例: Employee:name,status_type")
+@click.option("--button-auth", is_flag=True, help="生成前端按钮权限显示控制（需后端已声明同名按钮权限）")
 @click.option("--force", is_flag=True, help="强制覆盖已存在的文件")
+@click.option("--dry-run", is_flag=True, help="只预览将创建/覆盖/追加的文件，不写入磁盘")
 @click.option("--no-format", is_flag=True, help="跳过 just fmt frontend")
 def gen_web(
     module_name: str,
@@ -72,7 +74,9 @@ def gen_web(
     assume_yes: bool,
     list_field_specs: tuple[str, ...],
     search_field_specs: tuple[str, ...],
+    button_auth: bool,
     force: bool,
+    dry_run: bool,
     no_format: bool,
 ):
     """根据 models.py 生成前端代码（service / typings / views / i18n）。
@@ -91,7 +95,8 @@ def gen_web(
     if not WEB_ROOT.exists():
         raise click.ClickException(f"找不到前端目录 {format_path(WEB_ROOT)}")
 
-    ensure_committed_worktree()
+    if not dry_run:
+        ensure_committed_worktree()
 
     # 1. 解析模型
     models = parse_models(models_path)
@@ -159,7 +164,9 @@ def gen_web(
         models,
         list_fields_map=list_fields,
         search_fields_map=search_fields,
+        button_auth_models={model.name for model in models} if button_auth else set(),
         force=force,
+        dry_run=dry_run,
     )
 
     for rel_path, status in results:

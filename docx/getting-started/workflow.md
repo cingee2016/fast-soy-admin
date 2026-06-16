@@ -149,7 +149,7 @@ web/
 
 ### 6. 处理 TODO
 
-前端中的外键 / 自定义枚举无法自动推导数据源，生成代码里留有 `// TODO` 注释。用 IDE 搜索 TODO，补齐 options 的数据源（通常是配置一个 `fetchGetXxxList` 请求）。
+前端中的外键 / 自定义枚举无法自动推导数据源，列表页会生成集中式 `options` 接线点并留有 `// TODO` 注释。用 IDE 搜索 TODO，在父页面补齐 options 的数据源（通常是配置一个 `fetchGetXxxList` 请求），搜索区和新增/编辑抽屉会通过 props 复用同一份 options。
 
 ### 7. 迁移数据库
 
@@ -185,8 +185,8 @@ CLI 根据 Tortoise 字段类型自动推导 TS 类型和表单组件：
 | `DateField` | `string` | `date` | `NDatePicker type="date"` | — |
 | `DatetimeField` | `string` | `datetime` | `NDatePicker type="datetime"` | — |
 | `CharEnumField(StatusType)` | `string` | `StatusType` | `NSelect statusTypeOptions` | 同左 |
-| `CharEnumField(其他枚举)` | `string` | `str` | `NSelect` + TODO | 同左 |
-| `ForeignKeyField` | `number` | `int` | `NSelect` + TODO | 同左 |
+| `CharEnumField(其他枚举)` | `string` | `str` | `NSelect` + 父页面 options TODO | 同左 |
+| `ForeignKeyField` | `string` | `SqidId` | `NSelect` + 父页面 options TODO | 同左 |
 
 ## i18n 命名规则
 

@@ -45,6 +45,12 @@ All generator commands support `-h/--help`. Add `--yes` to generate without prom
 uv run python -m app.cli crud utility_fee --cn-name "Utility Fees" --yes --force
 ```
 
+Add `--dry-run` before generation to preview which files would be created, overwritten, or appended. Dry-run does not write to disk and does not require a clean Git worktree:
+
+```bash
+just cli-crud inventory Inventory "--yes --dry-run"
+```
+
 Model and field specs use the same `Model:field1,field2` shape. Repeat an option or separate specs with semicolons for multiple models:
 
 ```bash

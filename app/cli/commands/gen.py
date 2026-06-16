@@ -65,6 +65,7 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 
 @click.option("--list-cache", "list_cache_specs", multiple=True, help="列表接口缓存 TTL 秒数，例: Dict:60")
 @click.option("--rate-limit", "rate_limit_specs", multiple=True, help="输出 guard 限流配置提示，例: LoginLog:30/60")
 @click.option("--force", is_flag=True, help="强制覆盖已存在的文件")
+@click.option("--dry-run", is_flag=True, help="只预览将创建/覆盖的文件，不写入磁盘")
 @click.option("--no-format", is_flag=True, help="跳过 just fmt backend")
 def gen(
     module_name: str,
@@ -82,6 +83,7 @@ def gen(
     list_cache_specs: tuple[str, ...],
     rate_limit_specs: tuple[str, ...],
     force: bool,
+    dry_run: bool,
     no_format: bool,
 ):
     """根据 models.py 生成 schemas / controllers / api 等文件。
@@ -102,7 +104,8 @@ def gen(
     if not models_path.exists():
         raise click.ClickException(f"models.py 不存在: {relative_path(models_path)}")
 
-    ensure_committed_worktree()
+    if not dry_run:
+        ensure_committed_worktree()
 
     # 1. 解析模型
     models = parse_models(models_path)
@@ -162,7 +165,16 @@ def gen(
 
     # 3. 生成文件
     click.echo("")
-    results = generate_all(module_dir, module_name, models, contains_map, exact_map=exact_map, backend_options=backend_options, force=force)
+    results = generate_all(
+        module_dir,
+        module_name,
+        models,
+        contains_map,
+        exact_map=exact_map,
+        backend_options=backend_options,
+        force=force,
+        dry_run=dry_run,
+    )
 
     for rel_path, status in results:
         echo_file_result(f"app/business/{module_name}/{rel_path}", status)
