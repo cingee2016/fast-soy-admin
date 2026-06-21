@@ -81,9 +81,16 @@ def _check_migration_table(db_url: str) -> str | None:
 
 
 def _check_migration_table_generic(_db_url: str) -> str | None:
-    """非 SQLite 数据库：尝试通过 tortoise 同步方式检查迁移表。
+    """非 SQLite 数据库：通过 tortoise history 检查数据库中的已应用迁移记录。
 
-    使用 subprocess 调用 tortoise history 命令，如果有输出说明存在迁移记录。
+    tortoise history 的输出形如::
+
+        Connection: conn_system
+          app_system:
+            - app_system 0001_initial
+
+    无迁移时最后一行是 ``(no applied migrations)`` 提示。只有以 ``- `` 开头的行
+    才是真正的迁移记录，元信息行（Connection / app 标题 / 提示行）不能计入。
     """
     try:
         result = subprocess.run(
@@ -92,11 +99,12 @@ def _check_migration_table_generic(_db_url: str) -> str | None:
             text=True,
             timeout=10,
         )
-        # history 输出非空且无错误 → 有迁移记录
-        if result.returncode == 0 and result.stdout.strip():
-            lines = [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
-            if lines:
-                return f"数据库已有 {len(lines)} 条迁移记录"
+        if result.returncode != 0:
+            return None
+        # 仅统计真正的迁移行（以 "- " 开头），忽略 Connection/应用名/(no applied migrations) 等元信息
+        migration_lines = [line.strip() for line in result.stdout.splitlines() if line.strip().startswith("- ")]
+        if migration_lines:
+            return f"数据库已有 {len(migration_lines)} 条迁移记录"
     except Exception:
         pass
     return None
