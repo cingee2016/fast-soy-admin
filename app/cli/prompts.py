@@ -207,11 +207,25 @@ def _fk_relation_candidates(model: ModelInfo) -> list[RelationInfo]:
 
 def frontend_list_field_candidates(model: ModelInfo) -> list[ChoiceInput]:
     choices: list[ChoiceInput] = []
-    for field in [field for field in model.schema_fields if field.field_type not in ("TextField",)][:6]:
+    for field in [field for field in model.schema_fields if field.field_type not in ("TextField",)]:
         choices.append(field)
     for relation in _fk_relation_candidates(model):
         choices.append(relation)
     return choices
+
+
+def default_frontend_list_field_names(model: ModelInfo, candidates: list[PromptChoice]) -> list[str]:
+    """Recommended defaults for list columns: keep generated tables compact."""
+    candidate_names = {choice.name for choice in candidates}
+    defaults: list[str] = []
+    for field in [field for field in model.schema_fields if field.field_type not in ("TextField",)][:6]:
+        if field.name in candidate_names:
+            defaults.append(field.name)
+    for relation in _fk_relation_candidates(model):
+        name = f"{relation.name}_id"
+        if name in candidate_names and name not in defaults:
+            defaults.append(name)
+    return defaults
 
 
 def frontend_search_field_candidates(model: ModelInfo) -> list[ChoiceInput]:

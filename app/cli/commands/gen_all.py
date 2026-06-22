@@ -13,6 +13,7 @@ from app.cli.options import all_choice_names, build_backend_feature_options, pro
 from app.cli.parser import parse_models
 from app.cli.prompts import (
     default_exact_field_names,
+    default_frontend_list_field_names,
     default_frontend_search_field_names,
     exact_field_candidates,
     frontend_list_field_candidates,
@@ -211,7 +212,7 @@ def gen_all(
             models,
             list_field_specs,
             frontend_list_field_candidates,
-            default_names_fn=all_choice_names,
+            default_names_fn=default_frontend_list_field_names,
             defaults_when_missing=assume_yes,
             option_name="--list-fields",
         )
@@ -220,6 +221,7 @@ def gen_all(
             models,
             "列表展示字段",
             frontend_list_field_candidates,
+            default_names_fn=default_frontend_list_field_names,
         )
 
     if search_field_specs or assume_yes:

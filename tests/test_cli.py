@@ -7,14 +7,20 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from app.cli import cli
+from app.cli import cli, git_tools
 from app.cli import display as cli_display
-from app.cli import git_tools
 from app.cli.display import format_path
 from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas, generate_all
 from app.cli.options import BackendFeatureOptions, DataScopeOption, resolve_data_scope_map, resolve_field_map
 from app.cli.parser import parse_models
-from app.cli.prompts import default_exact_field_names, exact_field_candidates, frontend_list_field_candidates, frontend_search_field_candidates, resolve_model_selection
+from app.cli.prompts import (
+    default_exact_field_names,
+    default_frontend_list_field_names,
+    exact_field_candidates,
+    frontend_list_field_candidates,
+    frontend_search_field_candidates,
+    resolve_model_selection,
+)
 from app.cli.web_generator import gen_view_drawer, gen_view_index, gen_view_search, generate_web
 
 
@@ -542,6 +548,59 @@ class Employee(BaseModel):
     assert search_fields["Employee"] == ["name", "department_id"]
 
 
+def test_frontend_list_fields_accept_non_default_fields_after_sixth(tmp_path: Path):
+    models_path = tmp_path / "models.py"
+    models_path.write_text(
+        '''
+from tortoise import fields
+
+from app.utils import BaseModel, StatusType
+
+
+class InspectionRecord(BaseModel):
+    """巡检记录"""
+
+    id = fields.IntField(primary_key=True)
+    station = fields.ForeignKeyField("models.Station", related_name="inspection_records", description="所属站点")
+    record_no = fields.CharField(max_length=50, description="记录编号")
+    inspector_name = fields.CharField(max_length=50, description="巡检人")
+    equipment_name = fields.CharField(max_length=100, description="设备名称")
+    score = fields.IntField(default=100, description="评分")
+    category = fields.CharField(max_length=50, description="巡检类型")
+    is_urgent = fields.BooleanField(default=False, description="是否紧急")
+    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+''',
+        encoding="utf-8",
+    )
+    [model] = parse_models(models_path)
+
+    list_fields = resolve_field_map(
+        [model],
+        ["InspectionRecord:record_no,status"],
+        frontend_list_field_candidates,
+        option_name="--list-fields",
+    )
+    default_fields = resolve_field_map(
+        [model],
+        [],
+        frontend_list_field_candidates,
+        default_names_fn=default_frontend_list_field_names,
+        defaults_when_missing=True,
+        option_name="--list-fields",
+    )
+
+    assert list_fields["InspectionRecord"] == ["record_no", "status"]
+    assert default_fields["InspectionRecord"] == [
+        "record_no",
+        "inspector_name",
+        "equipment_name",
+        "score",
+        "category",
+        "is_urgent",
+        "station_id",
+    ]
+
+
 def test_generated_frontend_uses_button_auth_and_option_props(tmp_path: Path):
     models_path = tmp_path / "models.py"
     models_path.write_text(
@@ -727,13 +786,7 @@ def test_collect_codegen_changes_keeps_non_codegen_paths(monkeypatch):
             return subprocess.CompletedProcess(
                 ["git", *args],
                 0,
-                stdout=(
-                    " M app/business/hr/schemas.py\n"
-                    " M README.md\n"
-                    " M web/src/router/elegant/routes.ts\n"
-                    " M web/src/typings/components.d.ts\n"
-                    "?? web/src/locales/langs/_generated/hr/zh-cn.ts\n"
-                ),
+                stdout=(" M app/business/hr/schemas.py\n M README.md\n M web/src/router/elegant/routes.ts\n M web/src/typings/components.d.ts\n?? web/src/locales/langs/_generated/hr/zh-cn.ts\n"),
                 stderr="",
             )
         raise AssertionError(args)

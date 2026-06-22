@@ -10,7 +10,14 @@ from app.cli.display import echo_file_result, echo_lines, format_path, has_writt
 from app.cli.git_tools import ensure_committed_worktree
 from app.cli.options import all_choice_names, resolve_field_map
 from app.cli.parser import parse_models
-from app.cli.prompts import frontend_list_field_candidates, frontend_search_field_candidates, prompt_fields, prompt_model_selection, resolve_model_selection
+from app.cli.prompts import (
+    default_frontend_list_field_names,
+    frontend_list_field_candidates,
+    frontend_search_field_candidates,
+    prompt_fields,
+    prompt_model_selection,
+    resolve_model_selection,
+)
 from app.cli.web_generator import generate_web
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -127,7 +134,7 @@ def gen_web(
             models,
             list_field_specs,
             frontend_list_field_candidates,
-            default_names_fn=all_choice_names,
+            default_names_fn=default_frontend_list_field_names,
             defaults_when_missing=assume_yes,
             option_name="--list-fields",
         )
@@ -136,6 +143,7 @@ def gen_web(
             models,
             "列表展示字段",
             frontend_list_field_candidates,
+            default_names_fn=default_frontend_list_field_names,
         )
 
     # 4. 搜索字段
