@@ -78,10 +78,7 @@ async def _truncate(conn: BaseDBAsyncClient, dialect: str, tables: list[str]) ->
         try:
             for name in tables:
                 await conn.execute_query(f'DELETE FROM "{name}";')
-                await conn.execute_query(
-                    f"IF OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity') = 1 "
-                    f"DBCC CHECKIDENT ('{name}', RESEED, 0);"
-                )
+                await conn.execute_query(f"IF OBJECTPROPERTY(OBJECT_ID('{name}'), 'TableHasIdentity') = 1 DBCC CHECKIDENT ('{name}', RESEED, 0);")
         finally:
             await conn.execute_query("EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL';")
     else:

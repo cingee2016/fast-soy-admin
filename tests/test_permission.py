@@ -9,8 +9,8 @@ import json
 
 import pytest
 import pytest_asyncio
-from fastapi.routing import APIRoute
 from fastapi import Request
+from fastapi.routing import APIRoute
 
 from app.core.code import Code
 from app.core.ctx import CTX_BUTTON_CODES, CTX_ROLE_CODES, CTX_USER, CTX_USER_ID
@@ -184,8 +184,6 @@ async def test_parametric_permission_does_not_leak_to_static_sibling(perm_env):
             req = _build_request(app, static_route, m)
             with pytest.raises(BizError) as exc_info:
                 await PermissionControl.has_permission(req, current_user=None)  # type: ignore[arg-type]
-            assert exc_info.value.code == Code.PERMISSION_DENIED, (
-                f"持有 {m.upper()} {param_path} 权限竟然放行了 {m.upper()} {static_path}"
-            )
+            assert exc_info.value.code == Code.PERMISSION_DENIED, f"持有 {m.upper()} {param_path} 权限竟然放行了 {m.upper()} {static_path}"
         finally:
             _reset_ctx(tokens)

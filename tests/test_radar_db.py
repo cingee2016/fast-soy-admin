@@ -79,6 +79,7 @@ _async_mark = pytest.mark.asyncio(loop_scope="session")
 
 class TestQueryRequests:
     pytestmark = _async_mark
+
     async def test_list_all(self, seed_radar_data):
         total, records = await query_requests(page=1, page_size=50)
         assert total >= 4
@@ -125,6 +126,7 @@ class TestQueryRequests:
 
 class TestQueryRequestDetail:
     pytestmark = _async_mark
+
     async def test_detail_found(self, seed_radar_data):
         detail = await query_request_detail("db-req-001")
         assert detail is not None
@@ -141,6 +143,7 @@ class TestQueryRequestDetail:
 
 class TestQueryAllQueries:
     pytestmark = _async_mark
+
     async def test_list_all_queries(self, seed_radar_data):
         total, records = await query_all_queries(page=1, page_size=50)
         assert total >= 3
@@ -166,6 +169,7 @@ class TestQueryAllQueries:
 
 class TestQueryExceptions:
     pytestmark = _async_mark
+
     async def test_list_exceptions(self, seed_radar_data):
         total, records = await query_exceptions(page=1, page_size=50)
         assert total >= 1
@@ -192,6 +196,7 @@ class TestQueryExceptions:
 
 class TestUpdateExceptionResolved:
     pytestmark = _async_mark
+
     async def test_resolve_exception(self, seed_radar_data):
         success = await update_exception_resolved("db-req-err-001", True)
         assert success is True
@@ -216,6 +221,7 @@ class TestUpdateExceptionResolved:
 
 class TestQueryStats:
     pytestmark = _async_mark
+
     async def test_stats_all(self, seed_radar_data):
         stats = await query_stats()
         assert stats["request_count"] >= 4
