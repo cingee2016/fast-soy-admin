@@ -421,7 +421,14 @@ def _default_value_for_field(f: FieldInfo) -> str:
     return "null"
 
 
-def gen_view_index(module: str, model: ModelInfo, list_fields: list[str], *, button_auth: bool = False) -> str:
+def gen_view_index(
+    module: str,
+    model: ModelInfo,
+    list_fields: list[str],
+    *,
+    search_field_names: list[str] | None = None,
+    button_auth: bool = False,
+) -> str:
     """生成 views/<module>/<entity>/index.vue"""
     entity = model.name
     entity_snake = model.snake_name
@@ -469,9 +476,18 @@ def gen_view_index(module: str, model: ModelInfo, list_fields: list[str], *, but
         camel = snake_to_camel(f.name)
         col_lines.append(f"    {{ key: '{camel}', title: $t('{i18n_page}.{camel}'), align: 'center', minWidth: 120 }},")
 
-    # 搜索参数字段（给 reactive 的默认值）
+    search_field_names = search_field_names or []
+
+    # 搜索参数字段默认值由父级维护，reset 后可统一回到第一页并重新请求列表。
     search_param_lines = ["  current: 1,", "  size: 10,"]
-    # 搜索参数不在这里定义，只定义 list 列；search 字段在 search.vue 里
+    for name in search_field_names:
+        f = next((x for x in fields if x.name == name), None)
+        if f:
+            search_param_lines.append(f"  {snake_to_camel(name)}: null,")
+            continue
+        r = find_fk_relation(model, name)
+        if r:
+            search_param_lines.append(f"  {relation_camel_name(r)}: null,")
 
     search_prop_lines = [f'      :{camel_to_kebab(prop)}="{prop}"' for prop in option_props]
     drawer_prop_lines = [f'        :{camel_to_kebab(prop)}="{prop}"' for prop in option_props]
@@ -480,6 +496,7 @@ def gen_view_index(module: str, model: ModelInfo, list_fields: list[str], *, but
         f"    <{entity}Search",
         '      v-model:model="searchParams"',
         *search_prop_lines,
+        '      @reset="resetSearchParams"',
         '      @search="getDataByPage"',
         "    />",
     ])
@@ -578,10 +595,11 @@ const appStore = useAppStore();
 
 {chr(10).join(option_ref_lines)}
 
-const searchParams: Api.{ns}.{entity}SearchParams = reactive({{
-  current: 1,
-  size: 10
-}});
+const defaultSearchParams: Api.{ns}.{entity}SearchParams = {{
+{chr(10).join(search_param_lines)}
+}};
+
+const searchParams: Api.{ns}.{entity}SearchParams = reactive({{ ...defaultSearchParams }});
 
 const {{ columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination }} = useNaivePaginatedTable({{
   api: () => fetchGet{entity}List(searchParams),
@@ -618,6 +636,13 @@ async function handleBatchDelete() {{
 async function handleDelete(id: string) {{
   const {{ error }} = await fetchDelete{entity}({{ id }});
   if (!error) onDeleted();
+}}
+
+function resetSearchParams() {{
+  Object.assign(searchParams, {{
+    ...defaultSearchParams
+  }});
+  getDataByPage(1);
 }}
 
 function edit(id: string) {{
@@ -747,8 +772,6 @@ def gen_view_search(module: str, model: ModelInfo, search_field_names: list[str]
     needs_boolean_options = any((next((x for x in fields if x.name == n), None) or FieldInfo("", "", "")).field_type == "BooleanField" for n in search_field_names)
 
     imports = [
-        "import { toRaw } from 'vue';",
-        "import { jsonClone } from '@sa/utils';",
         "import { $t } from '@/locales';",
     ]
     if needs_status_import:
@@ -791,15 +814,15 @@ const booleanOptions = [
 defineOptions({{ name: '{entity}Search' }});
 
 interface Emits {{
+  (e: 'reset'): void;
   (e: 'search'): void;
 }}
 
 const emit = defineEmits<Emits>();
 const model = defineModel<Api.{ns}.{entity}SearchParams>('model', {{ required: true }});
-const defaultModel = jsonClone(toRaw(model.value));
 
-function resetModel() {{
-  Object.assign(model.value, defaultModel);
+function reset() {{
+  emit('reset');
 }}
 
 function search() {{
@@ -816,7 +839,7 @@ function search() {{
 {chr(10).join(form_items)}
             <NFormItemGi span="24 s:12 m:6">
               <NSpace class="w-full" justify="end">
-                <NButton @click="resetModel">
+                <NButton @click="reset">
                   <template #icon><icon-ic-round-refresh class="text-icon" /></template>
                   {{{{ $t('common.reset') }}}}
                 </NButton>
@@ -1266,7 +1289,16 @@ def generate_web(
         list_fields = list_fields_map.get(model.name, [f.name for f in model.schema_fields[:5]])
         search_fields = search_fields_map.get(model.name, [])
 
-        write(view_dir / "index.vue", gen_view_index(module, model, list_fields, button_auth=model.name in button_auth_models))
+        write(
+            view_dir / "index.vue",
+            gen_view_index(
+                module,
+                model,
+                list_fields,
+                search_field_names=search_fields,
+                button_auth=model.name in button_auth_models,
+            ),
+        )
         write(view_dir / "modules" / f"{entity_kebab}-search.vue", gen_view_search(module, model, search_fields))
         write(view_dir / "modules" / f"{entity_kebab}-operate-drawer.vue", gen_view_drawer(module, model))
 
