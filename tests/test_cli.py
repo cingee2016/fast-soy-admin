@@ -637,7 +637,13 @@ class Employee(BaseModel):
     )
     [model] = parse_models(models_path)
 
-    index = gen_view_index("hr", model, ["name", "department_id", "employee_status"], button_auth=True)
+    index = gen_view_index(
+        "hr",
+        model,
+        ["name", "department_id", "employee_status"],
+        search_field_names=["name", "department_id", "employee_status"],
+        button_auth=True,
+    )
     search = gen_view_search("hr", model, ["name", "department_id", "employee_status"])
     drawer = gen_view_drawer("hr", model)
 
@@ -648,15 +654,26 @@ class Employee(BaseModel):
     assert "hasAuth('B_HR_EMPLOYEE_DELETE')" in index
     assert "const departmentOptions = ref<SelectOptionItem[]>([]);" in index
     assert "const employeeStatusOptions = ref<SelectOptionItem[]>([]);" in index
+    assert "const defaultSearchParams: Api.HrManage.EmployeeSearchParams = {" in index
+    assert "  name: null," in index
+    assert "  departmentId: null," in index
+    assert "  employeeStatus: null," in index
     assert ':department-options="departmentOptions"' in index
     assert ':employee-status-options="employeeStatusOptions"' in index
+    assert '@reset="resetSearchParams"' in index
+    assert "function resetSearchParams()" in index
+    assert "getDataByPage(1);" in index
     assert '@add="handleAdd"' not in index
 
+    assert "(e: 'reset'): void;" in search
     assert "departmentOptions?: SelectOptionItem[];" in search
     assert "employeeStatusOptions?: SelectOptionItem[];" in search
     assert ':options="props.departmentOptions"' in search
     assert ':options="props.employeeStatusOptions"' in search
     assert ':options="[]"' not in search
+    assert "emit('reset');" in search
+    assert "resetModel" not in search
+    assert "jsonClone" not in search
 
     assert "departmentOptions?: SelectOptionItem[];" in drawer
     assert "employeeStatusOptions?: SelectOptionItem[];" in drawer
