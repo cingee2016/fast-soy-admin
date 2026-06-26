@@ -161,6 +161,8 @@ async def _(jwt_token: JWTOut, request: Request):
         return Fail(code=Code.REFRESH_TOKEN_MISSING, msg="刷新令牌无效")
     status, code, data = check_token(jwt_token.refresh_token)
     if not status:
+        if code == Code.TOKEN_EXPIRED:
+            return Fail(code=Code.REFRESH_TOKEN_EXPIRED, msg="登录已过期，请重新登录")
         return Fail(code=code, msg=data)
 
     user_id = data["data"]["userId"]

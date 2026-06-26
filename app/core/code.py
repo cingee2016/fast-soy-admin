@@ -47,6 +47,7 @@ class Code:
     REFRESH_TOKEN_MISSING = "2104"  # 刷新令牌缺失或为空
     NOT_REFRESH_TOKEN = "2105"  # 传入的令牌不是 refresh token
     SESSION_INVALIDATED = "2106"  # token_version 已被递增，旧 token 已失效
+    REFRESH_TOKEN_EXPIRED = "2107"  # refresh token 已过期，需要重新登录
 
     # 22xx — 授权
     API_DISABLED = "2200"  # API 接口已被禁用

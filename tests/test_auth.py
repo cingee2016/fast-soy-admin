@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 
@@ -81,6 +83,34 @@ class TestRefreshToken:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == Code.INVALID_TOKEN
+
+    async def test_refresh_token_expired_requires_login(self, client: AsyncClient, seed_data):
+        from app.system.schemas.login import JWTPayload
+        from app.system.security import create_access_token
+
+        now = datetime.now(UTC)
+        payload = JWTPayload(
+            data={
+                "userId": seed_data.id,
+                "userName": seed_data.user_name,
+                "tokenType": "refreshToken",
+                "tokenVersion": 0,
+            },
+            iat=now - timedelta(days=8),
+            exp=now - timedelta(minutes=1),
+        )
+
+        resp = await client.post(
+            "/api/v1/auth/refresh-token",
+            json={
+                "refreshToken": create_access_token(data=payload),
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == Code.REFRESH_TOKEN_EXPIRED
+        assert data["msg"] == "登录已过期，请重新登录"
 
 
 class TestResetPassword:
