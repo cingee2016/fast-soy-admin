@@ -84,6 +84,8 @@ app_system_e2e.sqlite3*
 
 .codex/
 .claude/
+.agents/
 
 tmp/
 codegen_backups/
+skills-lock.json
