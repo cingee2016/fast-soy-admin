@@ -1,6 +1,6 @@
 # Business Module Autodiscover
 
-`app/core/autodiscover.py` scans `app/business/*/` at startup and loads each module's models, routes, init function, and standalone DB config. **Business modules need no manual registration**.
+`app/core/autodiscover.py` scans `app/business/*/` at startup and loads each module's models, manifest routes, init declarations, events, data policies, periodic tasks, and standalone DB config. **Business modules need no manual registration**.
 
 ## Recognition rules
 
@@ -14,8 +14,9 @@ A subdirectory under `app/business/` is treated as a business module if it:
 | File | Loaded at | Behavior |
 |---|---|---|
 | `models.py` or `models/__init__.py` | `Settings` construction | added to `TORTOISE_ORM["apps"]["app_system"].models` (or its own app) |
-| `api/__init__.py` or `api.py` (must export `router: APIRouter`) | `create_app()` | `include_router` mounted under `/api/v1/business/` |
-| `init_data.py` (must export `async def init()`) | `lifespan` (leader worker only) | runs after system init, before `refresh_all_cache` |
+| `module.py` (exports `module = BusinessModule(...)`) | `create_app()` / `lifespan` | recommended entry: explicitly declares routers, init, PermissionSpec, EventSpec, DataPolicy, and PeriodicTask |
+| `api/__init__.py` or `api.py` (exports `router: APIRouter`) | `create_app()` | legacy entry: `include_router` mounted under `/api/v1/business/` |
+| `init_data.py` (exports `INIT_DATA` or `async def init()`) | `lifespan` (leader worker only) | runs after system init, before `refresh_all_cache`; manifests can attach `PermissionSpec(init_data=INIT_DATA)` for audit |
 | `config.py` (exports a Settings instance with `DB_URL`) | `Settings` construction | registers a separate Tortoise connection + app (only if `DB_URL` differs from main) |
 
 ## Standard layout
@@ -32,10 +33,11 @@ app/business/<name>/
 ├── schemas.py       # Pydantic schemas
 ├── controllers.py   # CRUDBase subclasses
 ├── services.py      # multi-model orchestration / cache / FSM
+├── module.py        # recommended — BusinessModule manifest
 ├── cache_utils.py   # optional — cache invalidation helpers
-├── init_data.py     # async def init()
+├── init_data.py     # INIT_DATA / async def init()
 └── api/
-    ├── __init__.py  # must export router
+    ├── __init__.py  # legacy mode must export router
     ├── manage.py
     ├── dept.py
     └── my.py
@@ -63,10 +65,12 @@ Settings._build_tortoise_orm()
 create_app()
   ├─ register_db(app)                      # the TORTOISE_ORM above takes effect
   ├─ register_routers(app, prefix="/api")  # /api/v1/auth, /api/v1/system-manage/*, ...
-  └─ discover_business_routers()           # /api/v1/business/<name>/*
+  └─ discover_business_routers()           # manifest routers or legacy api router
 
 lifespan(app)
-  └─ leader runs init_data.init() for each business
+  ├─ leader runs manifest init / legacy init_data.init()
+  ├─ registers manifest EventSpec / DataPolicy
+  └─ starts manifest PeriodicTask
 ```
 
 ## Common drift & troubleshooting
@@ -79,7 +83,7 @@ Startup log:
 Business: module 'inventory' discovered but has no api.py or api/ package — routes will not be registered
 ```
 
-`app/business/inventory/__init__.py` exists but no `api.py` / `api/__init__.py`. Either add the api or temporarily delete `__init__.py` to disable the module.
+`app/business/inventory/__init__.py` exists but has neither a `module.py` manifest nor a legacy `api.py` / `api/__init__.py`. Either add the manifest / api or temporarily delete `__init__.py` to disable the module.
 
 ### `api` module doesn't export router
 
@@ -87,7 +91,7 @@ Business: module 'inventory' discovered but has no api.py or api/ package — ro
 Business: module 'inventory' api module does not export a valid 'router' (APIRouter) object
 ```
 
-`api/__init__.py` must have:
+In legacy mode, `api/__init__.py` must have:
 
 ```python
 from .manage import router as manage_router
@@ -144,6 +148,7 @@ See [Switching DB / standalone DB](/en/ops/database#business-module-standalone-d
 - Order: alphabetical by module name (`hr` < `inventory` < `notify`)
 - A single module exception **doesn't** affect others — caught and recorded in `app.state.init_errors`
 - The function should be idempotent (use the `ensure_*` helpers)
+- Manifest modules can use `PermissionSpec(init_data=INIT_DATA)` so `just init-plan --strict` checks menu / role / API route-key drift before startup
 
 See [Init data](/en/develop/init-data).
 

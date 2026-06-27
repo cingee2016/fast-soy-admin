@@ -41,7 +41,7 @@ Runtime dependencies
 2. **路由分发** — 业务模块路由统一前缀 `/api/v1/business/<name>`，系统模块挂在 `/api/v1/{auth,route,system-manage}` 下
 3. **依赖注入**
    - `DependAuth` — JWT 解码 → 校验 token 版本号 → 加载用户与角色/按钮权限到 ContextVars
-   - `DependPermission` — 在 `DependAuth` 之上，按 `role.apis` 精确比对 `(method, path)`
+   - `DependPermission` — 在 `DependAuth` 之上，按 `role.apis` 授权 route key（兼容旧 `(method, path)`）
    - `require_buttons(...)` / `require_roles(...)` — 工厂依赖，按需挂在路由上
 4. **业务逻辑**
    - `api/` 层只接线，业务规则在 `services/` 与 `controllers/`
@@ -55,7 +55,8 @@ create_app()
   |-- register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
   |-- register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError 处理器
   |-- register_routers(app, prefix="/api")  # 系统模块 /api/v1/...
-  |-- discover_business_routers()           # /api/v1/business/<name>/...
+  |-- discover_business_routers()           # manifest routers 或 legacy api router
+  |-- register business policies            # manifest DataPolicy
   `-- setup_radar(app)                      # 可选
 
 lifespan(app)
@@ -66,7 +67,8 @@ lifespan(app)
   |   |-- init_menus()                      # 系统菜单种子（仅在 Menu 表为空时插入）
   |   |-- refresh_api_list()                # FastAPI 路由 <-> Api 表全量对账
   |   |-- init_users()                      # 系统角色 + 默认账号 + 字典
-  |   |-- for each business init():         # 业务模块 init_data.init()
+  |   |-- for each business init():         # manifest init 或 legacy init_data.init()
+  |   |-- start business tasks              # manifest PeriodicTask
   |   `-- refresh_all_cache()               # 角色权限 / 常量路由刷到 Redis
   |-- startup_radar()                       # 可选
   |-- yield

@@ -114,6 +114,8 @@ class CRUDRouter:
         soft_delete: bool = False,
         tree_endpoint: bool = False,
         action_dependencies: dict[str, Sequence[Any]] | None = None,
+        route_key_prefix: str | None = None,
+        data_policy: str | None = None,
     ):
         """
         Args:
@@ -145,6 +147,11 @@ class CRUDRouter:
                         "delete": [require_buttons("B_X_DELETE")],
                         "batch_delete": [require_buttons("B_X_DELETE")],
                     }
+            route_key_prefix: 路由稳定标识前缀，例如 ``crm.customers``。
+                传入后标准路由会生成 ``crm.customers.list`` 等
+                ``APIRoute.name``，用于权限声明引用。
+            data_policy: 列表接口读取策略名。传入后默认 list 路由会自动
+                ``q &= await apply_data_policy(data_policy)``。
         """
         self.prefix = prefix
         self.controller = controller
@@ -159,6 +166,8 @@ class CRUDRouter:
         self.soft_delete = soft_delete
         self.tree_endpoint = tree_endpoint
         self.action_dependencies: dict[str, Sequence[Any]] = action_dependencies or {}
+        self.route_key_prefix = route_key_prefix.rstrip(".") if route_key_prefix else None
+        self.data_policy = data_policy
 
         # 资源名（从 prefix 提取，如 "/roles" → "roles"）
         self._resource = prefix.strip("/").split("/")[-1]
@@ -256,6 +265,7 @@ class CRUDRouter:
                 func,
                 methods=list(spec["methods"]),
                 summary=spec["summary"],
+                name=spec.get("route_key"),
                 dependencies=list(self.action_dependencies.get(name, [])) or None,
             )
             return func
@@ -268,12 +278,14 @@ class CRUDRouter:
 
     def _register_spec(self, name: str, path: str, methods: set[str], summary: str, endpoint: Callable) -> None:
         """登记路由规格并将其挂载到 router 上。"""
-        self._route_specs[name] = {"path": path, "methods": methods, "summary": summary}
+        route_key = f"{self.route_key_prefix}.{name}" if self.route_key_prefix else None
+        self._route_specs[name] = {"path": path, "methods": methods, "summary": summary, "route_key": route_key}
         self.router.add_api_route(
             path,
             endpoint,
             methods=list(methods),
             summary=summary,
+            name=route_key,
             dependencies=list(self.action_dependencies.get(name, [])) or None,
         )
 
@@ -288,6 +300,8 @@ class CRUDRouter:
         list_order = self.list_order
         to_record = self._to_record
         schema = self.list_schema
+        data_policy = self.data_policy
+        module_name = self.route_key_prefix.split(".", 1)[0] if self.route_key_prefix else None
 
         async def list_items(obj_in: schema):  # type: ignore[valid-type]
             q = controller.build_search(
@@ -299,6 +313,10 @@ class CRUDRouter:
                 in_fields=search_fields.in_fields,
                 range_fields=search_fields.range_fields,
             )
+            if data_policy:
+                from app.core.policy import apply_data_policy
+
+                q &= await apply_data_policy(data_policy, module=module_name)
             current = getattr(obj_in, "current", 1)
             size = getattr(obj_in, "size", 10)
             order = getattr(obj_in, "order_by", None) or list_order
@@ -427,6 +445,7 @@ class CRUDRouter:
             get_tree,
             methods=["GET"],
             summary=f"查看{summary_prefix}树",
+            name=f"{self.route_key_prefix}.tree" if self.route_key_prefix else None,
         )
 
 

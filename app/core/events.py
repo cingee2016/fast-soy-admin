@@ -31,10 +31,18 @@ import inspect
 from collections import defaultdict
 from typing import Any, Callable
 
+from pydantic import ValidationError
+
+from app.core.business import EventSpec
+
 _handlers: dict[str, list[Callable[..., Any]]] = defaultdict(list)
 
 
-def on(event: str) -> Callable:
+def _event_name(event: str | EventSpec) -> str:
+    return event.name if isinstance(event, EventSpec) else event
+
+
+def on(event: str | EventSpec) -> Callable:
     """装饰器：将函数注册为指定事件的处理器。
 
     处理器签名应接受 ``**kwargs``，以便事件触发方自由传参::
@@ -43,21 +51,46 @@ def on(event: str) -> Callable:
         async def handler(employee_id: int, **kwargs): ...
     """
 
+    name = _event_name(event)
+
     def decorator(fn: Callable) -> Callable:
-        _handlers[event].append(fn)
+        _handlers[name].append(fn)
         return fn
 
     return decorator
 
 
-async def emit(event: str, **kwargs: Any) -> None:
+async def emit(event: str | EventSpec, **kwargs: Any) -> None:
     """触发事件，顺序执行所有已注册的处理器。
 
     处理器抛出的异常被捕获并通过 ``log.exception`` 输出，不中断其他处理器。
     """
     from app.core.log import log
 
-    handlers = _handlers.get(event, [])
+    if isinstance(event, EventSpec):
+        if event.delivery == "outbox":
+            from app.core.outbox import enqueue_outbox_event
+
+            await enqueue_outbox_event(event, kwargs)
+            return
+        if event.payload is not None:
+            try:
+                event.payload.model_validate(kwargs)
+            except ValidationError:
+                log.exception(f"Event payload validation failed: {event.name}")
+                raise
+
+    name = _event_name(event)
+    await emit_local(name, **kwargs)
+
+
+async def emit_local(event: str | EventSpec, **kwargs: Any) -> None:
+    """Dispatch event handlers in the current process only."""
+
+    from app.core.log import log
+
+    name = _event_name(event)
+    handlers = _handlers.get(name, [])
     for handler in handlers:
         try:
             if inspect.iscoroutinefunction(handler):
@@ -65,4 +98,4 @@ async def emit(event: str, **kwargs: Any) -> None:
             else:
                 handler(**kwargs)
         except Exception:
-            log.exception(f"Event handler error: {event} / {handler.__qualname__}")
+            log.exception(f"Event handler error: {name} / {handler.__qualname__}")

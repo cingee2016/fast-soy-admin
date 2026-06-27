@@ -2,11 +2,14 @@
 
 import click
 
+from app.cli.commands.check_boundaries import check_boundaries
 from app.cli.commands.gen import gen
 from app.cli.commands.gen_all import gen_all
 from app.cli.commands.gen_web import gen_web
 from app.cli.commands.init import init
+from app.cli.commands.init_plan import init_plan
 from app.cli.commands.initdb import initdb
+from app.cli.commands.module_list import module_list
 from app.cli.commands.undo import undo
 from app.cli.display import configure_output_encoding
 
@@ -39,3 +42,6 @@ cli.add_command(gen_all, name="crud")
 cli.add_command(gen_web, name="gen-web")
 cli.add_command(initdb)
 cli.add_command(undo)
+cli.add_command(init_plan)
+cli.add_command(check_boundaries)
+cli.add_command(module_list)

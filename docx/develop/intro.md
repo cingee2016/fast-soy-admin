@@ -26,7 +26,7 @@
 app/
 ├── __init__.py           # FastAPI 应用工厂、lifespan、多 worker init 协调
 ├── core/                 # 框架基础设施（业务模块通过 app.utils 间接使用）
-│   ├── autodiscover.py   # 业务模块发现（models/api/init_data/独立 DB）
+│   ├── autodiscover.py   # 业务模块发现（models/manifest/api/init_data/独立 DB）
 │   ├── base_model.py     # BaseModel / AuditMixin / TreeMixin / 枚举
 │   ├── base_schema.py    # SchemaBase / PageQueryBase / Success / Fail / SuccessExtra
 │   ├── code.py           # 全应用响应码
@@ -88,7 +88,7 @@ models / schemas
 
 ## system / business 单向依赖
 
-- `app.system.*` 不感知 `app.business.*`，仅启动时由 `autodiscover` 调用业务模块的 `init()` 与 `router`
+- `app.system.*` 不感知 `app.business.*`，仅启动时由 `autodiscover` 挂载业务 manifest / legacy router，并调用 init / policy / event / task 插槽
 - 业务模块**禁止**反向 import `app.system.*`，**禁止**互相 import；跨模块用[事件总线](./events.md)
 - 业务模块统一从 [`app.utils`](../reference/utils.md) 导入，这是稳定对外入口
 
