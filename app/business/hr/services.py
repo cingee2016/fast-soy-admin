@@ -7,14 +7,10 @@ from tortoise.transactions import in_transaction
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.controllers import employee_controller, tag_controller
+from app.business.hr.events import HR_EMPLOYEE_CREATED, HR_EMPLOYEE_STATUS_CHANGED, HR_EMPLOYEE_UPDATED
 from app.business.hr.models import Department, Employee
 from app.business.hr.schemas import EmployeeCreate, EmployeeSearch, EmployeeUpdate
-from app.core.code import Code
-from app.core.events import emit
-from app.core.sqids import encode_id
-from app.core.state_machine import StateMachine
-from app.system.services import create_system_user
-from app.utils import Fail, Success, get_current_user_id, get_db_conn, radar_log
+from app.utils import Code, Fail, StateMachine, Success, assert_object_policy, create_system_user, emit, encode_id, get_current_user_id, get_db_conn, radar_log
 
 # ---- 员工状态机 ----
 
@@ -64,7 +60,7 @@ async def _create_employee_core(emp_in: EmployeeCreate, redis):
                 await new_emp.tags.add(tag)
 
     radar_log("创建员工", data={"employeeId": new_emp.id, "employeeNo": employee_no, "userId": result.user.id})
-    await emit("employee.created", employee_id=new_emp.id, employee_no=employee_no)
+    await emit(HR_EMPLOYEE_CREATED, employee_id=new_emp.id, employee_no=employee_no)
     return Success(
         msg="创建成功",
         data={
@@ -123,13 +119,15 @@ async def update_employee(emp_id: int, emp_in: EmployeeUpdate):
     if emp_in.tag_ids and len(emp_in.tag_ids) > BIZ_SETTINGS.MAX_TAGS_PER_EMPLOYEE:
         return Fail(code=Code.HR_TAGS_EXCEED_LIMIT, msg=f"标签数量不能超过 {BIZ_SETTINGS.MAX_TAGS_PER_EMPLOYEE}")
     async with in_transaction(get_db_conn(Employee)):
+        target = await employee_controller.get(id=emp_id)
+        await assert_object_policy("hr.employees.update", target, module="hr")
         emp = await employee_controller.update(id=emp_id, obj_in=emp_in, exclude={"tag_ids"})
         if emp_in.tag_ids is not None:
             await emp.tags.clear()
             for sid in emp_in.tag_ids:
                 await emp.tags.add(await tag_controller.get(id=sid))
     radar_log("编辑员工", data={"employeeId": emp_id})
-    await emit("employee.updated", employee_id=emp_id)
+    await emit(HR_EMPLOYEE_UPDATED, employee_id=emp_id)
     return Success(msg="更新成功", data={"updated_id": emp_id})
 
 
@@ -208,6 +206,7 @@ async def get_team_overview(mgr: Employee):
 async def transition_employee(emp_id: int, to_state: str):
     """员工状态流转 — 使用状态机校验合法性 + 审计日志 + 事件通知。"""
     emp = await employee_controller.get(id=emp_id)
+    await assert_object_policy("hr.employees.update", emp, module="hr")
     from_state = emp.status.value if hasattr(emp.status, "value") else str(emp.status)
     await EMPLOYEE_FSM.transition(
         obj=emp,
@@ -216,5 +215,5 @@ async def transition_employee(emp_id: int, to_state: str):
         actor_id=get_current_user_id(),
         log_fn=radar_log,
     )
-    await emit("employee.status_changed", employee_id=emp_id, from_state=from_state, to_state=to_state)
+    await emit(HR_EMPLOYEE_STATUS_CHANGED, employee_id=emp_id, from_state=from_state, to_state=to_state)
     return Success(msg="状态更新成功", data={"employeeId": emp_id, "newState": to_state})

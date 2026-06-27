@@ -10,6 +10,22 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 PREFIX = "/api/v1/business/hr"
 
 
+async def test_hr_manifest_uses_business_slots():
+    from app.business.hr.init_data import INIT_DATA
+    from app.core.autodiscover import discover_business_data_policies, discover_business_modules
+
+    [module] = [item for item in discover_business_modules() if item.name == "hr"]
+
+    assert module.source == "manifest"
+    assert len(module.routers) == 4
+    assert len(module.events) == 4
+    assert {policy.name for policy in discover_business_data_policies()} >= {"hr.employees.read", "hr.employees.update"}
+
+    role_api_refs = [api for role in INIT_DATA["roles"] for api in role["apis"]]
+    assert role_api_refs
+    assert all(isinstance(api, str) and api.startswith("hr.") for api in role_api_refs)
+
+
 # ===================== Department CRUD =====================
 
 

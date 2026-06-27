@@ -8,7 +8,6 @@ from pathlib import Path
 from fastapi import APIRouter, Request, UploadFile
 
 from app.business.hr.controllers import department_controller, employee_controller, tag_controller
-from app.business.hr.ctx import get_current_department_id
 from app.business.hr.dependency import DependHrScope
 from app.business.hr.schemas import (
     DepartmentCreate,
@@ -23,19 +22,17 @@ from app.business.hr.schemas import (
     TagUpdate,
 )
 from app.business.hr.services import build_employee_list_query, create_employee, list_employees_with_relations, transition_employee, update_employee
-from app.core.config import APP_SETTINGS
-from app.core.data_scope import get_current_data_scope
-from app.core.sqids import encode_id
 from app.utils import (
-    CTX_USER_ID,
+    APP_SETTINGS,
     CRUDRouter,
-    DependPermission,
     Fail,
     SearchFieldConfig,
     SqidPath,
     Success,
     SuccessExtra,
-    build_scope_filter,
+    apply_data_policy,
+    assert_object_policy,
+    encode_id,
     require_buttons,
 )
 
@@ -48,7 +45,9 @@ dept_crud = CRUDRouter(
     search_fields=SearchFieldConfig(contains_fields=["name", "code"], exact_fields=["status"]),
     summary_prefix="部门",
     soft_delete=True,
+    tree_endpoint=True,
     enable_routes={"list", "create", "update", "delete", "batch_delete"},
+    route_key_prefix="hr.departments",
     action_dependencies={
         "create": [require_buttons("B_HR_DEPT_CREATE")],
         "update": [require_buttons("B_HR_DEPT_EDIT")],
@@ -66,6 +65,7 @@ tag_crud = CRUDRouter(
     search_fields=SearchFieldConfig(contains_fields=["name"], exact_fields=["category"]),
     summary_prefix="标签",
     enable_routes={"list", "create", "update", "delete", "batch_delete"},
+    route_key_prefix="hr.tags",
     action_dependencies={
         "create": [require_buttons("B_HR_TAG_CREATE")],
         "update": [require_buttons("B_HR_TAG_EDIT")],
@@ -82,6 +82,7 @@ emp_crud = CRUDRouter(
     list_schema=EmployeeSearch,
     summary_prefix="员工",
     soft_delete=True,
+    route_key_prefix="hr.employees",
     action_dependencies={
         "delete": [require_buttons("B_HR_EMP_DELETE")],
         "batch_delete": [require_buttons("B_HR_EMP_DELETE")],
@@ -103,19 +104,12 @@ async def _get_employee(item_id: SqidPath):
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
     q = build_employee_list_query(obj_in)
-    scope = await get_current_data_scope(request.app.state.redis)
-    scope_q = build_scope_filter(
-        scope=scope,
-        user_id=CTX_USER_ID.get(),
-        scope_id=get_current_department_id(),
-        user_id_field="user_id",
-        scope_id_field="department_id",
-    )
+    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
     total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
-router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
+router = APIRouter(tags=["HR管理"], dependencies=[DependHrScope])
 
 
 router.include_router(dept_crud.router)
@@ -129,6 +123,7 @@ router.include_router(emp_crud.router)
 @router.post(
     "/employees",
     summary="创建员工",
+    name="hr.employees.create",
     dependencies=[require_buttons("B_HR_EMP_CREATE")],
 )
 async def create_emp(emp_in: EmployeeCreate, request: Request):
@@ -142,6 +137,7 @@ async def create_emp(emp_in: EmployeeCreate, request: Request):
 @router.patch(
     "/employees/{emp_id}",
     summary="更新员工",
+    name="hr.employees.update",
     dependencies=[require_buttons("B_HR_EMP_EDIT")],
 )
 async def update_emp(emp_id: SqidPath, emp_in: EmployeeUpdate):
@@ -151,6 +147,7 @@ async def update_emp(emp_id: SqidPath, emp_in: EmployeeUpdate):
 @router.post(
     "/employees/{emp_id}/transition",
     summary="员工状态流转",
+    name="hr.employees.transition",
     dependencies=[require_buttons("B_HR_EMP_TRANSITION")],
 )
 async def transition_emp(emp_id: SqidPath, body: EmployeeTransition):
@@ -165,6 +162,7 @@ MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 MB
 @router.post(
     "/employees/{emp_id}/avatar",
     summary="上传员工头像",
+    name="hr.employees.avatar",
     dependencies=[require_buttons("B_HR_EMP_EDIT")],
 )
 async def upload_avatar(emp_id: SqidPath, file: UploadFile):
@@ -186,6 +184,7 @@ async def upload_avatar(emp_id: SqidPath, file: UploadFile):
 
     avatar_url = f"/static/avatars/{filename}"
 
-    # 更新员工头像字段
+    target = await employee_controller.get(id=emp_id)
+    await assert_object_policy("hr.employees.update", target, module="hr")
     await employee_controller.update(id=emp_id, obj_in={"avatar": avatar_url})
     return Success(msg="头像上传成功", data={"avatarUrl": avatar_url})

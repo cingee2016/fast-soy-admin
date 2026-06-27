@@ -11,9 +11,9 @@ import asyncio
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.models import Department, Employee, Tag
-from app.core.data_scope import DataScopeType
-from app.system.services import ensure_menu, ensure_role, ensure_user, reconcile_menu_subtree
+from app.system.services import apply_init_data, ensure_user
 from app.system.services.init_helper import _safe_update_or_create
+from app.utils import DataScopeType
 
 HR_MENU_CHILDREN = [
     {
@@ -86,45 +86,44 @@ HR_MENU_CHILDREN = [
 
 # 三类接口聚合，便于在角色 seed 中组合复用
 HR_MY_APIS = [
-    ("get", "/api/v1/business/hr/my/profile"),
-    ("patch", "/api/v1/business/hr/my/profile"),
-    ("patch", "/api/v1/business/hr/my/tags"),
-    ("get", "/api/v1/business/hr/my/department"),
-    ("post", "/api/v1/business/hr/my/avatar"),
-    ("post", "/api/v1/business/hr/tags/search"),  # 标签下拉
+    "hr.my.profile",
+    "hr.my.update",
+    "hr.my.tags",
+    "hr.my.department",
+    "hr.my.avatar",
+    "hr.tags.list",
 ]
 
 HR_TEAM_APIS = [
-    ("post", "/api/v1/business/hr/team/employees/search"),
-    ("get", "/api/v1/business/hr/team/stats"),
-    ("post", "/api/v1/business/hr/team/employees"),
-    ("patch", "/api/v1/business/hr/team/employees/{emp_id}"),
-    ("patch", "/api/v1/business/hr/team/employees/{emp_id}/tags"),
-    ("post", "/api/v1/business/hr/team/employees/{emp_id}/transition"),
+    "hr.team.list",
+    "hr.team.stats",
+    "hr.team.create",
+    "hr.team.update",
+    "hr.team.tags",
+    "hr.team.transition",
+    "hr.tags.list",
 ]
 
 HR_ADMIN_APIS = [
-    # 部门
-    ("post", "/api/v1/business/hr/departments/search"),
-    ("post", "/api/v1/business/hr/departments"),
-    ("patch", "/api/v1/business/hr/departments/{item_id}"),
-    ("delete", "/api/v1/business/hr/departments/{item_id}"),
-    ("delete", "/api/v1/business/hr/departments"),
-    # 员工
-    ("post", "/api/v1/business/hr/employees/search"),
-    ("get", "/api/v1/business/hr/employees/{item_id}"),
-    ("post", "/api/v1/business/hr/employees"),
-    ("patch", "/api/v1/business/hr/employees/{emp_id}"),
-    ("delete", "/api/v1/business/hr/employees/{item_id}"),
-    ("delete", "/api/v1/business/hr/employees"),
-    ("post", "/api/v1/business/hr/employees/{emp_id}/transition"),
-    ("post", "/api/v1/business/hr/employees/{emp_id}/avatar"),
-    # 标签
-    ("post", "/api/v1/business/hr/tags/search"),
-    ("post", "/api/v1/business/hr/tags"),
-    ("patch", "/api/v1/business/hr/tags/{item_id}"),
-    ("delete", "/api/v1/business/hr/tags/{item_id}"),
-    ("delete", "/api/v1/business/hr/tags"),
+    "hr.departments.list",
+    "hr.departments.tree",
+    "hr.departments.create",
+    "hr.departments.update",
+    "hr.departments.delete",
+    "hr.departments.batch_delete",
+    "hr.employees.list",
+    "hr.employees.get",
+    "hr.employees.create",
+    "hr.employees.update",
+    "hr.employees.delete",
+    "hr.employees.batch_delete",
+    "hr.employees.transition",
+    "hr.employees.avatar",
+    "hr.tags.list",
+    "hr.tags.create",
+    "hr.tags.update",
+    "hr.tags.delete",
+    "hr.tags.batch_delete",
 ]
 
 
@@ -366,63 +365,36 @@ HR_EMPLOYEE_SEEDS = [
     },
 ]
 
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "HR数据展示",
+            "route_name": "showcase",
+            "route_path": "/showcase",
+            "component": "layout.blank$view.showcase",
+            "menu_type": "1",
+            "constant": True,
+            "hide_in_menu": True,
+            "order": 100,
+        },
+        {
+            "menu_name": "HR管理",
+            "route_name": "hr",
+            "route_path": "/hr",
+            "icon": "mdi:account-group",
+            "order": 20,
+            "children": HR_MENU_CHILDREN,
+            "reconcile": {"menus": True, "buttons": True},
+        },
+    ],
+    "roles": HR_ROLE_SEEDS,
+    "users": [],
+    "dictionaries": [],
+}
+
 
 def _employee_no(serial: int) -> str:
     return f"{BIZ_SETTINGS.EMPLOYEE_NO_PREFIX}{serial:04d}"
-
-
-def _collect_declared_routes(children: list[dict]) -> set[str]:
-    """递归收集 HR_MENU_CHILDREN 中所有层级的 route_name。"""
-    result: set[str] = set()
-    for item in children:
-        result.add(item["route_name"])
-        if item.get("children"):
-            result.update(_collect_declared_routes(item["children"]))
-    return result
-
-
-def _collect_declared_buttons(children: list[dict]) -> set[str]:
-    """递归收集 HR_MENU_CHILDREN 中所有层级的 button_code。"""
-    result: set[str] = set()
-    for item in children:
-        for btn in item.get("buttons") or []:
-            result.add(btn["button_code"])
-        if item.get("children"):
-            result.update(_collect_declared_buttons(item["children"]))
-    return result
-
-
-async def _init_menu_data() -> None:
-    # 常量路由（无需登录即可访问）— HR 公开数据展示 Demo
-    await ensure_menu(
-        menu_name="HR数据展示",
-        route_name="showcase",
-        route_path="/showcase",
-        component="layout.blank$view.showcase",
-        menu_type="1",
-        constant=True,
-        hide_in_menu=True,
-        order=100,
-    )
-
-    await ensure_menu(
-        menu_name="HR管理",
-        route_name="hr",
-        route_path="/hr",
-        icon="mdi:account-group",
-        order=20,
-        children=HR_MENU_CHILDREN,
-    )
-    # HR 子树以 init_data 为唯一数据源，启动时清理不再声明的菜单/按钮。
-    await reconcile_menu_subtree(
-        root_route="hr",
-        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
-    )
-
-
-async def _init_role_data() -> None:
-    await asyncio.gather(*(ensure_role(**role_seed) for role_seed in HR_ROLE_SEEDS))
 
 
 async def _init_departments() -> None:
@@ -491,7 +463,6 @@ async def _init_demo_employees() -> None:
 
 
 async def init():
-    await _init_menu_data()
-    await _init_role_data()
+    await apply_init_data(INIT_DATA)
     await asyncio.gather(_init_departments(), _init_tags())
     await _init_demo_employees()

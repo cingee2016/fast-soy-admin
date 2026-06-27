@@ -6,7 +6,10 @@ const LOGIN_ATTEMPTS = 2;
 
 export async function loginAs(page: Page, userName: string, password: string) {
   for (let attempt = 0; attempt < LOGIN_ATTEMPTS; attempt += 1) {
-    await page.goto('/login');
+    if (await openLoginPage(page, userName)) {
+      return;
+    }
+
     await page.locator('input').nth(0).fill(userName);
     await page.locator('input[type="password"]').fill(password);
     await page.getByRole('button', { name: '确认', exact: true }).click();
@@ -21,7 +24,10 @@ export async function loginAs(page: Page, userName: string, password: string) {
 
 export async function quickLoginSuper(page: Page) {
   for (let attempt = 0; attempt < LOGIN_ATTEMPTS; attempt += 1) {
-    await page.goto('/login');
+    if (await openLoginPage(page, 'Soybean')) {
+      return;
+    }
+
     await page.getByRole('button', { name: '超级管理员', exact: true }).click();
 
     if (await waitForLoggedIn(page, 'Soybean')) {
@@ -30,6 +36,45 @@ export async function quickLoginSuper(page: Page) {
   }
 
   throw new Error('quick login timed out for Soybean');
+}
+
+async function openLoginPage(page: Page, userName: string): Promise<boolean> {
+  await page.goto('/login');
+
+  if (await isLoggedInAs(page, userName)) {
+    return true;
+  }
+
+  const hasLoginInput = await page
+    .locator('input')
+    .first()
+    .isVisible({ timeout: 3_000 })
+    .catch(() => false);
+
+  if (hasLoginInput) {
+    return false;
+  }
+
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+  await page.goto('/login');
+
+  return false;
+}
+
+async function isLoggedInAs(page: Page, userName: string): Promise<boolean> {
+  if (new URL(page.url()).pathname.startsWith('/login')) {
+    return false;
+  }
+
+  return page
+    .getByRole('button', { name: new RegExp(userName) })
+    .first()
+    .isVisible({ timeout: 1_000 })
+    .catch(() => false);
 }
 
 async function waitForLoggedIn(page: Page, userName: string): Promise<boolean> {

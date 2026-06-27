@@ -9,9 +9,7 @@ from enum import Enum
 
 from tortoise import fields
 
-from app.core.base_model import TreeMixin
-from app.core.soft_delete import SoftDeleteManager, SoftDeleteMixin
-from app.utils import AuditMixin, BaseModel, StatusType
+from app.utils import AuditMixin, BaseModel, SoftDeleteManager, SoftDeleteMixin, StatusType, TreeMixin
 
 
 class Department(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):

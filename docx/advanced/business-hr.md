@@ -1,6 +1,6 @@
 # HR 管理（第一个子业务模块）
 
-HR 模块是 `app/business/` 下第一个完整业务模块，演示业务模块在 FastSoyAdmin 中**应当如何组织**：自动发现、菜单/角色/按钮声明、CRUDRouter 的标准与扩展用法、状态机、行级数据权限、前端按钮鉴权。
+HR 模块是 `app/business/` 下第一个完整业务模块，演示业务模块在 FastSoyAdmin 中**应当如何组织**：manifest 自动发现、route key 权限声明、菜单/角色/按钮声明、CRUDRouter 的标准与扩展用法、状态机、行级/对象级数据权限、typed event、前端按钮鉴权。
 
 > 源码位置：[app/business/hr/](../../../app/business/hr/)、[web/src/views/hr/](../../../web/src/views/hr/)
 > 适合阅读对象：在本仓库新增业务模块的开发者。
@@ -27,6 +27,7 @@ HR 模块管理三类资源：
 ```
 app/business/hr/
 ├── __init__.py
+├── module.py        # BusinessModule manifest（路由 / init / 事件 / policy）
 ├── config.py        # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
 ├── ctx.py           # 模块上下文变量（如 get_current_department_id）
 ├── dependency.py    # 模块 FastAPI 依赖（DependEmployee / DependManager）
@@ -34,10 +35,11 @@ app/business/hr/
 ├── schemas.py       # Pydantic schema（继承 SchemaBase）
 ├── controllers.py   # CRUDBase 子类（单资源 CRUD）
 ├── services.py      # 多模型编排、缓存、状态机
-├── events.py        # 模块事件订阅
-├── init_data.py     # async def init() — 菜单 / 角色 / 按钮 / 种子
+├── events.py        # typed EventSpec + 本地事件订阅
+├── policies.py      # DataPolicy（列表过滤 + 对象级校验）
+├── init_data.py     # INIT_DATA + async def init()
 └── api/
-    ├── __init__.py  # 必须导出汇总后的 router
+    ├── __init__.py  # 兼容导出汇总后的 router
     ├── manage.py    # 系统管理路由（HR 总管）
     ├── team.py      # 部门主管路由（管理下属）
     ├── my.py        # 员工自助路由
@@ -49,10 +51,11 @@ app/business/hr/
 | 约定 | 提供的能力 |
 |---|---|
 | `models.py` 或 `models/` | Tortoise 模型 → 注册到 `TORTOISE_ORM["apps"]` |
-| `api/` 或 `api.py` 中的 `router: APIRouter` | 挂载到 `/api/v1/business/` |
-| `init_data.py` 中的 `async def init()` | 在系统初始化之后、缓存刷新之前执行 |
+| `module.py` 中的 `module = BusinessModule(...)` | manifest 路由、依赖排序、init、事件、policy |
+| `api/` 或 `api.py` 中的 `router: APIRouter` | 旧约定兼容；HR 已改用 manifest |
+| `init_data.py` 中的 `INIT_DATA` / `async def init()` | `init-plan` 可审计，启动时执行 |
 
-业务模块**不得反向 import** `app.system.*` 之外的兄弟业务模块。`system → business` 是单向依赖。
+业务模块默认从 `app.utils` 导入框架能力；少数启动初始化 helper（如 `apply_init_data / ensure_user`）可来自 system 显式暴露的 service。业务模块之间不要互相 import，跨模块联动走事件。
 
 ## 数据模型
 
@@ -194,6 +197,7 @@ HR_ROLE_SEEDS = [
     {
         "role_code": "R_HR_ADMIN",
         "data_scope": DataScopeType.all,
+        "apis": ["hr.employees.list", "hr.employees.create", ...],
         ...
     },
     {
@@ -204,26 +208,21 @@ HR_ROLE_SEEDS = [
 ]
 ```
 
+角色 API 授权使用 route key 字符串，而不是 `(method, path)` 元组。`just init-plan --strict` 会检查这些 key 能否解析到真实后端路由。
+
 ### API override 使用方式
 
-HR 在模块依赖里先把当前登录用户绑定的部门写入 ContextVar，员工列表的 API override 再拼入 scope 条件：
+HR 在模块依赖里先把当前登录用户绑定的部门写入 ContextVar，员工列表的 API override 再拼入 `DataPolicy`：
 
 ```python
 # app/business/hr/api/manage.py
-router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
+router = APIRouter(tags=["HR管理"], dependencies=[DependHrScope])
 
 
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
     q = build_employee_list_query(obj_in)
-    scope = await get_current_data_scope(request.app.state.redis)
-    scope_q = build_scope_filter(
-        scope=scope,
-        user_id=CTX_USER_ID.get(),
-        scope_id=get_current_department_id(),
-        user_id_field="user_id",
-        scope_id_field="department_id",
-    )
+    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
     total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
@@ -271,12 +270,11 @@ async def transition_employee(emp_id: int, to_state: str):
 
 ## 启动 init_data 全景
 
-[app/business/hr/init_data.py](../../../app/business/hr/init_data.py) 在 `init()` 中按顺序执行：
+[app/business/hr/init_data.py](../../../app/business/hr/init_data.py) 先用声明式 `INIT_DATA` 对齐菜单、按钮、角色与 route key，再播业务 Demo 数据：
 
 ```python
 async def init():
-    await _init_menu_data()      # 菜单 + 按钮
-    await _init_role_data()      # 角色（含 data_scope + apis 授权）
+    await apply_init_data(INIT_DATA)  # 菜单 / 按钮 / 角色 / route key 授权
     await _init_departments()    # 5 个部门
     await _init_tags()           # 8 个标签
     await _init_demo_employees() # 9 个员工 + 主管反向回填
@@ -284,7 +282,7 @@ async def init():
 
 ### 菜单与按钮（声明 + 对账）
 
-`HR_MENU_CHILDREN` 是菜单/按钮的 single-source-of-truth：
+`HR_MENU_CHILDREN` 是菜单/按钮的 single-source-of-truth，并被挂进 `INIT_DATA`：
 
 ```python
 HR_MENU_CHILDREN = [
@@ -301,17 +299,21 @@ HR_MENU_CHILDREN = [
 ]
 
 
-async def _init_menu_data() -> None:
-    await ensure_menu(menu_name="HR管理", route_name="hr", ..., children=HR_MENU_CHILDREN)
-    # 子树以 init_data 为权威源；从 seed 删除的菜单/按钮在重启时被清除
-    await reconcile_menu_subtree(
-        root_route="hr",
-        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
-    )
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "HR管理",
+            "route_name": "hr",
+            "route_path": "/hr",
+            "children": HR_MENU_CHILDREN,
+            "reconcile": {"menus": True, "buttons": True},
+        }
+    ],
+    "roles": HR_ROLE_SEEDS,
+}
 ```
 
-> 一旦启用 `reconcile_menu_subtree`，**该子树就被视为 IaC（基础设施即代码）**——通过 Web UI 在该子树下手工创建的菜单/按钮会在下次重启时被清除。详见 [启动初始化与对账](./init-data.md)。
+> 一旦 `INIT_DATA` 对菜单启用 `reconcile`，**该子树就被视为 IaC（基础设施即代码）**——通过 Web UI 在该子树下手工创建的菜单/按钮会在下次重启时被清除。详见 [启动初始化与对账](./init-data.md)。
 
 ### 演示数据规模
 
@@ -473,22 +475,25 @@ async def showcase_overview():
 
 **默认 `VITE_AUTH_ROUTE_MODE=dynamic`**，前端启动时会调用 `GET /api/v1/route/constant-routes` 从 Redis 拉常量路由，数据源是 `Menu.filter(constant=True, hide_in_menu=True)`（详见 [load_constant_routes](../../../app/core/cache.py)）。只在前端声明 `meta.constant: true` 是不够的——不种 `Menu`，后端返回空，前端挂不上路由，访问会 404。
 
-所以 `init_data.py` 里必须配套一条：
+所以 `INIT_DATA["menus"]` 里必须配套一条：
 
 ```python
 # app/business/hr/init_data.py
-async def _init_menu_data() -> None:
-    await ensure_menu(
-        menu_name="HR数据展示",
-        route_name="showcase",
-        route_path="/showcase",
-        component="layout.blank$view.showcase",
-        menu_type="1",
-        constant=True,
-        hide_in_menu=True,
-        order=100,
-    )
-    # ...后续其他菜单
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "HR数据展示",
+            "route_name": "showcase",
+            "route_path": "/showcase",
+            "component": "layout.blank$view.showcase",
+            "menu_type": "1",
+            "constant": True,
+            "hide_in_menu": True,
+            "order": 100,
+        },
+        # ...后续其他菜单
+    ],
+}
 ```
 
 启动流水线：`init()` → 写入 `Menu` 记录 → `refresh_all_cache()` → `load_constant_routes()` 重写 Redis `constant_routes` key → 前端下次启动拉到。**新增常量路由后必须重启一次后端**。
@@ -514,11 +519,12 @@ cp -r app/business/hr app/business/crm
 
 务必做到的几点：
 
-1. **菜单/按钮/角色一律以 `init_data.py` 为唯一数据源**，新增/删除/重命名走 seed + 重启对账。
+1. **菜单/按钮/角色一律以 `INIT_DATA` 为唯一数据源**，新增/删除/重命名走 seed + 重启对账。
 2. **每个角色显式声明 `data_scope`**，不要依赖 `Role` 模型默认的 `all`。
-3. **写接口必须挂按钮权限**（`require_buttons` 或 `action_dependencies`），不要依赖前端隐藏按钮做安全。
-4. **前端按钮一律 `hasAuth(...)`**，与后端按钮码 1:1 对应。
-5. **删除按钮码或 route_name 时检查 ensure_role 的 warning 日志**——`ensure_role` 会输出 `missing buttons / missing apis` 警告，提示 seed 列表与代码脱节。
+3. **角色 API 授权一律引用 route key**（如 `hr.employees.list`），提交前跑 `just init-plan --strict`。
+4. **写接口必须挂按钮权限**（`require_buttons` 或 `action_dependencies`），不要依赖前端隐藏按钮做安全。
+5. **前端按钮一律 `hasAuth(...)`**，与后端按钮码 1:1 对应。
+6. **删除按钮码或 route key 时检查 ensure_role 的 warning 日志**——`ensure_role` 会输出 `missing buttons / missing route keys` 警告，提示 seed 列表与代码脱节。
 
 ## 相关文档
 

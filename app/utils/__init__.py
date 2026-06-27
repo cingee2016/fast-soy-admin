@@ -59,6 +59,7 @@ from app.core.ctx import is_super_admin as is_super_admin
 # ---- 数据权限 ----
 from app.core.data_scope import DataScopeType as DataScopeType
 from app.core.data_scope import build_scope_filter as build_scope_filter
+from app.core.data_scope import get_current_data_scope as get_current_data_scope
 from app.core.dependency import DependAuth as DependAuth
 from app.core.dependency import DependPermission as DependPermission
 from app.core.dependency import require_buttons as require_buttons
@@ -81,6 +82,7 @@ from app.core.policy import build_policy_context as build_policy_context
 from app.core.policy import check_object_policy as check_object_policy
 from app.core.router import CRUDRouter as CRUDRouter
 from app.core.router import SearchFieldConfig as SearchFieldConfig
+from app.core.soft_delete import SoftDeleteManager as SoftDeleteManager
 from app.core.soft_delete import SoftDeleteMixin as SoftDeleteMixin
 
 # ---- Sqids 编解码 ----
@@ -113,3 +115,4 @@ from app.system.radar.developer import radar_log as radar_log
 from app.system.security import create_access_token as create_access_token
 from app.system.security import get_password_hash as get_password_hash
 from app.system.security import verify_password as verify_password
+from app.system.services import create_system_user as create_system_user

@@ -28,22 +28,22 @@ from app.business.hr.services import (
     transition_subordinate,
     update_subordinate_employee,
 )
-from app.utils import Fail, SqidPath, Success, SuccessExtra, require_buttons
+from app.utils import Code, Fail, SqidPath, Success, SuccessExtra, require_buttons
 
 if TYPE_CHECKING:
     from app.business.hr.models import Employee
 
-router = APIRouter(prefix="/hr", tags=["HR团队"])
+router = APIRouter(tags=["HR团队"])
 
 
-@router.post("/team/employees/search", summary="[主管] 下属分页搜索")
+@router.post("/team/employees/search", summary="[主管] 下属分页搜索", name="hr.team.list")
 async def team_employees_search(obj_in: EmployeeSearch, mgr: Employee = DependManager):
     obj_in.department_id = mgr.department_id  # type: ignore[attr-defined]
     total, records = await list_employees_with_relations(obj_in)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
-@router.get("/team/stats", summary="[主管] 部门概览")
+@router.get("/team/stats", summary="[主管] 部门概览", name="hr.team.stats")
 async def team_stats(mgr: Employee = DependManager):
     data = await get_team_overview(mgr)
     return Success(data=data)
@@ -52,6 +52,7 @@ async def team_stats(mgr: Employee = DependManager):
 @router.post(
     "/team/employees",
     summary="[主管] 创建下属",
+    name="hr.team.create",
     dependencies=[require_buttons("B_HR_TEAM_EMP_CREATE")],
 )
 async def team_create_employee(emp_in: EmployeeCreate, request: Request, mgr: Employee = DependManager):
@@ -61,6 +62,7 @@ async def team_create_employee(emp_in: EmployeeCreate, request: Request, mgr: Em
 @router.patch(
     "/team/employees/{emp_id}",
     summary="[主管] 编辑下属",
+    name="hr.team.update",
     dependencies=[require_buttons("B_HR_TEAM_EMP_EDIT")],
 )
 async def team_update_employee(emp_id: SqidPath, emp_in: EmployeeUpdate, mgr: Employee = DependManager):
@@ -70,6 +72,7 @@ async def team_update_employee(emp_id: SqidPath, emp_in: EmployeeUpdate, mgr: Em
 @router.patch(
     "/team/employees/{emp_id}/tags",
     summary="[主管] 编辑下属标签",
+    name="hr.team.tags",
     dependencies=[require_buttons("B_HR_TEAM_TAG_EDIT")],
 )
 async def team_edit_subordinate_tags(emp_id: SqidPath, body: TagIds, mgr: Employee = DependManager):
@@ -79,12 +82,11 @@ async def team_edit_subordinate_tags(emp_id: SqidPath, body: TagIds, mgr: Employ
 @router.post(
     "/team/employees/{emp_id}/transition",
     summary="[主管] 推进下属状态",
+    name="hr.team.transition",
     dependencies=[require_buttons("B_HR_TEAM_EMP_TRANSITION")],
 )
 async def team_transition_employee(emp_id: SqidPath, body: EmployeeTransition, mgr: Employee = DependManager):
     target = await employee_controller.get_or_none(id=emp_id, department_id=mgr.department_id)  # type: ignore[attr-defined]
     if not target:
-        from app.core.code import Code
-
         return Fail(code=Code.HR_EMPLOYEE_NOT_IN_DEPT, msg="该员工不在您的部门中")
     return await transition_subordinate(emp_id, body.to_state)

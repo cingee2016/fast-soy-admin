@@ -12,10 +12,10 @@ from fastapi import APIRouter
 from app.business.hr.models import Department, Employee, EmployeeStatus, Tag
 from app.utils import Success
 
-router = APIRouter(prefix="/hr/public", tags=["HR公开展示"])
+router = APIRouter(prefix="/public", tags=["HR公开展示"])
 
 
-@router.get("/showcase", summary="[公开] HR 数据展示总览")
+@router.get("/showcase", summary="[公开] HR 数据展示总览", name="hr.public.showcase")
 async def showcase_overview():
     """返回部门 / 员工 / 标签的公开聚合统计，用于常量路由展示页。"""
     dept_total = await Department.all().count()

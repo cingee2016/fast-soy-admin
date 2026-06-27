@@ -1,29 +1,57 @@
-"""
-HR 模块事件处理器。
+"""HR typed events and local handlers."""
 
-所有处理器通过 radar_log 写审计轨迹；真实项目中可替换为邮件 / 站内信 / 消息队列等外部动作。
-此模块需要被导入才能注册处理器 — 在 HR ``__init__.py`` 中导入。
-"""
+from pydantic import BaseModel
 
-from app.core.events import on
-from app.utils import radar_log
+from app.utils import EventSpec, on, radar_log
 
 
-@on("employee.created")
+class EmployeeCreatedPayload(BaseModel):
+    employee_id: int
+    employee_no: str
+
+
+class EmployeeUpdatedPayload(BaseModel):
+    employee_id: int
+
+
+class EmployeeDeletedPayload(BaseModel):
+    employee_ids: list[int]
+
+
+class EmployeeStatusChangedPayload(BaseModel):
+    employee_id: int
+    from_state: str
+    to_state: str
+
+
+HR_EMPLOYEE_CREATED = EventSpec(name="hr.employee.created", payload=EmployeeCreatedPayload)
+HR_EMPLOYEE_UPDATED = EventSpec(name="hr.employee.updated", payload=EmployeeUpdatedPayload)
+HR_EMPLOYEE_DELETED = EventSpec(name="hr.employee.deleted", payload=EmployeeDeletedPayload)
+HR_EMPLOYEE_STATUS_CHANGED = EventSpec(name="hr.employee.status_changed", payload=EmployeeStatusChangedPayload)
+
+HR_EVENTS = [
+    HR_EMPLOYEE_CREATED,
+    HR_EMPLOYEE_UPDATED,
+    HR_EMPLOYEE_DELETED,
+    HR_EMPLOYEE_STATUS_CHANGED,
+]
+
+
+@on(HR_EMPLOYEE_CREATED)
 async def _on_employee_created(employee_id: int, employee_no: str, **kwargs):
     radar_log("HR事件: 员工已创建", data={"employeeId": employee_id, "employeeNo": employee_no})
 
 
-@on("employee.updated")
+@on(HR_EMPLOYEE_UPDATED)
 async def _on_employee_updated(employee_id: int, **kwargs):
     radar_log("HR事件: 员工信息已更新", data={"employeeId": employee_id})
 
 
-@on("employee.deleted")
+@on(HR_EMPLOYEE_DELETED)
 async def _on_employee_deleted(employee_ids: list[int], **kwargs):
     radar_log("HR事件: 员工已删除（软删除）", data={"employeeIds": employee_ids})
 
 
-@on("employee.status_changed")
+@on(HR_EMPLOYEE_STATUS_CHANGED)
 async def _on_status_changed(employee_id: int, from_state: str, to_state: str, **kwargs):
     radar_log("HR事件: 员工状态变更", data={"employeeId": employee_id, "fromState": from_state, "toState": to_state})

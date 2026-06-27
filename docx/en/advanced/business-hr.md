@@ -1,6 +1,6 @@
 # HR Module (first business module)
 
-The first complete business module under `app/business/`, demonstrating **how a business module should be organized** in FastSoyAdmin: autodiscover, menu / role / button declarations, standard + extended `CRUDRouter` usage, state machine, row-level data scope, and frontend button gating.
+The first complete business module under `app/business/`, demonstrating **how a business module should be organized** in FastSoyAdmin: manifest autodiscover, route-key permissions, menu / role / button declarations, standard + extended `CRUDRouter` usage, state machine, row-level and object-level data policies, typed events, and frontend button gating.
 
 > Source: `app/business/hr/`, `web/src/views/hr/`
 > Target reader: developers adding new business modules to this repo.
@@ -27,6 +27,7 @@ Four sets of endpoints:
 ```
 app/business/hr/
 ├── __init__.py
+├── module.py        # BusinessModule manifest (routers / init / events / policies)
 ├── config.py        # BIZ_SETTINGS (per-module Pydantic Settings)
 ├── ctx.py           # module ContextVars (e.g. get_current_department_id)
 ├── dependency.py    # module FastAPI deps (DependEmployee / DependManager)
@@ -34,10 +35,11 @@ app/business/hr/
 ├── schemas.py       # Pydantic schemas (extend SchemaBase)
 ├── controllers.py   # CRUDBase subclasses (single-resource CRUD)
 ├── services.py      # multi-model orchestration, cache, FSM
-├── events.py        # module event subscriptions
-├── init_data.py     # async def init() — menus / roles / buttons / seeds
+├── events.py        # typed EventSpec + local subscribers
+├── policies.py      # DataPolicy (list filters + object checks)
+├── init_data.py     # INIT_DATA + async def init()
 └── api/
-    ├── __init__.py  # must export the aggregated router
+    ├── __init__.py  # compatibility aggregate router
     ├── manage.py    # admin routes (HR director)
     ├── team.py      # dept-manager routes (manage subordinates)
     ├── my.py        # self-service routes
@@ -49,10 +51,11 @@ app/business/hr/
 | Rule | Capability |
 |---|---|
 | `models.py` or `models/` | Tortoise models → registered in `TORTOISE_ORM["apps"]` |
-| `router: APIRouter` in `api/` or `api.py` | mounted under `/api/v1/business/` |
-| `async def init()` in `init_data.py` | runs after system init, before cache refresh |
+| `module.py` with `module = BusinessModule(...)` | manifest routers, dependency ordering, init, events, policies |
+| `router: APIRouter` in `api/` or `api.py` | legacy compatibility; HR now uses the manifest |
+| `INIT_DATA` / `async def init()` in `init_data.py` | auditable by `init-plan`, then executed at startup |
 
-A business module **must not** reverse-import sibling business modules or `app.system.*` internals. `system → business` is one-way.
+Business modules import framework capabilities through `app.utils` by default. A few startup helpers explicitly exposed by system services (for example `apply_init_data / ensure_user`) are allowed. Business modules must not import sibling modules directly; cross-module work should use events.
 
 ## Data models
 
@@ -194,6 +197,7 @@ HR_ROLE_SEEDS = [
     {
         "role_code": "R_HR_ADMIN",
         "data_scope": DataScopeType.all,
+        "apis": ["hr.employees.list", "hr.employees.create", ...],
         ...
     },
     {
@@ -204,26 +208,18 @@ HR_ROLE_SEEDS = [
 ]
 ```
 
+Role API grants use route-key strings, not `(method, path)` tuples. `just init-plan --strict` checks that every key resolves to a real backend route.
+
 ### API override usage
 
-HR first binds the current user's department into a module-local ContextVar, then the employee-list API override stitches the scope filter into its query:
+HR first binds the current user's department into a module-local ContextVar, then the employee-list API override asks the registered `DataPolicy` for the final scope filter:
 
 ```python
 # app/business/hr/api/manage.py
-router = APIRouter(prefix="/hr", tags=["HR管理"], dependencies=[DependPermission, DependHrScope])
-
-
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
     q = build_employee_list_query(obj_in)
-    scope = await get_current_data_scope(request.app.state.redis)
-    scope_q = build_scope_filter(
-        scope=scope,
-        user_id=CTX_USER_ID.get(),
-        scope_id=get_current_department_id(),
-        user_id_field="user_id",
-        scope_id_field="department_id",
-    )
+    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
     total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
@@ -254,7 +250,7 @@ async def transition_employee(emp_id: int, to_state: str):
         actor_id=get_current_user_id(),
         log_fn=radar_log,
     )
-    await emit("employee.status_changed", employee_id=emp_id, ...)
+    await emit(HR_EMPLOYEE_STATUS_CHANGED, employee_id=emp_id, ...)
     return Success(msg="state updated", ...)
 ```
 
@@ -271,12 +267,11 @@ Mapping table: `web/src/constants/business.ts` (`employeeNextStatus` / `employee
 
 ## Startup init_data overview
 
-`app/business/hr/init_data.py`'s `init()` runs in order:
+`app/business/hr/init_data.py` first reconciles declarative menus, buttons, roles, and route keys through `INIT_DATA`, then seeds demo data:
 
 ```python
 async def init():
-    await _init_menu_data()      # menus + buttons
-    await _init_role_data()      # roles (incl. data_scope + apis grants)
+    await apply_init_data(INIT_DATA)  # menus / buttons / roles / route-key grants
     await _init_departments()    # 5 departments
     await _init_tags()           # 8 tags
     await _init_demo_employees() # 9 employees + manager back-fill
@@ -284,7 +279,7 @@ async def init():
 
 ### Menus & buttons (declarative + reconciliation)
 
-`HR_MENU_CHILDREN` is the single source of truth for menus / buttons:
+`HR_MENU_CHILDREN` is the single source of truth for menus / buttons and is mounted inside `INIT_DATA`:
 
 ```python
 HR_MENU_CHILDREN = [
@@ -301,17 +296,21 @@ HR_MENU_CHILDREN = [
 ]
 
 
-async def _init_menu_data() -> None:
-    await ensure_menu(menu_name="HR", route_name="hr", ..., children=HR_MENU_CHILDREN)
-    # Subtree's source of truth is init_data; menus / buttons removed from the seed get reaped on restart
-    await reconcile_menu_subtree(
-        root_route="hr",
-        declared_route_names=_collect_declared_routes(HR_MENU_CHILDREN),
-        declared_button_codes=_collect_declared_buttons(HR_MENU_CHILDREN),
-    )
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "HR",
+            "route_name": "hr",
+            "route_path": "/hr",
+            "children": HR_MENU_CHILDREN,
+            "reconcile": {"menus": True, "buttons": True},
+        }
+    ],
+    "roles": HR_ROLE_SEEDS,
+}
 ```
 
-> Once `reconcile_menu_subtree` is enabled, **the subtree is treated as IaC** — Web-UI-created menus / buttons under it are reaped on next restart. See [Init data](/en/develop/init-data).
+> Once `INIT_DATA` enables `reconcile` for a menu subtree, **the subtree is treated as IaC** — Web-UI-created menus / buttons under it are reaped on next restart. See [Init data](/en/develop/init-data).
 
 ### Demo data
 
@@ -354,6 +353,7 @@ tag_crud = CRUDRouter(
     list_schema=TagSearch,
     search_fields=SearchFieldConfig(contains_fields=["name"], exact_fields=["category"]),
     summary_prefix="Tag",
+    route_key_prefix="hr.tags",
     action_dependencies={
         "create":       [require_buttons("B_HR_TAG_CREATE")],
         "update":       [require_buttons("B_HR_TAG_EDIT")],
@@ -374,6 +374,7 @@ emp_crud = CRUDRouter(
     list_schema=EmployeeSearch,
     summary_prefix="Employee",
     soft_delete=True,
+    route_key_prefix="hr.employees",
     action_dependencies={
         "delete":       [require_buttons("B_HR_EMP_DELETE")],
         "batch_delete": [require_buttons("B_HR_EMP_DELETE")],
@@ -384,15 +385,8 @@ emp_crud = CRUDRouter(
 @emp_crud.override("list")
 async def _list_employees(obj_in: EmployeeSearch, request: Request):
     q = build_employee_list_query(obj_in)
-    scope = await get_current_data_scope(request.app.state.redis)
-    q &= build_scope_filter(
-        scope=scope,
-        user_id=CTX_USER_ID.get(),
-        scope_id=get_current_department_id(),
-        user_id_field="user_id",
-        scope_id_field="department_id",
-    )
-    total, records = await list_employees_with_relations(obj_in, search=q)
+    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
+    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -473,22 +467,25 @@ Frontend counterparts:
 
 By default `VITE_AUTH_ROUTE_MODE=dynamic`. The frontend calls `GET /api/v1/route/constant-routes` at startup and pulls constant routes from Redis; the data source is `Menu.filter(constant=True, hide_in_menu=True)` (see [load_constant_routes](../../app/core/cache.py.md)). Declaring `meta.constant: true` only on the frontend isn't enough — without a `Menu` row, the backend returns empty, the frontend can't mount the route, and the page 404s.
 
-So `init_data.py` must include:
+So `INIT_DATA["menus"]` must include:
 
 ```python
 # app/business/hr/init_data.py
-async def _init_menu_data() -> None:
-    await ensure_menu(
-        menu_name="HR Showcase",
-        route_name="showcase",
-        route_path="/showcase",
-        component="layout.blank$view.showcase",
-        menu_type="1",
-        constant=True,
-        hide_in_menu=True,
-        order=100,
-    )
-    # ...other menus
+INIT_DATA = {
+    "menus": [
+        {
+            "menu_name": "HR Showcase",
+            "route_name": "showcase",
+            "route_path": "/showcase",
+            "component": "layout.blank$view.showcase",
+            "menu_type": "1",
+            "constant": True,
+            "hide_in_menu": True,
+            "order": 100,
+        },
+        # ...other menus
+    ],
+}
 ```
 
 Startup pipeline: `init()` → write the `Menu` row → `refresh_all_cache()` → `load_constant_routes()` rewrites the Redis `constant_routes` key → frontend picks it up next startup. **Restart the backend after adding a constant route.**
@@ -506,11 +503,12 @@ cp -r app/business/hr app/business/crm
 
 Must-do checklist:
 
-1. **Menus / buttons / roles are single-sourced from `init_data.py`** — add / delete / rename via seeds + restart reconciliation
+1. **Menus / buttons / roles are single-sourced from `INIT_DATA`** — add / delete / rename via seeds + restart reconciliation
 2. **Each role declares `data_scope` explicitly** — never rely on the default `all`
-3. **Write endpoints attach button permissions** (`require_buttons` or `action_dependencies`) — never rely on hidden buttons for security
-4. **Frontend buttons all use `hasAuth(...)`** — 1:1 with backend button codes
-5. **Watch `ensure_role` warnings** when removing button codes / route names — `missing buttons / missing apis` warnings indicate seeds are out of sync with code
+3. **Role API grants reference route keys** (for example `hr.employees.list`) — run `just init-plan --strict` before committing
+4. **Write endpoints attach button permissions** (`require_buttons` or `action_dependencies`) — never rely on hidden buttons for security
+5. **Frontend buttons all use `hasAuth(...)`** — 1:1 with backend button codes
+6. **Watch `ensure_role` warnings** when removing button codes / route keys — `missing buttons / missing route keys` warnings indicate seeds are out of sync with code
 
 ## Related
 
