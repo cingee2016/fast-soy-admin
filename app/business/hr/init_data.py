@@ -11,10 +11,12 @@ import asyncio
 
 from app.business.hr.config import BIZ_SETTINGS
 from app.business.hr.models import Department, Employee, Tag
+from app.business.hr.seed_data import HR_DEPARTMENT_SEEDS, HR_EMPLOYEE_SEEDS, HR_TAG_SEEDS
 from app.system.services import apply_init_data, ensure_user
 from app.system.services.init_helper import _safe_update_or_create
 from app.utils import DataScopeType
 
+# 菜单和按钮是 HR 子树的 IaC 源；启用 reconcile 后，Web UI 手工加的同子树节点会被清理。
 HR_MENU_CHILDREN = [
     {
         "menu_name": "我的工作台",
@@ -84,7 +86,7 @@ HR_MENU_CHILDREN = [
     },
 ]
 
-# 三类接口聚合，便于在角色 seed 中组合复用
+# 三类 route key 聚合，角色授权只引用这些 key；just init-plan --strict 会校验它们是否存在。
 HR_MY_APIS = [
     "hr.my.profile",
     "hr.my.update",
@@ -181,193 +183,10 @@ HR_ROLE_SEEDS = [
     },
 ]
 
-HR_TAG_SEEDS = [
-    {"name": "远程协作", "category": "working_style", "description": "适应远程与混合办公节奏"},
-    {"name": "文档驱动", "category": "collaboration", "description": "习惯通过文档沉淀流程与信息"},
-    {"name": "会议纪要", "category": "collaboration", "description": "擅长整理会议纪要与行动项"},
-    {"name": "跨部门协作", "category": "collaboration", "description": "能高效连接上下游团队推进事项"},
-    {"name": "新人导师", "category": "team_role", "description": "愿意承担新人带教与融入支持"},
-    {"name": "活动组织", "category": "team_role", "description": "擅长组织团队活动和内部沟通"},
-    {"name": "客户沟通", "category": "business", "description": "适合承担客户跟进与需求沟通"},
-    {"name": "流程优化", "category": "growth", "description": "关注流程梳理与效率提升"},
-]
-
-HR_DEPARTMENT_SEEDS = [
-    {"name": "技术部", "code": "TECH", "description": "负责平台研发与技术支持", "manager_employee_no": 9001},
-    {"name": "市场部", "code": "MKT", "description": "负责市场活动与品牌传播", "manager_employee_no": 9003},
-    {"name": "行政部", "code": "OPS", "description": "负责行政支持与办公协同", "manager_employee_no": 9005},
-    {"name": "人事部", "code": "PERSONNEL", "description": "负责招聘、员工关系与组织发展", "manager_employee_no": 9006},
-    {"name": "财务部", "code": "FINANCE", "description": "负责公司财务管理与资金运营", "manager_employee_no": 9008},
-]
-
-HR_EMPLOYEE_SEEDS = [
-    {
-        "user": {
-            "user_name": "zhouhang",
-            "password": "123456",
-            "role_codes": ["R_DEPT_MGR"],
-            "user_email": "zhouhang@example.com",
-            "nick_name": "周航",
-        },
-        "employee": {
-            "employee_no_serial": 9001,
-            "name": "周航",
-            "email": "zhouhang@example.com",
-            "phone": "13800000001",
-            "position": "技术主管",
-            "department_code": "TECH",
-            "tag_names": ["远程协作", "文档驱动", "新人导师"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "limu",
-            "password": "123456",
-            "role_codes": ["R_EMPLOYEE"],
-            "user_email": "limu@example.com",
-            "nick_name": "李沐",
-        },
-        "employee": {
-            "employee_no_serial": 9002,
-            "name": "李沐",
-            "email": "limu@example.com",
-            "phone": "13800000002",
-            "position": "前端工程师",
-            "department_code": "TECH",
-            "tag_names": ["会议纪要", "跨部门协作", "流程优化"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "linyan",
-            "password": "123456",
-            "role_codes": ["R_DEPT_MGR"],
-            "user_email": "linyan@example.com",
-            "nick_name": "林妍",
-        },
-        "employee": {
-            "employee_no_serial": 9003,
-            "name": "林妍",
-            "email": "linyan@example.com",
-            "phone": "13800000003",
-            "position": "市场主管",
-            "department_code": "MKT",
-            "tag_names": ["跨部门协作", "活动组织", "流程优化"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "chenxi",
-            "password": "123456",
-            "role_codes": ["R_EMPLOYEE"],
-            "user_email": "chenxi@example.com",
-            "nick_name": "陈希",
-        },
-        "employee": {
-            "employee_no_serial": 9004,
-            "name": "陈希",
-            "email": "chenxi@example.com",
-            "phone": "13800000004",
-            "position": "市场专员",
-            "department_code": "MKT",
-            "tag_names": ["会议纪要", "活动组织", "客户沟通"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "songyu",
-            "password": "123456",
-            "role_codes": ["R_DEPT_MGR"],
-            "user_email": "songyu@example.com",
-            "nick_name": "宋羽",
-        },
-        "employee": {
-            "employee_no_serial": 9005,
-            "name": "宋羽",
-            "email": "songyu@example.com",
-            "phone": "13800000005",
-            "position": "行政主管",
-            "department_code": "OPS",
-            "tag_names": ["远程协作", "文档驱动", "会议纪要"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "hanmei",
-            "password": "123456",
-            "role_codes": ["R_HR_ADMIN", "R_DEPT_MGR"],
-            "user_email": "hanmei@example.com",
-            "nick_name": "韩梅",
-        },
-        "employee": {
-            "employee_no_serial": 9006,
-            "name": "韩梅",
-            "email": "hanmei@example.com",
-            "phone": "13800000006",
-            "position": "人事主管",
-            "department_code": "PERSONNEL",
-            "tag_names": ["跨部门协作", "新人导师", "流程优化"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "liuqing",
-            "password": "123456",
-            "role_codes": ["R_HR_ADMIN"],
-            "user_email": "liuqing@example.com",
-            "nick_name": "柳青",
-        },
-        "employee": {
-            "employee_no_serial": 9007,
-            "name": "柳青",
-            "email": "liuqing@example.com",
-            "phone": "13800000007",
-            "position": "人事专员",
-            "department_code": "PERSONNEL",
-            "tag_names": ["会议纪要", "客户沟通", "新人导师"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "qinfeng",
-            "password": "123456",
-            "role_codes": ["R_DEPT_MGR"],
-            "user_email": "qinfeng@example.com",
-            "nick_name": "秦风",
-        },
-        "employee": {
-            "employee_no_serial": 9008,
-            "name": "秦风",
-            "email": "qinfeng@example.com",
-            "phone": "13800000008",
-            "position": "财务主管",
-            "department_code": "FINANCE",
-            "tag_names": ["文档驱动", "流程优化", "跨部门协作"],
-        },
-    },
-    {
-        "user": {
-            "user_name": "suwan",
-            "password": "123456",
-            "role_codes": ["R_EMPLOYEE"],
-            "user_email": "suwan@example.com",
-            "nick_name": "苏婉",
-        },
-        "employee": {
-            "employee_no_serial": 9009,
-            "name": "苏婉",
-            "email": "suwan@example.com",
-            "phone": "13800000009",
-            "position": "财务专员",
-            "department_code": "FINANCE",
-            "tag_names": ["会议纪要", "文档驱动"],
-        },
-    },
-]
-
 INIT_DATA = {
     "menus": [
         {
+            # 公开展示页是常量路由：前端能访问，还需要后端种 Menu 让 dynamic route 模式能拉到。
             "menu_name": "HR数据展示",
             "route_name": "showcase",
             "route_path": "/showcase",
@@ -424,6 +243,7 @@ async def _init_tags() -> None:
 
 
 async def _ensure_demo_employee(seed: dict) -> Employee:
+    # Demo 员工先创建系统用户，再绑定 Employee；重复启动通过 employee_no 幂等更新。
     user = await ensure_user(**seed["user"])
 
     employee_seed = seed["employee"]
@@ -456,6 +276,7 @@ async def _init_demo_employees() -> None:
     employee_map: dict[int, Employee] = {seed["employee"]["employee_no_serial"]: emp for seed, emp in zip(HR_EMPLOYEE_SEEDS, employees)}
 
     async def _update_manager(seed: dict) -> None:
+        # 部门主管引用 Employee.id，必须等员工 seed 都落库后再反向回填。
         manager = employee_map.get(seed["manager_employee_no"]) if seed.get("manager_employee_no") else None
         await Department.filter(code=seed["code"]).update(manager_id=manager.id if manager else None)
 

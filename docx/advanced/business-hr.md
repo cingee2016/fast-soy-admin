@@ -35,8 +35,11 @@ app/business/hr/
 ├── schemas.py       # Pydantic schema（继承 SchemaBase）
 ├── controllers.py   # CRUDBase 子类（单资源 CRUD）
 ├── services.py      # 多模型编排、缓存、状态机
+├── serializers.py   # 员工展示记录序列化
+├── files.py         # 头像上传校验与保存
 ├── events.py        # typed EventSpec + 本地事件订阅
 ├── policies.py      # DataPolicy（列表过滤 + 对象级校验）
+├── seed_data.py     # Demo 标签 / 部门 / 员工种子
 ├── init_data.py     # INIT_DATA + async def init()
 └── api/
     ├── __init__.py  # 兼容导出汇总后的 router
@@ -270,7 +273,7 @@ async def transition_employee(emp_id: int, to_state: str):
 
 ## 启动 init_data 全景
 
-[app/business/hr/init_data.py](../../../app/business/hr/init_data.py) 先用声明式 `INIT_DATA` 对齐菜单、按钮、角色与 route key，再播业务 Demo 数据：
+[app/business/hr/init_data.py](../../../app/business/hr/init_data.py) 先用声明式 `INIT_DATA` 对齐菜单、按钮、角色与 route key，再播 [seed_data.py](../../../app/business/hr/seed_data.py) 中的业务 Demo 数据：
 
 ```python
 async def init():
@@ -453,7 +456,7 @@ async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, red
 
 ```python
 # app/business/hr/api/public.py
-router = APIRouter(prefix="/hr/public", tags=["HR公开展示"])
+router = APIRouter(prefix="/public", tags=["HR公开展示"])
 
 @router.get("/showcase", summary="[公开] HR 数据展示总览")
 async def showcase_overview():

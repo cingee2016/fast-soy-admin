@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 
-from app.business.hr.controllers import employee_controller
 from app.business.hr.dependency import DependManager
 from app.business.hr.schemas import (
     EmployeeCreate,
@@ -28,7 +27,7 @@ from app.business.hr.services import (
     transition_subordinate,
     update_subordinate_employee,
 )
-from app.utils import Code, Fail, SqidPath, Success, SuccessExtra, require_buttons
+from app.utils import SqidPath, Success, SuccessExtra, require_buttons
 
 if TYPE_CHECKING:
     from app.business.hr.models import Employee
@@ -38,6 +37,7 @@ router = APIRouter(tags=["HR团队"])
 
 @router.post("/team/employees/search", summary="[主管] 下属分页搜索", name="hr.team.list")
 async def team_employees_search(obj_in: EmployeeSearch, mgr: Employee = DependManager):
+    # 主管列表强制锁定本部门，复用员工列表的搜索、分页和关系预加载逻辑。
     obj_in.department_id = mgr.department_id  # type: ignore[attr-defined]
     total, records = await list_employees_with_relations(obj_in)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
@@ -86,7 +86,4 @@ async def team_edit_subordinate_tags(emp_id: SqidPath, body: TagIds, mgr: Employ
     dependencies=[require_buttons("B_HR_TEAM_EMP_TRANSITION")],
 )
 async def team_transition_employee(emp_id: SqidPath, body: EmployeeTransition, mgr: Employee = DependManager):
-    target = await employee_controller.get_or_none(id=emp_id, department_id=mgr.department_id)  # type: ignore[attr-defined]
-    if not target:
-        return Fail(code=Code.HR_EMPLOYEE_NOT_IN_DEPT, msg="该员工不在您的部门中")
-    return await transition_subordinate(emp_id, body.to_state)
+    return await transition_subordinate(mgr, emp_id, body.to_state)

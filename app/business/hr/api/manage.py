@@ -2,13 +2,11 @@
 HR 管理接口 — 部门/标签/员工的 CRUD (需要系统权限)。
 """
 
-import uuid
-from pathlib import Path
-
 from fastapi import APIRouter, Request, UploadFile
 
 from app.business.hr.controllers import department_controller, employee_controller, tag_controller
 from app.business.hr.dependency import DependHrScope
+from app.business.hr.files import save_avatar
 from app.business.hr.schemas import (
     DepartmentCreate,
     DepartmentSearch,
@@ -21,21 +19,20 @@ from app.business.hr.schemas import (
     TagSearch,
     TagUpdate,
 )
+from app.business.hr.serializers import employee_record
 from app.business.hr.services import build_employee_list_query, create_employee, list_employees_with_relations, transition_employee, update_employee
 from app.utils import (
-    APP_SETTINGS,
     CRUDRouter,
-    Fail,
     SearchFieldConfig,
     SqidPath,
     Success,
     SuccessExtra,
     apply_data_policy,
     assert_object_policy,
-    encode_id,
     require_buttons,
 )
 
+# 部门 / 标签是标准资源，优先用 CRUDRouter；route_key_prefix 与 init_data.py 中的角色授权对应。
 dept_crud = CRUDRouter(
     prefix="/departments",
     controller=department_controller,
@@ -94,11 +91,7 @@ emp_crud = CRUDRouter(
 async def _get_employee(item_id: SqidPath):
     emp = await employee_controller.get(id=item_id)
     await emp.fetch_related("department", "tags")
-    record = await emp.to_dict()
-    record["departmentName"] = emp.department.name
-    record["tagIds"] = [encode_id(t.id) for t in emp.tags]
-    record["tagNames"] = [t.name for t in emp.tags]
-    return Success(data=record)
+    return Success(data=await employee_record(emp, department_name=True, tag_ids=True, tag_names=True))
 
 
 @emp_crud.override("list")
@@ -112,6 +105,7 @@ async def _list_employees(obj_in: EmployeeSearch, request: Request):
 router = APIRouter(tags=["HR管理"], dependencies=[DependHrScope])
 
 
+# module.py 会给本 router 统一加 /api/v1/business/hr 前缀，这里保持业务内相对路径。
 router.include_router(dept_crud.router)
 router.include_router(tag_crud.router)
 router.include_router(emp_crud.router)
@@ -155,10 +149,6 @@ async def transition_emp(emp_id: SqidPath, body: EmployeeTransition):
     return await transition_employee(emp_id, body.to_state)
 
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 MB
-
-
 @router.post(
     "/employees/{emp_id}/avatar",
     summary="上传员工头像",
@@ -167,24 +157,9 @@ MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 MB
 )
 async def upload_avatar(emp_id: SqidPath, file: UploadFile):
     """上传员工头像图片，保存到 static/avatars/，返回访问 URL。"""
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        return Fail(msg="仅支持 JPEG/PNG/GIF/WebP 格式的图片")
-
-    content = await file.read()
-    if len(content) > MAX_AVATAR_SIZE:
-        return Fail(msg="图片大小不能超过 2MB")
-
-    ext = Path(file.filename or "avatar.png").suffix or ".png"
-    filename = f"{uuid.uuid4().hex}{ext}"
-    upload_dir = APP_SETTINGS.STATIC_ROOT / "avatars"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    filepath = upload_dir / filename
-    filepath.write_bytes(content)
-
-    avatar_url = f"/static/avatars/{filename}"
-
     target = await employee_controller.get(id=emp_id)
+    # 文件保存前先校验对象权限，避免无权用户制造无用上传文件。
     await assert_object_policy("hr.employees.update", target, module="hr")
+    avatar_url = await save_avatar(file)
     await employee_controller.update(id=emp_id, obj_in={"avatar": avatar_url})
     return Success(msg="头像上传成功", data={"avatarUrl": avatar_url})

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.business.hr.models import Department, Employee, EmployeeStatus, Tag
+from app.business.hr.services import get_public_showcase_overview
 from app.utils import Success
 
 router = APIRouter(prefix="/public", tags=["HR公开展示"])
@@ -18,32 +18,4 @@ router = APIRouter(prefix="/public", tags=["HR公开展示"])
 @router.get("/showcase", summary="[公开] HR 数据展示总览", name="hr.public.showcase")
 async def showcase_overview():
     """返回部门 / 员工 / 标签的公开聚合统计，用于常量路由展示页。"""
-    dept_total = await Department.all().count()
-    emp_total = await Employee.all().count()
-    tag_total = await Tag.all().count()
-
-    status_counts: dict[str, int] = {}
-    for status in EmployeeStatus:
-        status_counts[status.value] = await Employee.filter(status=status).count()
-
-    departments = await Department.all().order_by("id")
-    dept_rows: list[dict] = []
-    for dept in departments:
-        emp_count = await Employee.filter(department_id=dept.id).count()
-        dept_rows.append({
-            "name": dept.name,
-            "code": dept.code,
-            "employeeCount": emp_count,
-        })
-
-    return Success(
-        data={
-            "totals": {
-                "department": dept_total,
-                "employee": emp_total,
-                "tag": tag_total,
-            },
-            "employeeStatus": status_counts,
-            "departments": dept_rows,
-        }
-    )
+    return Success(data=await get_public_showcase_overview())

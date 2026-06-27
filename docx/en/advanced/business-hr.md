@@ -35,8 +35,11 @@ app/business/hr/
 ├── schemas.py       # Pydantic schemas (extend SchemaBase)
 ├── controllers.py   # CRUDBase subclasses (single-resource CRUD)
 ├── services.py      # multi-model orchestration, cache, FSM
+├── serializers.py   # employee display-record serialization
+├── files.py         # avatar validation and storage
 ├── events.py        # typed EventSpec + local subscribers
 ├── policies.py      # DataPolicy (list filters + object checks)
+├── seed_data.py     # Demo tag / department / employee seeds
 ├── init_data.py     # INIT_DATA + async def init()
 └── api/
     ├── __init__.py  # compatibility aggregate router
@@ -267,7 +270,7 @@ Mapping table: `web/src/constants/business.ts` (`employeeNextStatus` / `employee
 
 ## Startup init_data overview
 
-`app/business/hr/init_data.py` first reconciles declarative menus, buttons, roles, and route keys through `INIT_DATA`, then seeds demo data:
+`app/business/hr/init_data.py` first reconciles declarative menus, buttons, roles, and route keys through `INIT_DATA`, then seeds demo data from `seed_data.py`:
 
 ```python
 async def init():
@@ -445,7 +448,7 @@ Standard pattern for **module-local caching**: name keys `<module>_<resource>:<s
 
 ```python
 # app/business/hr/api/public.py
-router = APIRouter(prefix="/hr/public", tags=["HR Public Showcase"])
+router = APIRouter(prefix="/public", tags=["HR Public Showcase"])
 
 @router.get("/showcase", summary="[Public] HR data overview")
 async def showcase_overview():

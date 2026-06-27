@@ -7,6 +7,7 @@ from app.utils import DataPolicy, PolicyContext, build_scope_filter, get_current
 
 
 async def build_employee_read_filter(ctx: PolicyContext):
+    # HR 的 scope_id 就是当前登录员工所在部门；super / all 会由 build_scope_filter 放行。
     scope = await get_current_data_scope(ctx.redis)
     return build_scope_filter(
         scope=scope,
@@ -18,6 +19,7 @@ async def build_employee_read_filter(ctx: PolicyContext):
 
 
 async def can_manage_employee(ctx: PolicyContext, obj: Any) -> bool:
+    # 对象级策略用于 update / transition / avatar，补上列表 scope 之外的单对象保护。
     if ctx.is_super or "R_HR_ADMIN" in ctx.role_codes:
         return True
     department_id = getattr(obj, "department_id", None)

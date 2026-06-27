@@ -7,6 +7,7 @@ from app.business.hr.init_data import INIT_DATA, init
 from app.business.hr.policies import HR_DATA_POLICIES
 from app.utils import BusinessModule, BusinessRouter, PermissionSpec
 
+# HR 用 manifest 显式声明业务插槽，避免 autodiscover 再从 api/__init__.py 猜路由和权限。
 module = BusinessModule(
     name="hr",
     title="HR管理 Demo",
@@ -17,6 +18,7 @@ module = BusinessModule(
         BusinessRouter(router=team_router, auth="permission"),
         BusinessRouter(router=public_router, auth="public"),
     ],
+    # INIT_DATA 会被 init-plan --strict 审计，启动时再由 init() 真正写入系统表。
     init=init,
     permissions=PermissionSpec(init_data=INIT_DATA),
     events=HR_EVENTS,
