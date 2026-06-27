@@ -15,6 +15,7 @@ from functools import reduce
 from operator import or_
 from typing import Any, TypeVar
 
+from fastapi.routing import APIRoute
 from tortoise.expressions import Q
 from tortoise.models import Model
 
@@ -153,7 +154,7 @@ async def ensure_role(
     data_scope: DataScopeType | None = None,
     menus: list[str] | None = None,
     buttons: list[str] | None = None,
-    apis: list[tuple[str, str]] | None = None,
+    apis: list[tuple[str, str] | str] | None = None,
 ) -> None:
     """
     确保角色存在且字段/权限与声明一致（幂等，按 role_code 唯一键 get_or_update）。
@@ -165,7 +166,7 @@ async def ensure_role(
             None 时不写入该字段，沿用 Role 模型默认值（``all``）。
         menus: route_name 列表
         buttons: button_code 列表
-        apis: [(method, path), ...] 列表
+        apis: [(method, path), ...] 或 route key 字符串列表
     """
     home_menu = await Menu.filter(route_name=home_route).first()
     defaults: dict[str, Any] = {
@@ -209,22 +210,59 @@ async def ensure_role(
     async def _sync_apis() -> None:
         if apis is None:
             return
-        if apis:
-            cond = reduce(or_, (Q(api_method=m, api_path=p) for m, p in apis))
+        resolved_apis, missing_route_keys = _resolve_api_refs(apis)
+        if resolved_apis:
+            cond = reduce(or_, (Q(api_method=m, api_path=p) for m, p in resolved_apis))
             found = await Api.filter(cond)
         else:
             found = []
         by_key = {(a.api_method, a.api_path): a for a in found}
-        missing = [(m, p) for m, p in apis if (m, p) not in by_key]
+        missing = [(m, p) for m, p in resolved_apis if (m, p) not in by_key]
         await role.by_role_apis.clear()  # type: ignore[attr-defined]
         if found:
             await role.by_role_apis.add(*found)  # type: ignore[attr-defined]
+        if missing_route_keys:
+            log.warning(f"ensure_role '{role_code}': missing route keys {missing_route_keys} (route name changed?)")
         if missing:
             log.warning(f"ensure_role '{role_code}': missing apis {missing} (route signature changed?)")
 
     await asyncio.gather(_sync_menus(), _sync_buttons(), _sync_apis())
 
     log.info(f"ensure_role: {'created' if created else 'updated'} role '{role_code}'")
+
+
+def _route_key_index() -> dict[str, tuple[str, str]]:
+    try:
+        from app import fastapi_app
+    except Exception:
+        return {}
+
+    result: dict[str, tuple[str, str]] = {}
+    for route in fastapi_app.routes:
+        if not isinstance(route, APIRoute) or not route.include_in_schema or not route.name:
+            continue
+        methods = sorted(m.lower() for m in route.methods if m.lower() not in {"head", "options"})
+        if not methods:
+            continue
+        result[route.name] = (methods[0], route.path_format)
+    return result
+
+
+def _resolve_api_refs(api_refs: list[tuple[str, str] | str]) -> tuple[list[tuple[str, str]], list[str]]:
+    route_keys = _route_key_index()
+    resolved: list[tuple[str, str]] = []
+    missing_route_keys: list[str] = []
+    for item in api_refs:
+        if isinstance(item, str):
+            api_ref = route_keys.get(item)
+            if api_ref is None:
+                missing_route_keys.append(item)
+                continue
+            resolved.append(api_ref)
+        else:
+            method, path = item
+            resolved.append((method, path))
+    return resolved, missing_route_keys
 
 
 async def reconcile_menu_subtree(

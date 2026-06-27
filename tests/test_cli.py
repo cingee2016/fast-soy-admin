@@ -10,7 +10,7 @@ from click.testing import CliRunner
 from app.cli import cli, git_tools
 from app.cli import display as cli_display
 from app.cli.display import format_path
-from app.cli.generator import gen_api_manage, gen_init_data, gen_schemas, generate_all
+from app.cli.generator import gen_api_manage, gen_init_data, gen_module_manifest, gen_schemas, generate_all
 from app.cli.options import BackendFeatureOptions, DataScopeOption, resolve_data_scope_map, resolve_field_map
 from app.cli.parser import parse_models
 from app.cli.prompts import (
@@ -30,6 +30,9 @@ def test_cli_exposes_full_crud_commands():
     assert result.exit_code == 0
     assert "crud" in result.output
     assert "gen-all" in result.output
+    assert "init-plan" in result.output
+    assert "module-list" in result.output
+    assert "check-boundaries" in result.output
 
 
 def test_format_path_uses_forward_slashes():
@@ -272,6 +275,9 @@ class UtilityPrice(BaseModel):
     assert "contains_fields=['remark']" in content
     assert "exact_fields=['enabled']" in content
     assert "exact_fields=['status']" not in content
+    assert 'route_key_prefix="utility_fee.utility_prices"' in content
+    assert 'router = APIRouter(tags=["utility_fee"])' in content
+    assert "DependPermission" not in content
 
 
 def test_gen_api_manage_generates_data_scope_list_override(tmp_path: Path):
@@ -396,6 +402,18 @@ class UtilityReading(BaseModel):
     assert "'button_desc': '创建水电费单价表'" in content_with_buttons
 
 
+def test_gen_module_manifest_declares_business_module():
+    content = gen_module_manifest("utility_fee", module_title="水电费")
+
+    compile(content, "module.py", "exec")
+    assert "from app.business.utility_fee.api import router" in content
+    assert "from app.business.utility_fee.init_data import INIT_DATA" in content
+    assert 'name="utility_fee"' in content
+    assert 'title="水电费"' in content
+    assert 'routers=[BusinessRouter(router=router, auth="permission")]' in content
+    assert "permissions=PermissionSpec(init_data=INIT_DATA)" in content
+
+
 def test_generate_web_uses_elegant_router_official_route_keys(tmp_path: Path):
     models_path = tmp_path / "models.py"
     models_path.write_text(
@@ -472,6 +490,7 @@ class UtilityPrice(BaseModel):
     )
 
     assert ("schemas.py", "would-create") in backend_results
+    assert ("module.py", "would-create") in backend_results
     assert ("src/service/api/utility_fee-manage.ts", "would-create") in frontend_results
     assert ("src/service/api/index.ts", "would-append") in frontend_results
     assert not (module_dir / "schemas.py").exists()

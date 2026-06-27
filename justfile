@@ -215,6 +215,18 @@ cli-crud mod cn='' args='':
 cli-undo args='':
     uv run python -m app.cli undo {{args}}
 
+# Dry-run business init declarations and route-key drift.
+init-plan args='':
+    uv run python -m app.cli init-plan {{args}}
+
+# List discovered business modules.
+module-list:
+    uv run python -m app.cli module-list
+
+# Check business import boundaries.
+check-boundaries args='':
+    uv run python -m app.cli check-boundaries {{args}}
+
 # ---- E2E ----------------------------------------------------
 
 # Reset E2E sqlite and create schema from current models.

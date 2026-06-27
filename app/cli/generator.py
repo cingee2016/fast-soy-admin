@@ -349,7 +349,7 @@ def gen_api_manage(
     if needs_request:
         fastapi_imports.append("Request")
 
-    utils_imports = ["CRUDRouter", "DependPermission"]
+    utils_imports = ["CRUDRouter"]
     if needs_search_config:
         utils_imports.append("SearchFieldConfig")
     if needs_request:
@@ -407,6 +407,7 @@ def gen_api_manage(
         lines.append(f"    create_schema={m.name}Create,")
         lines.append(f"    update_schema={m.name}Update,")
         lines.append(f"    list_schema={m.name}Search,")
+        lines.append(f'    route_key_prefix="{module_name}.{m.plural_snake}",')
         if search_parts:
             lines.append(f"    search_fields=SearchFieldConfig({', '.join(search_parts)}),")
         if m.name in backend_options.list_order:
@@ -427,7 +428,7 @@ def gen_api_manage(
         _append_list_override(lines, module_name, m, contains, exact, backend_options)
 
     # router
-    lines.append(f'router = APIRouter(prefix="/{module_name}", tags=["{module_name}"], dependencies=[DependPermission])')
+    lines.append(f'router = APIRouter(tags=["{module_name}"])')
     for m in models:
         lines.append(f"router.include_router({m.snake_name}_crud.router)")
     lines.append("")
@@ -580,10 +581,33 @@ def gen_module_init() -> str:
     return ""
 
 
+def gen_module_manifest(module_name: str, *, module_title: str | None = None) -> str:
+    title = module_title or module_name
+    return "\n".join([
+        '"""',
+        f"{module_name} business module manifest.",
+        '"""',
+        "",
+        "from app.business.{0}.api import router".format(module_name),
+        "from app.business.{0}.init_data import INIT_DATA".format(module_name),
+        "from app.utils import BusinessModule, BusinessRouter, PermissionSpec",
+        "",
+        "module = BusinessModule(",
+        f'    name="{module_name}",',
+        f'    title="{title}",',
+        '    version="0.1.0",',
+        '    routers=[BusinessRouter(router=router, auth="permission")],',
+        "    permissions=PermissionSpec(init_data=INIT_DATA),",
+        ")",
+        "",
+    ])
+
+
 # ─── 汇总写入 ───
 
 
 ALL_FILES: dict[str, str] = {
+    "module.py": "module",
     "schemas.py": "schemas",
     "controllers.py": "controllers",
     "services.py": "services",
@@ -615,6 +639,7 @@ def generate_all(
     results: list[tuple[str, str]] = []
 
     generators = {
+        "module.py": lambda: gen_module_manifest(module_name, module_title=module_title),
         "schemas.py": lambda: gen_schemas(module_name, models),
         "controllers.py": lambda: gen_controllers(module_name, models),
         "services.py": lambda: gen_services(module_name, models),

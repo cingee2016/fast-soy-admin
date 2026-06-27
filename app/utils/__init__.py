@@ -27,6 +27,13 @@ from app.core.base_schema import SchemaBase as SchemaBase
 from app.core.base_schema import Success as Success
 from app.core.base_schema import SuccessExtra as SuccessExtra
 from app.core.base_schema import make_optional as make_optional
+from app.core.business import BusinessModule as BusinessModule
+from app.core.business import BusinessRouter as BusinessRouter
+from app.core.business import DataPolicy as DataPolicy
+from app.core.business import EventSpec as EventSpec
+from app.core.business import PeriodicTask as PeriodicTask
+from app.core.business import PermissionSpec as PermissionSpec
+from app.core.business import PolicyContext as PolicyContext
 
 # ---- 业务错误码 ----
 from app.core.code import Code as Code
@@ -65,6 +72,13 @@ from app.core.exceptions import SchemaValidationError as SchemaValidationError
 
 # ---- 日志 & 监控 ----
 from app.core.log import log as log
+from app.core.outbox import dispatch_outbox_once as dispatch_outbox_once
+from app.core.outbox import enqueue_outbox_event as enqueue_outbox_event
+from app.core.outbox import make_outbox_dispatch_task as make_outbox_dispatch_task
+from app.core.policy import apply_data_policy as apply_data_policy
+from app.core.policy import assert_object_policy as assert_object_policy
+from app.core.policy import build_policy_context as build_policy_context
+from app.core.policy import check_object_policy as check_object_policy
 from app.core.router import CRUDRouter as CRUDRouter
 from app.core.router import SearchFieldConfig as SearchFieldConfig
 from app.core.soft_delete import SoftDeleteMixin as SoftDeleteMixin

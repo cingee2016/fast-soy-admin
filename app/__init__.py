@@ -11,7 +11,7 @@ from fastapi_cache.backends.redis import RedisBackend
 from starlette.staticfiles import StaticFiles
 from tortoise.exceptions import OperationalError
 
-from app.core.autodiscover import discover_business_init_data, discover_business_routers
+from app.core.autodiscover import discover_business_data_policies, discover_business_init_data, discover_business_routers, discover_business_tasks
 from app.core.cache import refresh_all_cache
 from app.core.exceptions import SettingNotFound
 from app.core.init_app import (
@@ -21,7 +21,9 @@ from app.core.init_app import (
     register_routers,
 )
 from app.core.log import log
+from app.core.policy import register_data_policies
 from app.core.redis import close_redis, init_redis
+from app.core.tasks import BusinessTaskRunner
 from app.system.api.utils import refresh_api_list
 from app.system.init_data import init_menus, init_users
 from app.system.radar import setup_radar, shutdown_radar, startup_radar
@@ -65,6 +67,8 @@ def create_app() -> FastAPI:
     if business_router.routes:
         _app.include_router(business_router, prefix="/api/v1/business")
     _app.state.business_modules = business_names
+    register_data_policies(discover_business_data_policies())
+    _app.state.business_tasks = discover_business_tasks()
 
     if APP_SETTINGS.RADAR_ENABLED:
         setup_radar(_app)
@@ -136,6 +140,7 @@ async def _run_init_data(_app: FastAPI) -> bool:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     start_time = datetime.now()
+    task_runner = None
     _app.state.redis = await init_redis()
     FastAPICache.init(RedisBackend(_app.state.redis), prefix="fastapi-cache")
     try:
@@ -143,6 +148,10 @@ async def lifespan(_app: FastAPI):
 
         if APP_SETTINGS.RADAR_ENABLED:
             await startup_radar()
+
+        task_runner = BusinessTaskRunner(_app.state.business_tasks, redis=_app.state.redis)
+        task_runner.start()
+        _app.state.business_task_runner = task_runner
 
         if is_leader:
             if APP_SETTINGS.GUARD_ENABLED:
@@ -155,6 +164,8 @@ async def lifespan(_app: FastAPI):
         yield
 
     finally:
+        if task_runner is not None:
+            await task_runner.stop()
         if APP_SETTINGS.RADAR_ENABLED:
             await shutdown_radar()
         end_time = datetime.now()
