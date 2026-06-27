@@ -8,10 +8,13 @@
 
 * ``models.py`` 或 ``models/`` — Tortoise ORM 模型，自动注册到
   ``TORTOISE_ORM["apps"]``。
-* ``api/`` 包或 ``api.py`` — 须导出 ``router: APIRouter``，
+* ``module.py`` — 推荐的新入口，导出 ``module = BusinessModule(...)``，
+  可显式声明路由、初始化、权限 seed、事件、数据策略与周期任务。
+* ``api/`` 包或 ``api.py`` — legacy 入口，须导出 ``router: APIRouter``，
   挂载到 ``/api/v1/business/``。
-* ``init_data.py`` — 可导出 ``async def init()``，在系统初始化之后、
-  Redis 缓存刷新之前运行一次。用于初始化模块专属菜单、按钮、角色及演示数据。
+* ``init_data.py`` — legacy 入口可导出 ``async def init()``；manifest 模块
+  也可导出 ``INIT_DATA`` 并交给 ``PermissionSpec`` 审计。初始化在系统 init
+  之后、Redis 缓存刷新之前运行一次。
 
 以下划线开头的目录会被跳过。
 
@@ -28,9 +31,10 @@
     ├── schemas.py         # Pydantic Schema（继承 SchemaBase）
     ├── controllers.py     # CRUDBase 子类（单资源）
     ├── services.py        # 多模型编排、Redis、事务处理
-    ├── init_data.py       # async def init() — 初始化菜单/角色等
+    ├── module.py          # BusinessModule manifest（推荐）
+    ├── init_data.py       # INIT_DATA / async def init() — 初始化菜单/角色等
     └── api/
-        ├── __init__.py    # 须导出聚合子路由的 `router`
+        ├── __init__.py    # legacy 模式须导出聚合子路由的 `router`
         ├── manage.py
         └── my.py
 

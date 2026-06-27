@@ -1,6 +1,6 @@
 # 业务模块自动发现
 
-`app/core/autodiscover.py` 在启动时扫描 `app/business/*/`，按约定加载业务模块的模型、路由、初始化函数与独立 DB 配置。**不需要在任何地方注册业务模块**。
+`app/core/autodiscover.py` 在启动时扫描 `app/business/*/`，按约定加载业务模块的模型、manifest 路由、初始化声明、事件、数据策略、周期任务与独立 DB 配置。**不需要在任何地方注册业务模块**。
 
 ## 触发约定
 
@@ -15,8 +15,9 @@
 | 文件 | 加载时机 | 行为 |
 |---|---|---|
 | `models.py` 或 `models/__init__.py` | `Settings` 构造时 | 注册到 `TORTOISE_ORM["apps"]["app_system"].models`（或独立 app） |
-| `api/__init__.py` 或 `api.py`（必须导出 `router: APIRouter`） | `create_app()` | `include_router` 到 `/api/v1/business/` |
-| `init_data.py`（必须导出 `async def init()`） | `lifespan` 中 leader worker 调用 | 在系统 init 之后、`refresh_all_cache` 之前执行 |
+| `module.py`（导出 `module = BusinessModule(...)`） | `create_app()` / `lifespan` | 推荐入口：显式声明 routers、init、PermissionSpec、EventSpec、DataPolicy、PeriodicTask |
+| `api/__init__.py` 或 `api.py`（导出 `router: APIRouter`） | `create_app()` | legacy 入口：`include_router` 到 `/api/v1/business/` |
+| `init_data.py`（导出 `INIT_DATA` 或 `async def init()`） | `lifespan` 中 leader worker 调用 | 在系统 init 之后、`refresh_all_cache` 之前执行；manifest 可用 `PermissionSpec(init_data=INIT_DATA)` 接入审计 |
 | `config.py`（导出含 `DB_URL` 字段的 Settings 实例） | `Settings` 构造时 | 注册独立 Tortoise 连接 + 独立 app（仅当 `DB_URL` 与主库不同） |
 
 ## 标准目录结构
@@ -33,10 +34,11 @@ app/business/<name>/
 ├── schemas.py       # Pydantic schema
 ├── controllers.py   # CRUDBase 子类
 ├── services.py      # 多模型编排、缓存、状态机
+├── module.py        # 推荐 — BusinessModule manifest
 ├── cache_utils.py   # 可选 — 模块自有缓存失效辅助
-├── init_data.py     # async def init()
+├── init_data.py     # INIT_DATA / async def init()
 └── api/
-    ├── __init__.py  # 必须导出 router
+    ├── __init__.py  # legacy 模式必须导出 router
     ├── manage.py
     ├── dept.py
     └── my.py
@@ -64,10 +66,12 @@ Settings._build_tortoise_orm()
 create_app()
   ├─ register_db(app)                      # 上面那个 TORTOISE_ORM 生效
   ├─ register_routers(app, prefix="/api")  # /api/v1/auth, /api/v1/system-manage/*, ...
-  └─ discover_business_routers()           # /api/v1/business/<name>/*
+  └─ discover_business_routers()           # manifest routers 或 legacy api router
 
 lifespan(app)
-  └─ leader 执行 init_data.init() for each business
+  ├─ leader 执行 manifest init / legacy init_data.init()
+  ├─ 注册 manifest EventSpec / DataPolicy
+  └─ 启动 manifest PeriodicTask
 ```
 
 ## 常见漂移与排查
@@ -80,7 +84,7 @@ lifespan(app)
 Business: module 'inventory' discovered but has no api.py or api/ package — routes will not be registered
 ```
 
-`app/business/inventory/__init__.py` 存在但没有 `api.py` / `api/__init__.py`。要么补 api，要么在调试期间删掉 `__init__.py` 让模块变成"未启用"。
+`app/business/inventory/__init__.py` 存在但没有 `module.py` manifest，也没有 legacy `api.py` / `api/__init__.py`。要么补 manifest / api，要么在调试期间删掉 `__init__.py` 让模块变成"未启用"。
 
 ### `api` 模块不导出 router
 
@@ -88,7 +92,7 @@ Business: module 'inventory' discovered but has no api.py or api/ package — ro
 Business: module 'inventory' api module does not export a valid 'router' (APIRouter) object
 ```
 
-`api/__init__.py` 必须有：
+legacy 模式下，`api/__init__.py` 必须有：
 
 ```python
 from .manage import router as manage_router
@@ -145,6 +149,7 @@ async with in_transaction(get_db_conn(Invoice)):  # 自动选 conn_billing
 - 顺序：按模块名字母排序（`hr` < `inventory` < `notify`）
 - 单个模块抛异常**不影响**其他模块——异常被捕获并记录到 `app.state.init_errors`
 - 模块内部：`init()` 应当幂等（使用 `ensure_*` 系列）
+- manifest 模块可用 `PermissionSpec(init_data=INIT_DATA)`，让 `just init-plan --strict` 在启动前检查菜单/角色/API route key 漂移
 
 详见 [启动初始化与对账](./init-data.md)。
 

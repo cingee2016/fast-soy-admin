@@ -41,7 +41,7 @@ Business code should never `from app.system.xxx import ...` (except services sys
 2. **Routing** — business routes uniformly under `/api/v1/business/<name>`; system routes under `/api/v1/{auth,route,system-manage}`
 3. **Dependency injection**
    - `DependAuth` — JWT decode → check token version → load user + role/button permissions into ContextVars
-   - `DependPermission` — on top of `DependAuth`, exact `(method, path)` match against `role.apis`
+   - `DependPermission` — on top of `DependAuth`, authorizes route keys in `role.apis` (legacy `(method, path)` still works)
    - `require_buttons(...)` / `require_roles(...)` — factory dependencies, attach as needed
 4. **Business logic**
    - `api/` only wires; rules live in `services/` and `controllers/`
@@ -55,7 +55,8 @@ create_app()
   |-- register_db(app)                      # Tortoise.init(config=TORTOISE_ORM)
   |-- register_exceptions(app)              # BizError / DoesNotExist / IntegrityError / ValidationError handlers
   |-- register_routers(app, prefix="/api")  # system /api/v1/...
-  |-- discover_business_routers()           # /api/v1/business/<name>/...
+  |-- discover_business_routers()           # manifest routers or legacy api router
+  |-- register business policies            # manifest DataPolicy
   `-- setup_radar(app)                      # optional
 
 lifespan(app)
@@ -66,7 +67,8 @@ lifespan(app)
   |   |-- init_menus()                      # system menu seeds (only when Menu table is empty)
   |   |-- refresh_api_list()                # FastAPI routes <-> Api table reconciliation
   |   |-- init_users()                      # system roles + default users + dictionary
-  |   |-- for each business init():         # business modules' init_data.init()
+  |   |-- for each business init():         # manifest init or legacy init_data.init()
+  |   |-- start business tasks              # manifest PeriodicTask
   |   `-- refresh_all_cache()               # role permissions / constant routes -> Redis
   |-- startup_radar()                       # optional
   |-- yield
