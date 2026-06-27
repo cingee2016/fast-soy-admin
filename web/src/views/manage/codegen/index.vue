@@ -133,7 +133,12 @@ const hrModelDefaults: ModelConfig[] = [
     listOrder: ['-created_at', 'id'],
     relationLookups: [
       { fieldName: 'user_id', relationName: 'user', relatedModel: 'app_system.User', labelField: 'username' },
-      { fieldName: 'department_id', relationName: 'department', relatedModel: 'app_system.Department', labelField: 'name' }
+      {
+        fieldName: 'department_id',
+        relationName: 'department',
+        relatedModel: 'app_system.Department',
+        labelField: 'name'
+      }
     ],
     fields: [
       { name: 'name', label: '员工姓名', type: 'text' },
@@ -142,7 +147,13 @@ const hrModelDefaults: ModelConfig[] = [
       { name: 'phone', label: '电话', type: 'text' },
       { name: 'position', label: '职位', type: 'text' },
       { name: 'hire_date', label: '入职日期', type: 'date' },
-      { name: 'user_id', label: '关联系统用户', type: 'relation', relationName: 'user', relatedModel: 'app_system.User' },
+      {
+        name: 'user_id',
+        label: '关联系统用户',
+        type: 'relation',
+        relationName: 'user',
+        relatedModel: 'app_system.User'
+      },
       {
         name: 'department_id',
         label: '所属部门',
@@ -492,12 +503,40 @@ const sampleRows: Record<string, Record<string, string>[]> = {
     }
   ],
   UtilityPrice: [
-    { id: 'P001', water_price: '3.2000', electricity_price: '0.8200', effective_date: '2026-01-01', enabled: '是', remark: '默认单价' },
-    { id: 'P002', water_price: '3.4000', electricity_price: '0.8600', effective_date: '2026-07-01', enabled: '否', remark: '待启用' }
+    {
+      id: 'P001',
+      water_price: '3.2000',
+      electricity_price: '0.8200',
+      effective_date: '2026-01-01',
+      enabled: '是',
+      remark: '默认单价'
+    },
+    {
+      id: 'P002',
+      water_price: '3.4000',
+      electricity_price: '0.8600',
+      effective_date: '2026-07-01',
+      enabled: '否',
+      remark: '待启用'
+    }
   ],
   UtilitySyncLog: [
-    { id: 'L001', sync_type: 'scheduled', status: 'success', message: '同步 24 条读数', started_at: '2026-06-15 00:10', finished_at: '2026-06-15 00:11' },
-    { id: 'L002', sync_type: 'manual', status: 'failed', message: '外部系统超时', started_at: '2026-06-14 09:30', finished_at: '2026-06-14 09:31' }
+    {
+      id: 'L001',
+      sync_type: 'scheduled',
+      status: 'success',
+      message: '同步 24 条读数',
+      started_at: '2026-06-15 00:10',
+      finished_at: '2026-06-15 00:11'
+    },
+    {
+      id: 'L002',
+      sync_type: 'manual',
+      status: 'failed',
+      message: '外部系统超时',
+      started_at: '2026-06-14 09:30',
+      finished_at: '2026-06-14 09:31'
+    }
   ],
   UtilityReading: [
     {
@@ -695,7 +734,9 @@ function simpleContainsFields(model: ModelConfig) {
 }
 
 function simpleExactFields(model: ModelConfig) {
-  return model.searchFields.filter(fieldName => isExactSearchField(model.fields.find(field => field.name === fieldName)));
+  return model.searchFields.filter(fieldName =>
+    isExactSearchField(model.fields.find(field => field.name === fieldName))
+  );
 }
 
 function effectiveContainsFields(model: ModelConfig) {
@@ -1203,7 +1244,9 @@ function parseFieldsFromBody(body: string) {
     });
   }
 
-  relationIds.forEach(name => fields.push({ name, label: name, type: 'relation', relationName: name.replace(/_id$/, '') }));
+  relationIds.forEach(name =>
+    fields.push({ name, label: name, type: 'relation', relationName: name.replace(/_id$/, '') })
+  );
   return uniqueFields(fields);
 }
 
@@ -1390,7 +1433,9 @@ watch(models, persistChangedModelConfigs, { deep: true });
             <div>
               <NTag type="warning" size="small">示例二</NTag>
               <h3 class="m-0 mt-10px text-18px font-semibold">水电费示例</h3>
-              <p class="m-0 mt-6px text-13px text-gray-500">配置、单价、同步日志、读数和日账单，覆盖枚举、外键和金额字段。</p>
+              <p class="m-0 mt-6px text-13px text-gray-500">
+                配置、单价、同步日志、读数和日账单，覆盖枚举、外键和金额字段。
+              </p>
             </div>
             <NButton type="primary" size="large" block ghost @click="loadUtilityExample">
               <template #icon><icon-ic-round-workspaces class="text-icon" /></template>
@@ -1564,7 +1609,10 @@ watch(models, persistChangedModelConfigs, { deep: true });
               <NGridItem span="24 l:15">
                 <div class="field-panel simple-panel">
                   <div class="field-title">搜索条件</div>
-                  <NCheckboxGroup :value="model.searchFields" @update:value="value => updateSimpleSearchFields(model, value)">
+                  <NCheckboxGroup
+                    :value="model.searchFields"
+                    @update:value="value => updateSimpleSearchFields(model, value)"
+                  >
                     <NSpace>
                       <NCheckbox v-for="field in fieldOptions(model)" :key="field.value" :value="field.value">
                         {{ field.label }}
