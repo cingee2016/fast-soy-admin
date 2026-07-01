@@ -70,6 +70,7 @@ type UseNaivePaginatedTableOptions<ResponseData, ApiData> = UseNaiveTableOptions
    * @default true
    */
   showTotal?: boolean;
+  initialPageSize?: number;
   onPaginationParamsChange?: (params: PaginationParams) => void | Promise<void>;
 };
 
@@ -85,7 +86,7 @@ export function useNaivePaginatedTable<ResponseData, ApiData>(
 
   const pagination = reactive({
     page: 1,
-    pageSize: 10,
+    pageSize: options.initialPageSize ?? 10,
     itemCount: 0,
     showSizePicker: true,
     pageSizes: [10, 15, 20, 25, 30],
