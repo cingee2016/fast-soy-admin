@@ -28,11 +28,11 @@ const rememberMe = ref(false);
 
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   // inside computed to make locale reactive, if not apply i18n, you can define it without computed
-  const { formRules } = useFormRules();
+  const { formRules, createRequiredRule } = useFormRules();
 
   return {
     userName: formRules.userName,
-    password: formRules.pwd
+    password: [createRequiredRule($t('form.pwd.required'))]
   };
 });
 
