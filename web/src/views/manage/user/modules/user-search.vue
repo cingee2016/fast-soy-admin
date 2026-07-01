@@ -100,7 +100,7 @@ getRoleOptions();
             <NFormItemGi
               span="24 s:12 m:6"
               :label="$t('page.manage.user.userStatusType')"
-              path="userStatusType"
+              path="statusType"
               class="pr-24px"
             >
               <NSelect
@@ -112,11 +112,17 @@ getRoleOptions();
               />
             </NFormItemGi>
 
-            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.user.userRole')" path="roles" class="pr-24px">
+            <NFormItemGi
+              span="24 s:12 m:6"
+              :label="$t('page.manage.user.userRole')"
+              path="byUserRoleCodeList"
+              class="pr-24px"
+            >
               <NSelect
                 v-model:value="model.byUserRoleCodeList"
                 :options="roleOptions"
                 :placeholder="$t('page.manage.user.form.userRole')"
+                multiple
                 filterable
                 clearable
               />
