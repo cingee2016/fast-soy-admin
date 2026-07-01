@@ -11,6 +11,7 @@ from tortoise.expressions import Q
 
 from app.core.constants import SUPER_ADMIN_ROLE
 from app.core.ctx import CTX_ROLE_CODES
+from app.core.sqids import encode_id
 from app.system.controllers import api_controller
 from app.system.models import Api, Role
 from app.system.schemas.admin import ApiSearch
@@ -68,7 +69,7 @@ def build_api_tree(apis: list[Api]) -> list[dict]:
                 parent_map[parent_id]["children"].append(node)
             parent_id = node_id
         parent_map[parent_id]["children"].append({
-            "id": api.id,
+            "id": encode_id(api.id),
             "summary": api.summary,
         })
     return parent_map["root"]["children"]

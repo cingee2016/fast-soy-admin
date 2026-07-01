@@ -41,7 +41,7 @@ async function search() {
   emit('search');
 }
 
-const tagOptions = ref();
+const tagOptions = ref<Api.SystemManage.ApiTagTree[]>([]);
 
 onMounted(async () => {
   const { error, data } = await fetchGetApiTagsList();
@@ -57,7 +57,7 @@ onMounted(async () => {
       <NCollapseItem :title="$t('common.search')" name="api-search">
         <NForm ref="formRef" :model="model" label-placement="left" :label-width="100">
           <NGrid responsive="screen" item-responsive>
-            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.method')" path="method" class="pr-24px">
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.method')" path="apiMethod" class="pr-24px">
               <NSelect
                 v-model:value="model.apiMethod"
                 :placeholder="$t('page.manage.api.form.method')"
@@ -66,7 +66,7 @@ onMounted(async () => {
                 clearable
               />
             </NFormItemGi>
-            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.path')" path="path" class="pr-24px">
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.path')" path="apiPath" class="pr-24px">
               <NInput v-model:value="model.apiPath" :placeholder="$t('page.manage.api.form.path')" />
             </NFormItemGi>
             <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.summary')" path="summary" class="pr-24px">
@@ -84,7 +84,7 @@ onMounted(async () => {
               />
             </NFormItemGi>
 
-            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.statusType')" path="status" class="pr-24px">
+            <NFormItemGi span="24 s:12 m:6" :label="$t('page.manage.api.statusType')" path="statusType" class="pr-24px">
               <NSelect
                 v-model:value="model.statusType"
                 :placeholder="$t('page.manage.api.form.statusType')"

@@ -10,7 +10,7 @@ defineOptions({
 interface Props {
   /** the roleId */
   roleId: string;
-  byRoleHomeId: string;
+  byRoleHomeId: string | null;
 }
 
 const props = defineProps<Props>();
@@ -27,13 +27,14 @@ const title = computed(() => $t('common.edit') + $t('page.manage.role.menuAuth')
 
 const byRoleHome = shallowRef<string>('');
 
-async function updateHome(val: string) {
+async function updateHome(val: string | null) {
+  if (!val) return;
   // request
   byRoleHome.value = val;
   await fetchUpdateRoleMenu({ id: props.roleId, byRoleHomeId: val });
 }
 
-const pages = shallowRef<{ [key: string]: string }[]>([]);
+const pages = shallowRef<Api.SystemManage.MenuPageOption[]>([]);
 
 async function getPages() {
   const { error, data } = await fetchGetAllPages();
@@ -70,7 +71,7 @@ async function getChecks() {
   const { error, data } = await fetchGetRoleMenu({ id: props.roleId });
   if (!error) {
     checks.value = data.byRoleMenuIds || [];
-    byRoleHome.value = data.byRoleHomeId || props.byRoleHomeId;
+    byRoleHome.value = data.byRoleHomeId || props.byRoleHomeId || '';
   }
 }
 
@@ -112,7 +113,6 @@ watch(visible, val => {
         size="small"
         class="w-160px"
         filterable
-        clearable
         @update:value="updateHome"
       />
     </div>

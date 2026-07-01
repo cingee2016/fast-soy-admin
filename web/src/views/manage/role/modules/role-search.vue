@@ -42,7 +42,7 @@ function search() {
             <NFormItemGi
               span="24 s:12 m:6"
               :label="$t('page.manage.role.rolestatusType')"
-              path="status"
+              path="statusType"
               class="pr-24px"
             >
               <NSelect

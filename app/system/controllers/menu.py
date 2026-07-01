@@ -24,7 +24,7 @@ class MenuController(CRUDBase[Menu, MenuCreate, MenuUpdate]):
 
     @staticmethod
     async def update_buttons_by_code(menu: Menu, buttons: list[ButtonBase] | None = None) -> bool:
-        if not buttons:
+        if buttons is None:
             return False
 
         async with in_transaction(get_db_conn(Menu)):

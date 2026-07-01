@@ -31,6 +31,7 @@ class RoleSearch(RoleBase, PageQueryBase):
 class RoleCreate(RoleBase):
     role_name: Annotated[str, Field(max_length=20)] = Field(title="角色名称")
     role_code: Annotated[str, Field(max_length=20)] = Field(title="角色编码")
+    by_role_home_id: SqidId = Field(title="角色首页")
 
     @model_validator(mode="after")
     def validate_create(self):
@@ -38,6 +39,8 @@ class RoleCreate(RoleBase):
             raise SchemaValidationError(code=Code.ROLE_NAME_REQUIRED, msg="角色名称不能为空")
         if not self.role_code.strip():
             raise SchemaValidationError(code=Code.ROLE_CODE_REQUIRED, msg="角色编码不能为空")
+        if not self.by_role_home_id:
+            raise SchemaValidationError(code=Code.PARAM_REQUIRED, msg="角色首页不能为空")
         return self
 
 
@@ -93,7 +96,7 @@ class MenuBase(SchemaBase):
     route_path: Annotated[str, Field(max_length=200)] | None = Field(None, title="路由路径")
 
     path_param: Annotated[str, Field(max_length=200)] | None = Field(None, description="路径参数")
-    route_param: list[dict[str, Any]] = Field(default_factory=list, description="路由参数列表")
+    route_param: list[dict[str, Any]] | None = Field(default_factory=list, description="路由参数列表")
     by_menu_buttons: list[ButtonBase] = Field(default_factory=list, description="按钮列表")
     order: Int32 | None = Field(None, description="菜单顺序")
     component: Annotated[str, Field(max_length=100)] | None = Field(None, description="路由组件")
@@ -110,7 +113,7 @@ class MenuBase(SchemaBase):
     hide_in_menu: bool | None = Field(None, description="是否在菜单隐藏")
     active_menu: str | None = Field(None, description="隐藏的路由需要激活的菜单")
     fixed_index_in_tab: Int32 | None = Field(None, description="固定在页签的序号")
-    status: str | None = Field(None, description="状态")
+    status_type: StatusType | None = Field(None, description="菜单状态")
 
     redirect: Annotated[str, Field(max_length=200)] | None = Field(None, description="重定向路径")
     props: bool | None = Field(None, description="是否为首路由")

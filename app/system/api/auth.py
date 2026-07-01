@@ -7,6 +7,7 @@ from app.core.constants import SUPER_ADMIN_ROLE
 from app.core.ctx import CTX_BUTTON_CODES, CTX_IMPERSONATOR_ID, CTX_ROLE_CODES, get_current_user_id
 from app.core.dependency import DependAuth, DependPermission, check_token
 from app.core.exceptions import BizError
+from app.core.sqids import encode_id
 from app.core.types import SqidPath
 from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
@@ -198,12 +199,12 @@ async def _():
     role_codes = CTX_ROLE_CODES.get()
     button_codes = [b.button_code for b in await Button.all()] if SUPER_ADMIN_ROLE in role_codes else CTX_BUTTON_CODES.get()
 
-    data.update({"userId": user_id, "roles": role_codes, "buttons": button_codes})
+    data.update({"userId": encode_id(user_id), "roles": role_codes, "buttons": button_codes})
 
     impersonator_id = CTX_IMPERSONATOR_ID.get()
     if impersonator_id:
         data["impersonating"] = True
-        data["impersonatorId"] = impersonator_id
+        data["impersonatorId"] = encode_id(impersonator_id)
 
     radar_log("获取用户信息", data={"userId": user_obj.id})
     return Success(data=data)

@@ -7,6 +7,7 @@ import { yesOrNoRecord } from '@/constants/common';
 import { menuTypeRecord, statusTypeRecord } from '@/constants/business';
 import { fetchBatchDeleteMenu, fetchDeleteMenu, fetchGetAllPages, fetchGetMenuList } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
+import { views } from '@/router/elegant/imports';
 import { defaultTransform, useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import SvgIcon from '@/components/custom/svg-icon.vue';
@@ -19,21 +20,29 @@ const { bool: visible, setTrue: openModal } = useBoolean();
 const wrapperRef = ref<HTMLElement | null>(null);
 
 const SHOW_BUSINESS_WARNING_KEY = 'menu:showBusinessWarningDismissed';
+const MENU_SEARCH_PAGE_SIZE = 1000;
 
 const searchParams = ref<Api.SystemManage.MenuSearchParams>({
   current: 1,
-  size: 10,
+  size: MENU_SEARCH_PAGE_SIZE,
   includeConstant: false,
   includeHidden: false,
   includeBusiness: false
 });
 
-const { columns, columnChecks, data, loading, pagination, getData, getDataByPage } = useNaivePaginatedTable({
+const { columns, columnChecks, data, loading, pagination, getData, getDataByPage } = useNaivePaginatedTable<
+  Awaited<ReturnType<typeof fetchGetMenuList>>,
+  Api.SystemManage.Menu
+>({
   api: () => fetchGetMenuList(searchParams.value),
-  transform: response => defaultTransform(response),
+  transform: response => defaultTransform<Api.SystemManage.Menu>(response),
   onPaginationParamsChange: params => {
     searchParams.value.current = params.page ?? 1;
-    searchParams.value.size = params.pageSize ?? 10;
+    searchParams.value.size = params.pageSize ?? MENU_SEARCH_PAGE_SIZE;
+  },
+  initialPageSize: MENU_SEARCH_PAGE_SIZE,
+  paginationProps: {
+    pageSizes: [MENU_SEARCH_PAGE_SIZE]
   },
   columns: () => [
     {
@@ -86,7 +95,7 @@ const { columns, columnChecks, data, loading, pagination, getData, getDataByPage
       render: row => {
         const icon = row.iconType === '1' ? row.icon : undefined;
 
-        const localIcon = row.iconType === '2' ? row.icon : undefined;
+        const localIcon = row.iconType === '2' ? row.localIcon || row.icon : undefined;
 
         return (
           <div class="flex-center">
@@ -151,6 +160,7 @@ const { columns, columnChecks, data, loading, pagination, getData, getDataByPage
       width: 120,
       align: 'center',
       render: row => {
+        if (!row.parentId) return '';
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         const parent = menuIndexMap.value.get(row.parentId);
         if (!parent) return '';
@@ -195,7 +205,7 @@ const { columns, columnChecks, data, loading, pagination, getData, getDataByPage
 });
 
 const menuIndexMap = computed(() => {
-  const map = new Map<string | number, { index: number; menuName: string; i18nKey?: string | null }>();
+  const map = new Map<string, { index: number; menuName: string; i18nKey?: string | null }>();
   let counter = 0;
   const walk = (list: Api.SystemManage.Menu[] | null | undefined) => {
     if (!list) return;
@@ -250,15 +260,16 @@ function handleAddChildMenu(item: Api.SystemManage.Menu) {
   openModal();
 }
 
-const allPages = ref<string[]>([]);
+const pageKeys = Object.keys(views);
+const activeMenus = ref<string[]>([]);
 
-async function getAllPages() {
-  const { data: pages } = await fetchGetAllPages();
-  allPages.value = pages?.map(item => item.value) || [];
+async function getActiveMenus() {
+  const { data: menus } = await fetchGetAllPages();
+  activeMenus.value = menus?.map(item => item.key) || [];
 }
 
 function init() {
-  getAllPages();
+  getActiveMenus();
 }
 
 // init
@@ -373,7 +384,8 @@ function handleIncludeHiddenUpdate(val: boolean) {
         v-model:visible="visible"
         :operate-type="operateType"
         :row-data="editingData"
-        :all-pages="allPages"
+        :page-keys="pageKeys"
+        :active-menus="activeMenus"
         @submitted="getDataByPage"
       />
     </NCard>

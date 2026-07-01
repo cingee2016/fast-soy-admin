@@ -61,7 +61,10 @@ function createDefaultModel(): Model {
   };
 }
 
-type RuleKey = Extract<keyof Api.SystemManage.UserUpdateParams, 'userName' | 'password' | 'nickName' | 'statusType'>;
+type RuleKey = Extract<
+  keyof Api.SystemManage.UserUpdateParams,
+  'userName' | 'password' | 'nickName' | 'statusType' | 'byUserRoleCodeList'
+>;
 
 const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
   const isAdd = props.operateType === 'add';
@@ -69,7 +72,13 @@ const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
     userName: defaultRequiredRule,
     password: isAdd ? defaultRequiredRule : {},
     nickName: isAdd ? defaultRequiredRule : {},
-    statusType: defaultRequiredRule
+    statusType: defaultRequiredRule,
+    byUserRoleCodeList: {
+      required: true,
+      validator: (_rule, value) => Array.isArray(value) && value.length > 0,
+      message: $t('form.required'),
+      trigger: 'change'
+    }
   };
 });
 
@@ -102,22 +111,41 @@ function closeDrawer() {
   visible.value = false;
 }
 
+function buildSubmitPayload(isEdit: true): Api.SystemManage.UserUpdateParams;
+function buildSubmitPayload(isEdit: false): Api.SystemManage.UserAddParams;
+function buildSubmitPayload(isEdit: boolean) {
+  const payload: Record<string, unknown> = {};
+  const nullableContactFields = new Set(['userEmail', 'userPhone']);
+
+  for (const [key, value] of Object.entries(model.value)) {
+    if (key === 'password' && isEdit && value === '') {
+      continue;
+    }
+
+    if (nullableContactFields.has(key)) {
+      payload[key] = value === '' ? null : value;
+      continue;
+    }
+
+    if (isEdit && (value === '' || value === null)) {
+      continue;
+    }
+
+    payload[key] = value;
+  }
+
+  return payload;
+}
+
 async function handleSubmit() {
   await validate();
 
   if (props.operateType === 'add') {
-    const { error } = await fetchAddUser(model.value);
+    const { error } = await fetchAddUser(buildSubmitPayload(false));
     if (error) return;
     window.$message?.success($t('common.addSuccess'));
   } else if (props.operateType === 'edit') {
-    // 编辑时过滤空字符串字段，实现部分更新
-    const payload: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(model.value)) {
-      if (value !== '' && value !== null) {
-        payload[key] = value;
-      }
-    }
-    const { error } = await fetchUpdateUser(payload);
+    const { error } = await fetchUpdateUser(buildSubmitPayload(true));
     if (error) return;
     window.$message?.success($t('common.updateSuccess'));
   }
@@ -173,10 +201,10 @@ watch(visible, () => {
         <NFormItem :label="$t('page.manage.user.userPhone')" path="userPhone">
           <NInput v-model:value="model.userPhone" :placeholder="$t('page.manage.user.form.userPhone')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.user.userEmail')" path="email">
+        <NFormItem :label="$t('page.manage.user.userEmail')" path="userEmail">
           <NInput v-model:value="model.userEmail" :placeholder="$t('page.manage.user.form.userEmail')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.user.userRole')" path="roles">
+        <NFormItem :label="$t('page.manage.user.userRole')" path="byUserRoleCodeList">
           <NSelect
             v-model:value="model.byUserRoleCodeList"
             multiple
@@ -186,7 +214,7 @@ watch(visible, () => {
             :placeholder="$t('page.manage.user.form.userRole')"
           />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.user.userStatusType')" path="status">
+        <NFormItem :label="$t('page.manage.user.userStatusType')" path="statusType">
           <NRadioGroup v-model:value="model.statusType">
             <NRadio v-for="item in statusTypeOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
           </NRadioGroup>

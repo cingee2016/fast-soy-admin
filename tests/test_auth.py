@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.code import Code
+from app.core.sqids import encode_id
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -189,11 +190,12 @@ class TestResetPassword:
 
 
 class TestUserInfo:
-    async def test_get_user_info(self, auth_client: AsyncClient):
+    async def test_get_user_info(self, auth_client: AsyncClient, seed_data):
         resp = await auth_client.get("/api/v1/auth/user-info")
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
+        assert data["data"]["userId"] == encode_id(seed_data.id)
         assert data["data"]["userName"] == "Soybean"
         assert "roles" in data["data"]
 

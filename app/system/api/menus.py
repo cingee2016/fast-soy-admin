@@ -28,6 +28,13 @@ crud = CRUDRouter(
 router = crud.router
 
 
+def _dump_menu_for_write(obj_in: MenuCreate | MenuUpdate, exclude: set[str] | None = None, keep_none: bool = False) -> dict:
+    obj_dict = obj_in.model_dump(exclude_unset=True, exclude_none=not keep_none, exclude=exclude)
+    if "parent_id" in obj_in.model_fields_set and obj_in.parent_id is None:
+        obj_dict["parent_id"] = 0
+    return obj_dict
+
+
 async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = False) -> list[dict]:
     """递归生成菜单树"""
     tree = []
@@ -35,9 +42,15 @@ async def build_menu_tree(menus: list[Menu], parent_id: int = 0, simple: bool = 
         if menu.parent_id == parent_id:
             children = await build_menu_tree(menus, menu.id, simple)
             if simple:
-                menu_dict = {"id": menu.id, "label": menu.menu_name, "pId": menu.parent_id}
+                menu_dict = {
+                    "id": encode_id(menu.id),
+                    "label": menu.menu_name,
+                    "pId": encode_id(menu.parent_id) if menu.parent_id else 0,
+                }
             else:
                 menu_dict = await menu.to_dict()
+                if menu_dict.get("parentId") == 0:
+                    menu_dict["parentId"] = None
                 if menu.icon_type == IconType.local:
                     menu_dict["localIcon"] = menu.icon
                     menu_dict.pop("icon")
@@ -94,7 +107,7 @@ async def _list_menus(obj_in: MenuSearch):
     menus = await Menu.filter(combined).order_by("id").prefetch_related("by_menu_buttons")
     menu_tree = await build_menu_tree(menus, simple=False)
     total = len(menus)
-    return SuccessExtra(data={"records": menu_tree}, total=total, current=1, size=total or 1)
+    return SuccessExtra(data={"records": menu_tree}, total=total, current=obj_in.current or 1, size=obj_in.size or 1)
 
 
 # ---- 覆盖 create/update：按钮关联 + active_menu 处理 ----
@@ -107,20 +120,28 @@ async def _create_menu(menu_in: MenuCreate):
 
     if menu_in.active_menu:
         active_menu_obj = await menu_controller.get(menu_name=menu_in.active_menu)
-        obj_dict = menu_in.model_dump(exclude_unset=True, exclude_none=True, exclude={"buttons", "active_menu"})
+        obj_dict = _dump_menu_for_write(menu_in, exclude={"by_menu_buttons", "active_menu"})
         obj_dict["active_menu_id"] = active_menu_obj.id
         new_menu = await menu_controller.create(obj_in=obj_dict)
     else:
-        new_menu = await menu_controller.create(obj_in=menu_in, exclude={"buttons"})
-    if new_menu and menu_in.by_menu_buttons:
+        new_menu = await menu_controller.create(obj_in=_dump_menu_for_write(menu_in, exclude={"by_menu_buttons"}))
+    if new_menu and "by_menu_buttons" in menu_in.model_fields_set:
         await menu_controller.update_buttons_by_code(new_menu, menu_in.by_menu_buttons)
     return Success(msg="创建成功", data={"createdId": encode_id(new_menu.id)})
 
 
 @crud.override("update")
 async def _update_menu(item_id: SqidPath, obj_in: MenuUpdate):
-    menu_obj = await menu_controller.update(id=item_id, obj_in=obj_in, exclude={"buttons"})
-    if menu_obj and obj_in.by_menu_buttons:
+    obj_dict = _dump_menu_for_write(obj_in, exclude={"by_menu_buttons", "active_menu"}, keep_none=True)
+    if "active_menu" in obj_in.model_fields_set:
+        if obj_in.active_menu:
+            active_menu_obj = await menu_controller.get(menu_name=obj_in.active_menu)
+            obj_dict["active_menu_id"] = active_menu_obj.id
+        else:
+            obj_dict["active_menu_id"] = None
+
+    menu_obj = await menu_controller.update(id=item_id, obj_in=obj_dict)
+    if menu_obj and "by_menu_buttons" in obj_in.model_fields_set:
         await menu_controller.update_buttons_by_code(menu_obj, obj_in.by_menu_buttons)
     return Success(msg="更新成功", data={"updatedId": encode_id(item_id)})
 
@@ -137,7 +158,7 @@ async def _():
 @router.get("/menus/pages", summary="查看一级菜单")
 async def _():
     menus = await Menu.filter(parent_id=0, constant=False)
-    return Success(data=[{"key": m.menu_name, "value": m.id} for m in menus])
+    return Success(data=[{"key": m.menu_name, "value": encode_id(m.id)} for m in menus])
 
 
 @router.get("/menus/buttons/tree", summary="查看菜单按钮树")

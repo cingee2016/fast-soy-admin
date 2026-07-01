@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { jsonClone } from '@sa/utils';
 import { useBoolean } from '@sa/hooks';
 import { statusTypeOptions } from '@/constants/business';
-import { fetchAddRole, fetchUpdateRole } from '@/service/api';
+import { fetchAddRole, fetchGetAllPages, fetchUpdateRole } from '@/service/api';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import MenuAuthModal from './menu-auth-modal.vue';
@@ -54,22 +54,35 @@ function createDefaultModel(): Api.SystemManage.RoleAddParams {
     roleName: '',
     roleCode: '',
     roleDesc: '',
-    byRoleHomeId: '',
+    byRoleHomeId: null,
     statusType: null
   };
 }
 
-type RuleKey = Exclude<keyof Api.SystemManage.RoleAddParams, 'roleDesc' | 'byRoleHomeId'>;
+type RuleKey = Exclude<keyof Api.SystemManage.RoleAddParams, 'roleDesc'>;
 
 const rules: Record<RuleKey, App.Global.FormRule> = {
   roleName: defaultRequiredRule,
   roleCode: defaultRequiredRule,
+  byRoleHomeId: defaultRequiredRule,
   statusType: defaultRequiredRule
 };
 
 const roleId = computed(() => props.rowData?.id || '');
 
 const isEdit = computed(() => props.operateType === 'edit');
+
+const homeOptions = ref<CommonType.Option<string>[]>([]);
+
+async function getHomeOptions() {
+  const { error, data } = await fetchGetAllPages();
+  if (!error) {
+    homeOptions.value = data.map(item => ({
+      label: item.key,
+      value: item.value
+    }));
+  }
+}
 
 function handleInitModel() {
   model.value = createDefaultModel();
@@ -91,7 +104,7 @@ async function handleSubmit() {
     if (error) return;
     window.$message?.success($t('common.addSuccess'));
   } else if (props.operateType === 'edit') {
-    const { error } = await fetchUpdateRole(model.value);
+    const { error } = await fetchUpdateRole({ ...model.value, id: props.rowData?.id });
     if (error) return;
     window.$message?.success($t('common.updateSuccess'));
   }
@@ -104,6 +117,7 @@ watch(visible, () => {
   if (visible.value) {
     handleInitModel();
     restoreValidation();
+    getHomeOptions();
   }
 });
 </script>
@@ -118,10 +132,18 @@ watch(visible, () => {
         <NFormItem :label="$t('page.manage.role.roleCode')" path="roleCode">
           <NInput v-model:value="model.roleCode" :placeholder="$t('page.manage.role.form.roleCode')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.role.rolestatusType')" path="status">
+        <NFormItem :label="$t('page.manage.role.rolestatusType')" path="statusType">
           <NRadioGroup v-model:value="model.statusType">
             <NRadio v-for="item in statusTypeOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
           </NRadioGroup>
+        </NFormItem>
+        <NFormItem :label="$t('page.manage.menu.home')" path="byRoleHomeId">
+          <NSelect
+            v-model:value="model.byRoleHomeId"
+            :options="homeOptions"
+            :placeholder="$t('page.manage.menu.home')"
+            filterable
+          />
         </NFormItem>
         <NFormItem :label="$t('page.manage.role.roleDesc')" path="roleDesc">
           <NInput v-model:value="model.roleDesc" :placeholder="$t('page.manage.role.form.roleDesc')" />

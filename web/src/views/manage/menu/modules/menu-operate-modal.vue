@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import { menuIconTypeOptions, menuTypeOptions, statusTypeOptions } from '@/constants/business';
-import { fetchAddMenu, fetchGetRoleList, fetchUpdateMenu } from '@/service/api';
+import { fetchAddMenu, fetchUpdateMenu } from '@/service/api';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { getLocalIcons } from '@/utils/icon';
 import { $t } from '@/locales';
@@ -26,8 +26,10 @@ interface Props {
   operateType: OperateType;
   /** the edit menu data or the parent menu data when adding a child menu */
   rowData?: Api.SystemManage.Menu | null;
-  /** all pages */
-  allPages: string[];
+  /** local page component keys registered by elegant-router */
+  pageKeys: string[];
+  /** active menu choices from backend menu metadata */
+  activeMenus: string[];
 }
 
 const props = defineProps<Props>();
@@ -97,7 +99,7 @@ function createDefaultModel(): Model {
     i18nKey: null,
     icon: '',
     iconType: '1',
-    parentId: 0,
+    parentId: null,
     statusType: '1',
     keepAlive: false,
     constant: false,
@@ -134,20 +136,35 @@ const localIconOptions = localIcons.map<SelectOption>(item => ({
   value: item
 }));
 
-const showLayout = computed(() => model.value.parentId === 0);
+const showLayout = computed(() => model.value.parentId === null);
 
 const showPage = computed(() => model.value.menuType === '2');
 
 const pageOptions = computed(() => {
-  const allPages = [...props.allPages];
+  const pageKeys = [...props.pageKeys];
 
-  if (model.value.routeName && !allPages.includes(model.value.routeName)) {
-    allPages.unshift(model.value.routeName);
+  if (model.value.page && !pageKeys.includes(model.value.page)) {
+    pageKeys.unshift(model.value.page);
   }
 
-  const opts: CommonType.Option[] = allPages.map(page => ({
+  const opts: CommonType.Option[] = pageKeys.map(page => ({
     label: page,
     value: page
+  }));
+
+  return opts;
+});
+
+const activeMenuOptions = computed(() => {
+  const activeMenus = [...props.activeMenus];
+
+  if (model.value.activeMenu && !activeMenus.includes(model.value.activeMenu)) {
+    activeMenus.unshift(model.value.activeMenu);
+  }
+
+  const opts: CommonType.Option[] = activeMenus.map(menu => ({
+    label: menu,
+    value: menu
   }));
 
   return opts;
@@ -164,22 +181,6 @@ const layoutOptions: CommonType.Option[] = [
   }
 ];
 
-/** the enabled role options */
-const roleOptions = ref<CommonType.Option<string>[]>([]);
-
-async function getRoleOptions() {
-  const { error, data } = await fetchGetRoleList({ statusType: '1' });
-
-  if (!error) {
-    const options = data.records.map(item => ({
-      label: item.roleName,
-      value: item.roleCode
-    }));
-
-    roleOptions.value = [...options];
-  }
-}
-
 function handleInitModel() {
   model.value = createDefaultModel();
 
@@ -192,12 +193,58 @@ function handleInitModel() {
   }
 
   if (props.operateType === 'edit') {
-    const { component, ...rest } = props.rowData;
+    const {
+      menuType,
+      menuName,
+      routeName,
+      routePath,
+      component,
+      order,
+      i18nKey,
+      icon,
+      localIcon,
+      iconType,
+      statusType,
+      parentId,
+      keepAlive,
+      constant,
+      href,
+      hideInMenu,
+      activeMenu,
+      multiTab,
+      fixedIndexInTab,
+      routeParam,
+      buttons
+    } = props.rowData;
 
     const { layout, page } = getLayoutAndPage(component);
-    const { path, param } = getPathParamFromRoutePath(rest.routePath);
+    const { path, param } = getPathParamFromRoutePath(routePath);
 
-    Object.assign(model.value, rest, { layout, page, routePath: path, pathParam: param });
+    Object.assign(model.value, {
+      menuType,
+      menuName,
+      routeName,
+      routePath: path,
+      pathParam: param,
+      component,
+      layout,
+      page,
+      order,
+      i18nKey,
+      icon: iconType === '2' ? localIcon || icon : icon,
+      iconType,
+      statusType,
+      parentId,
+      keepAlive,
+      constant,
+      href,
+      hideInMenu,
+      activeMenu,
+      multiTab,
+      fixedIndexInTab,
+      query: routeParam || [],
+      buttons
+    });
   }
 
   if (!model.value.query) {
@@ -238,15 +285,19 @@ function handleCreateButton() {
 }
 
 function getSubmitParams() {
-  const { layout, page, pathParam, ...params } = model.value;
+  const { layout, page, pathParam, query, buttons, ...params } = model.value;
 
   const component = transformLayoutAndPageToComponent(layout, page);
   const routePath = getRoutePathWithParam(model.value.routePath, pathParam);
 
-  params.component = component;
-  params.routePath = routePath;
-
-  return params;
+  return {
+    ...params,
+    component,
+    routePath,
+    pathParam: pathParam || null,
+    routeParam: query,
+    byMenuButtons: buttons
+  };
 }
 
 async function handleSubmit() {
@@ -259,11 +310,11 @@ async function handleSubmit() {
   model.value.routePath = params.routePath;
 
   if (props.operateType === 'add' || props.operateType === 'addChild') {
-    const { error } = await fetchAddMenu(model.value);
+    const { error } = await fetchAddMenu(params as Api.SystemManage.MenuAddParams);
     if (error) return;
     window.$message?.success($t('common.addSuccess'));
   } else if (props.operateType === 'edit') {
-    const { error } = await fetchUpdateMenu(model.value);
+    const { error } = await fetchUpdateMenu({ ...params, id: props.rowData?.id } as Api.SystemManage.MenuUpdateParams);
     if (error) return;
     window.$message?.success($t('common.updateSuccess'));
   }
@@ -276,7 +327,6 @@ watch(visible, () => {
   if (visible.value) {
     handleInitModel();
     restoreValidation();
-    getRoleOptions();
   }
 });
 
@@ -363,7 +413,7 @@ watch(
               />
             </template>
           </NFormItemGi>
-          <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.menuStatusType')" path="status">
+          <NFormItemGi span="24 m:12" :label="$t('page.manage.menu.menuStatusType')" path="statusType">
             <NRadioGroup v-model:value="model.statusType">
               <NRadio v-for="item in statusTypeOptions" :key="item.value" :value="item.value" :label="$t(item.label)" />
             </NRadioGroup>
@@ -397,7 +447,7 @@ watch(
           >
             <NSelect
               v-model:value="model.activeMenu"
-              :options="pageOptions"
+              :options="activeMenuOptions"
               :placeholder="$t('page.manage.menu.form.activeMenu')"
               filterable
               clearable
