@@ -225,6 +225,7 @@ SYSTEM_INIT_DATA = {
                 ("post", "/api/v1/system-manage/apis/search"),
                 ("get", "/api/v1/system-manage/apis/tree"),
                 ("get", "/api/v1/system-manage/apis/tags"),
+                ("patch", "/api/v1/system-manage/apis/{api_id}/status"),
                 # 字典
                 ("get", "/api/v1/system-manage/dictionaries/{dict_type}/options"),
             ],

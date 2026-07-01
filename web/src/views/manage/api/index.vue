@@ -1,8 +1,8 @@
 <script setup lang="tsx">
-import { reactive } from 'vue';
-import { NTag } from 'naive-ui';
+import { reactive, ref } from 'vue';
+import { NPopconfirm, NSwitch, NTag } from 'naive-ui';
 import { apiMethodRecord, statusTypeRecord } from '@/constants/business';
-import { fetchGetApiList } from '@/service/api';
+import { fetchGetApiList, fetchUpdateApiStatus } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
 import { $t } from '@/locales';
@@ -22,6 +22,8 @@ const defaultSearchParams: Api.SystemManage.ApiSearchParams = {
 };
 
 const searchParams: Api.SystemManage.ApiSearchParams = reactive({ ...defaultSearchParams });
+
+const updatingStatusIds = ref<string[]>([]);
 
 const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagination } = useNaivePaginatedTable({
   api: () => fetchGetApiList(searchParams),
@@ -99,16 +101,49 @@ const { columns, columnChecks, data, getData, getDataByPage, loading, mobilePagi
         if (row.statusType === null) {
           return null;
         }
-        const tagMap: Record<Api.Common.EnableStatus, NaiveUI.ThemeColor> = {
-          1: 'success',
-          2: 'warning'
-        };
         const label = $t(statusTypeRecord[row.statusType]);
-        return <NTag type={tagMap[row.statusType]}>{label}</NTag>;
+        const nextStatus: Api.Common.EnableStatus = row.statusType === '1' ? '2' : '1';
+        const confirmText =
+          nextStatus === '2' ? '禁用后，已关联该 API 的角色也无法访问该接口。' : '启用后，已关联该 API 的角色将恢复访问该接口。';
+
+        return (
+          <NPopconfirm onPositiveClick={() => handleUpdateStatus(row, nextStatus)}>
+            {{
+              default: () => confirmText,
+              trigger: () => (
+                <NSwitch
+                  size="small"
+                  value={row.statusType === '1'}
+                  loading={updatingStatusIds.value.includes(row.id)}
+                  checkedValue
+                  uncheckedValue={false}
+                >
+                  {{
+                    checked: () => label,
+                    unchecked: () => $t(statusTypeRecord['2'])
+                  }}
+                </NSwitch>
+              )
+            }}
+          </NPopconfirm>
+        );
       }
     }
   ]
 });
+
+async function handleUpdateStatus(row: Api.SystemManage.Api, statusType: Api.Common.EnableStatus) {
+  if (updatingStatusIds.value.includes(row.id)) return;
+
+  updatingStatusIds.value = [...updatingStatusIds.value, row.id];
+  const { error } = await fetchUpdateApiStatus({ id: row.id, statusType });
+  updatingStatusIds.value = updatingStatusIds.value.filter(id => id !== row.id);
+
+  if (error) return;
+
+  window.$message?.success($t('common.updateSuccess'));
+  await getData();
+}
 
 function resetSearchParams() {
   Object.assign(searchParams, {

@@ -93,6 +93,9 @@ declare namespace Api {
       includeSystem?: boolean;
     };
 
+    /** api status update params */
+    type ApiStatusUpdateParams = Pick<Api.SystemManage.Api, 'id' | 'statusType'>;
+
     /** api list */
     type ApiList = Common.PaginatingQueryRecord<Api>;
 

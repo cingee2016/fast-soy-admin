@@ -79,6 +79,10 @@ class ApiCreate(BaseApi):
 class ApiUpdate(BaseApi): ...
 
 
+class ApiStatusUpdate(SchemaBase):
+    status_type: StatusType = Field(title="API状态")
+
+
 # ============================================================
 # 菜单 Schema
 # ============================================================
@@ -154,6 +158,7 @@ __all__ = [
     "ApiSearch",
     "ApiCreate",
     "ApiUpdate",
+    "ApiStatusUpdate",
     "ButtonBase",
     "MenuBase",
     "MenuSearch",
