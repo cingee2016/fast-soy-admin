@@ -27,7 +27,7 @@ class Logger:
             (APP_SETTINGS.LOGS_ROOT / sub).mkdir(parents=True, exist_ok=True)
 
         if APP_SETTINGS.APP_DEBUG:
-            self.logger.add(sys.stdout)
+            self.logger.add(sys.stdout, colorize=True)
 
         # 普通日志（DEBUG/INFO/WARNING/SUCCESS）→ logs/info/，定期删除
         self.logger.add(
