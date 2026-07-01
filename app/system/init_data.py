@@ -72,6 +72,15 @@ SYSTEM_INIT_DATA = {
             "icon": "mdi:monitor-dashboard",
         },
         {
+            "menu_name": "个人中心",
+            "route_name": "user-center",
+            "route_path": "/user-center",
+            "component": "layout.base$view.user-center",
+            "order": 99,
+            "i18n_key": "route.user-center",
+            "hide_in_menu": True,
+        },
+        {
             "menu_name": "关于",
             "route_name": "about",
             "route_path": "/about",
@@ -476,6 +485,7 @@ SYSTEM_INIT_DATA = {
             "data_scope": DataScopeType.all,
             "menus": [
                 "home",
+                "user-center",
                 "about",
                 "function",
                 "function_multi-tab",
@@ -561,6 +571,7 @@ SYSTEM_INIT_DATA = {
                 ("post", "/api/v1/system-manage/apis/search"),
                 ("get", "/api/v1/system-manage/apis/tree"),
                 ("get", "/api/v1/system-manage/apis/tags"),
+                ("patch", "/api/v1/system-manage/apis/{api_id}/status"),
                 # 字典
                 ("get", "/api/v1/system-manage/dictionaries/{dict_type}/options"),
             ],
@@ -571,7 +582,7 @@ SYSTEM_INIT_DATA = {
             "role_desc": "基础用户，仅可访问首页",
             "home_route": "home",
             "data_scope": DataScopeType.self_,
-            "menus": ["home", "about"],
+            "menus": ["home", "about", "user-center"],
         },
     ],
     "users": [

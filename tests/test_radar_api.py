@@ -5,6 +5,7 @@ from httpx import AsyncClient
 
 from app.core.code import Code
 from app.system.radar.models import RadarQuery, RadarRequest, RadarUserLog
+from app.system.services import monitor
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -246,6 +247,56 @@ class TestDashboard:
         if dist:
             assert "code" in dist[0]
             assert "count" in dist[0]
+
+
+class TestMonitor:
+    async def test_realtime_uses_process_snapshot(self, client: AsyncClient, monkeypatch):
+        class FakeProcess:
+            def __init__(self, pid: int) -> None:
+                self.pid = pid
+
+            def oneshot(self):
+                return self
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def status(self) -> str:
+                return monitor.psutil.STATUS_RUNNING if self.pid == 101 else monitor.psutil.STATUS_SLEEPING
+
+            def create_time(self) -> float:
+                return 1_700_000_000.0
+
+            def cpu_percent(self, interval=None) -> float:
+                return float(self.pid)
+
+            def memory_percent(self) -> float:
+                return self.pid / 10
+
+            def name(self) -> str:
+                return f"proc-{self.pid}"
+
+        def fail_process_iter(*args, **kwargs):
+            raise AssertionError("process_iter should not be used by realtime monitor")
+
+        monkeypatch.setattr(monitor.collector, "_process_snapshot", None)
+        monkeypatch.setattr(monitor.collector, "_process_snapshot_time", 0)
+        monkeypatch.setattr(monitor.psutil, "pids", lambda: [101, 102, 103])
+        monkeypatch.setattr(monitor.psutil, "Process", FakeProcess)
+        monkeypatch.setattr(monitor.psutil, "process_iter", fail_process_iter)
+
+        resp = await client.get("/__radar/api/monitor/realtime")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["code"] == "0000"
+        assert data["data"]["system_status"]["total_processes"] == 3
+        assert data["data"]["system_status"]["running_processes"] == 1
+        assert data["data"]["system_status"]["sleeping_processes"] == 2
+        assert [proc["pid"] for proc in data["data"]["top_processes"]] == [103, 102, 101]
 
 
 class TestPurge:

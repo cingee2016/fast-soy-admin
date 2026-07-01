@@ -40,7 +40,7 @@ const options = computed(() => {
     },
     {
       type: 'divider',
-      key: 'divider'
+      key: 'user-center-divider'
     }
   ];
 
@@ -49,6 +49,10 @@ const options = computed(() => {
       label: $t('page.manage.user.impersonate.exit'),
       key: 'exit-impersonate',
       icon: SvgIconVNode({ icon: 'ph:arrow-u-up-left', fontSize: 18 })
+    });
+    opts.push({
+      type: 'divider',
+      key: 'divider'
     });
   }
 
@@ -83,7 +87,6 @@ function handleDropdown(key: DropdownKey) {
   } else if (key === 'exit-impersonate') {
     handleExitImpersonate();
   } else {
-    // If your other options are jumps from other routes, they will be directly supported here
     routerPushByKey(key);
   }
 }

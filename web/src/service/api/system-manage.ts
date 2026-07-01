@@ -76,6 +76,17 @@ export function fetchGetApiList(data?: Api.SystemManage.ApiSearchParams) {
   });
 }
 
+/** update api status */
+export function fetchUpdateApiStatus(data: Api.SystemManage.ApiStatusUpdateParams) {
+  return request<Api.SystemManage.UpdateResult, 'json'>({
+    url: `/system-manage/apis/${data.id}/status`,
+    method: 'patch',
+    data: {
+      statusType: data.statusType
+    }
+  });
+}
+
 /** add user */
 export function fetchAddUser(data?: Api.SystemManage.UserAddParams) {
   return request<Api.SystemManage.CreateResult, 'json'>({

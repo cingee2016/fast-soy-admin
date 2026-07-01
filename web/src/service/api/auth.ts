@@ -89,3 +89,12 @@ export function fetchUpdatePassword(data: Api.Auth.UpdatePasswordParams) {
     data
   });
 }
+
+/** update profile for the current user */
+export function fetchUpdateProfile(data: Api.Auth.UpdateProfileParams) {
+  return request<Api.Auth.UserInfo, 'json'>({
+    url: '/auth/profile',
+    method: 'patch',
+    data
+  });
+}

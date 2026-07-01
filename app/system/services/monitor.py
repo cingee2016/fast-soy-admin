@@ -19,6 +19,10 @@ class ServerInfoCollector:
         self._last_net_io: Any = None
         self._last_disk_io: Any = None
         self._last_time: float = 0
+        self._process_snapshot: dict[str, Any] | None = None
+        self._process_snapshot_time: float = 0
+        self._process_snapshot_ttl: float = 5
+        self._process_scan_budget: float = 0.5
 
     def get_basic_info(self) -> dict:
         uname = platform.uname()
@@ -34,7 +38,7 @@ class ServerInfoCollector:
 
     def get_cpu_info(self) -> dict:
         return {
-            "usage": psutil.cpu_percent(interval=0.5),
+            "usage": psutil.cpu_percent(interval=0.1),
             "cores": psutil.cpu_count(logical=False) or 0,
             "threads": psutil.cpu_count(logical=True) or 0,
         }
@@ -137,20 +141,7 @@ class ServerInfoCollector:
             cores = psutil.cpu_count() or 1
             load_1 = load_5 = load_15 = round(cpu_pct * cores, 2)
 
-        # 进程数统计
-        total_procs = 0
-        running = 0
-        sleeping = 0
-        for proc in psutil.process_iter(["status"]):
-            total_procs += 1
-            try:
-                st = proc.info["status"]  # type: ignore[index]
-                if st == psutil.STATUS_RUNNING:
-                    running += 1
-                elif st == psutil.STATUS_SLEEPING:
-                    sleeping += 1
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+        process_snapshot = self._get_process_snapshot()
 
         # 在线用户
         users = psutil.users()
@@ -162,9 +153,9 @@ class ServerInfoCollector:
             "uptime": self._format_uptime(uptime_seconds),
             "uptime_seconds": uptime_seconds,
             "boot_time": boot_dt.strftime("%Y-%m-%d %H:%M:%S"),
-            "total_processes": total_procs,
-            "running_processes": running,
-            "sleeping_processes": sleeping,
+            "total_processes": process_snapshot["total_processes"],
+            "running_processes": process_snapshot["running_processes"],
+            "sleeping_processes": process_snapshot["sleeping_processes"],
             "online_users": len(users),
             "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
@@ -181,22 +172,62 @@ class ServerInfoCollector:
         }
 
     def get_top_processes(self, limit: int = 10) -> list[dict]:
+        return self._get_process_snapshot(limit)["top_processes"][:limit]
+
+    def _get_process_snapshot(self, limit: int = 10) -> dict[str, Any]:
+        now = time.monotonic()
+        if self._process_snapshot and now - self._process_snapshot_time < self._process_snapshot_ttl:
+            return self._process_snapshot
+
+        # Windows can spend seconds walking every process; keep realtime polling bounded.
         procs: list[dict] = []
-        for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "status", "create_time"]):
+        running = 0
+        sleeping = 0
+
+        try:
+            pids = psutil.pids()
+        except Exception:
+            pids = []
+
+        scan_start = time.perf_counter()
+        for pid in pids:
             try:
-                info = proc.info  # type: ignore[attr-defined]
+                proc = psutil.Process(pid)
+                with proc.oneshot():
+                    name = proc.name()
+                    status = proc.status()
+                    if status == psutil.STATUS_RUNNING:
+                        running += 1
+                    elif status == psutil.STATUS_SLEEPING:
+                        sleeping += 1
+
+                    create_time = proc.create_time()
+                    cpu_percent = proc.cpu_percent(interval=None)
+                    memory_percent = proc.memory_percent()
+
                 procs.append({
-                    "pid": info["pid"],
-                    "name": info["name"] or "Unknown",
-                    "cpu_percent": round(info.get("cpu_percent") or 0, 1),
-                    "memory_percent": round(info.get("memory_percent") or 0, 1),
-                    "status": info.get("status") or "unknown",
-                    "create_time": datetime.fromtimestamp(info["create_time"]).strftime("%Y-%m-%d %H:%M:%S") if info.get("create_time") else "",
+                    "pid": pid,
+                    "name": name or "Unknown",
+                    "cpu_percent": round(cpu_percent or 0, 1),
+                    "memory_percent": round(memory_percent or 0, 1),
+                    "status": status or "unknown",
+                    "create_time": datetime.fromtimestamp(create_time).strftime("%Y-%m-%d %H:%M:%S") if create_time else "",
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
-        procs.sort(key=lambda p: p["cpu_percent"], reverse=True)
-        return procs[:limit]
+            if time.perf_counter() - scan_start >= self._process_scan_budget:
+                break
+
+        procs.sort(key=lambda p: (p["cpu_percent"], p["memory_percent"]), reverse=True)
+        self._process_snapshot = {
+            "total_processes": len(pids),
+            "running_processes": running,
+            "sleeping_processes": sleeping,
+            "sampled_processes": len(procs),
+            "top_processes": procs,
+        }
+        self._process_snapshot_time = now
+        return self._process_snapshot
 
     def get_overview(self) -> dict:
         return {

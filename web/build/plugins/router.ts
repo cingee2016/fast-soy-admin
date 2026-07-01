@@ -42,6 +42,7 @@ export function setupElegantRouter() {
       const key = routeName as RouteKey;
 
       const constantRoutes: RouteKey[] = ['login', '403', '404', '500'];
+      const hiddenRoutes: RouteKey[] = ['user-center'];
 
       const meta: Partial<RouteMeta> = {
         title: key,
@@ -50,6 +51,10 @@ export function setupElegantRouter() {
 
       if (constantRoutes.includes(key)) {
         meta.constant = true;
+      }
+
+      if (hiddenRoutes.includes(key)) {
+        meta.hideInMenu = true;
       }
 
       return meta;
