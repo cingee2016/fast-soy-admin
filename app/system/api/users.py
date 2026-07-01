@@ -42,8 +42,8 @@ async def _list_users(obj_in: UserSearch):
 
 
 @crud.override("create")
-async def _create_user(user_in: UserCreate):
-    new_user = await create_managed_user(user_in)
+async def _create_user(user_in: UserCreate, request: Request):
+    new_user = await create_managed_user(request.app.state.redis, user_in)
     return Success(msg="创建成功", data={"createdId": encode_id(new_user.id)})
 
 

@@ -114,7 +114,7 @@ async def list_users_with_roles(obj_in: UserSearch) -> tuple[int, list[dict], in
     return total, records, current, size
 
 
-async def create_managed_user(user_in: UserCreate) -> User:
+async def create_managed_user(redis: Redis, user_in: UserCreate) -> User:
     """后台创建用户：邮箱唯一性 + 事务内建用户并关联角色。"""
     assert user_in.by_user_role_code_list is not None
 
@@ -124,6 +124,8 @@ async def create_managed_user(user_in: UserCreate) -> User:
     async with in_transaction(get_db_conn(User)):
         new_user = await user_controller.create(obj_in=user_in)
         await user_controller.update_roles_by_code(new_user, user_in.by_user_role_code_list)
+
+    await refresh_user_roles(redis, new_user.id)
 
     return new_user
 
@@ -138,6 +140,8 @@ async def update_managed_user(redis: Redis, user_id: int, obj_in: UserUpdate) ->
     async with in_transaction(get_db_conn(User)):
         user = await user_controller.update(user_id=user_id, obj_in=obj_in)
         await user_controller.update_roles_by_code(user, obj_in.by_user_role_code_list)
+
+    await refresh_user_roles(redis, user_id)
 
     if obj_in.password:
         await invalidate_user_session(redis, user_id)
