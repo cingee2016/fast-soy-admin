@@ -2,6 +2,8 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.code import Code
+from app.core.sqids import decode_id
+from app.system.models import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -78,7 +80,9 @@ class TestUserCRUD:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["code"] == Code.USER_EMAIL_REQUIRED
+        assert data["code"] == "0000"
+        user = await User.get(id=decode_id(data["data"]["createdId"]))
+        assert user.user_email is None
 
     async def test_create_user_no_role(self, auth_client: AsyncClient):
         resp = await auth_client.post(
@@ -93,7 +97,7 @@ class TestUserCRUD:
         data = resp.json()
         assert data["code"] == Code.USER_ROLE_REQUIRED
 
-    async def test_update_user(self, auth_client: AsyncClient):
+    async def test_update_user(self, auth_client: AsyncClient, seed_data):
         # First create a user to update
         create_resp = await auth_client.post(
             "/api/v1/system-manage/users",
@@ -117,6 +121,63 @@ class TestUserCRUD:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == "0000"
+        user = await User.get(id=decode_id(user_id))
+        assert user.updated_by == seed_data.user_name
+
+        list_resp = await auth_client.post(
+            "/api/v1/system-manage/users/search",
+            json={"current": 1, "size": 10, "userName": "update_me"},
+        )
+        list_data = list_resp.json()
+        assert list_data["code"] == "0000"
+        assert list_data["data"]["records"][0]["updatedBy"] == seed_data.user_name
+
+    async def test_update_user_allows_empty_email_and_phone(self, auth_client: AsyncClient):
+        create_resp = await auth_client.post(
+            "/api/v1/system-manage/users",
+            json={
+                "userName": "clear_contact_user",
+                "password": "test123456",
+                "userEmail": "clear-contact@test.com",
+                "userPhone": "18800000001",
+                "byUserRoleCodeList": ["R_USER"],
+            },
+        )
+        user_id = create_resp.json()["data"]["createdId"]
+
+        resp = await auth_client.patch(
+            f"/api/v1/system-manage/users/{user_id}",
+            json={
+                "userEmail": None,
+                "userPhone": "",
+                "byUserRoleCodeList": ["R_USER"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == "0000"
+        user = await User.get(id=decode_id(user_id))
+        assert user.user_email is None
+        assert user.user_phone is None
+
+    async def test_update_user_no_role(self, auth_client: AsyncClient):
+        create_resp = await auth_client.post(
+            "/api/v1/system-manage/users",
+            json={
+                "userName": "update_no_role_user",
+                "password": "test123456",
+                "byUserRoleCodeList": ["R_USER"],
+            },
+        )
+        user_id = create_resp.json()["data"]["createdId"]
+
+        resp = await auth_client.patch(
+            f"/api/v1/system-manage/users/{user_id}",
+            json={"nickName": "NoRole", "byUserRoleCodeList": []},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == Code.USER_ROLE_REQUIRED
 
     async def test_delete_user(self, auth_client: AsyncClient):
         # First create a user to delete

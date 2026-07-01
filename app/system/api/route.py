@@ -6,7 +6,7 @@ from app.core.constants import SUPER_ADMIN_ROLE
 from app.core.ctx import CTX_ROLE_CODES, get_current_user_id
 from app.core.dependency import DependAuth
 from app.system.controllers import menu_controller
-from app.system.models import IconType, Menu
+from app.system.models import IconType, Menu, MenuType, StatusType
 
 router = APIRouter()
 
@@ -24,6 +24,8 @@ async def build_route_tree(menus: list[Menu], parent_id: int = 0, simple: bool =
     for menu in menus:
         if menu.parent_id == parent_id:
             children = await build_route_tree(menus, menu.id, simple)
+            if menu.menu_type == MenuType.catalog and not children:
+                continue
             await menu.fetch_related("active_menu")
             if simple:
                 menu_dict = {
@@ -41,6 +43,7 @@ async def build_route_tree(menus: list[Menu], parent_id: int = 0, simple: bool =
                         "activeMenu": menu.active_menu.route_name if menu.active_menu else None,
                         "multiTab": menu.multi_tab,
                         "fixedIndexInTab": menu.fixed_index_in_tab,
+                        "query": menu.route_param,
                     },
                 }
                 if menu.icon_type == IconType.local:
@@ -81,7 +84,7 @@ async def _(request: Request):
     is_super = SUPER_ADMIN_ROLE in role_codes
 
     if is_super:
-        role_routes: list[Menu] = await Menu.filter(constant=False)
+        role_routes: list[Menu] = await Menu.filter(constant=False, status_type=StatusType.enable)
     else:
         # 从 Redis 汇总所有角色的菜单 ID
         all_menu_ids: set[int] = set()
@@ -90,13 +93,13 @@ async def _(request: Request):
             all_menu_ids.update(menu_ids)
 
         if all_menu_ids:
-            role_routes = await Menu.filter(id__in=list(all_menu_ids))
+            role_routes = await Menu.filter(id__in=list(all_menu_ids), status_type=StatusType.enable)
             # 补全父级菜单
             menu_objs = role_routes.copy()
             while len(menu_objs) > 0:
                 menu = menu_objs.pop()
                 if menu.parent_id != 0:
-                    parent = await Menu.filter(id=menu.parent_id).first()
+                    parent = await Menu.filter(id=menu.parent_id, status_type=StatusType.enable).first()
                     if parent and parent not in role_routes:
                         menu_objs.append(parent)
                         role_routes.append(parent)
@@ -111,5 +114,5 @@ async def _(request: Request):
 
 @router.get("/exists", summary="路由是否存在", dependencies=[DependAuth])
 async def _(name: str = Query(..., description="路由名称")):
-    is_exists = await menu_controller.model.exists(route_name=name)
+    is_exists = await menu_controller.model.exists(route_name=name, status_type=StatusType.enable)
     return Success(data=is_exists)

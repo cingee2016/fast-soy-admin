@@ -13,6 +13,12 @@ declare namespace Api {
     /** common batch delete params */
     type CommonBatchDeleteParams = { ids: string[] };
 
+    /** common create result */
+    type CreateResult = { createdId: string };
+
+    /** common update result */
+    type UpdateResult = { updatedId: string };
+
     /** role */
     type Role = Common.CommonRecord<{
       /** role name */
@@ -22,14 +28,12 @@ declare namespace Api {
       /** role description */
       roleDesc: string;
       /** role home */
-      byRoleHomeId: string;
+      byRoleHomeId: string | null;
     }>;
 
     /** role add params */
-    type RoleAddParams = Pick<
-      Api.SystemManage.Role,
-      'roleName' | 'roleCode' | 'roleDesc' | 'byRoleHomeId' | 'statusType'
-    >;
+    type RoleAddParams = Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'byRoleHomeId'> &
+      CommonType.RecordNullable<Pick<Api.SystemManage.Role, 'roleDesc' | 'statusType'>>;
 
     /** role update params */
     type RoleUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.Role, 'id'>> & RoleAddParams;
@@ -92,6 +96,13 @@ declare namespace Api {
     /** api list */
     type ApiList = Common.PaginatingQueryRecord<Api>;
 
+    /** api tag tree option */
+    type ApiTagTree = {
+      label: string;
+      value: string;
+      children?: ApiTagTree[];
+    };
+
     /**
      * user gender
      *
@@ -112,25 +123,18 @@ declare namespace Api {
       /** user nick name */
       nickName: string;
       /** user phone */
-      userPhone: string;
+      userPhone: string | null;
       /** user email */
-      userEmail: string;
+      userEmail: string | null;
       /** user role code collection */
       byUserRoleCodeList: string[];
     }>;
 
     /** user add params */
-    type UserAddParams = Pick<
-      Api.SystemManage.User,
-      | 'userName'
-      | 'password'
-      | 'userGender'
-      | 'nickName'
-      | 'userPhone'
-      | 'userEmail'
-      | 'byUserRoleCodeList'
-      | 'statusType'
-    >;
+    type UserAddParams = Pick<Api.SystemManage.User, 'userName' | 'password' | 'byUserRoleCodeList'> &
+      CommonType.RecordNullable<
+        Pick<Api.SystemManage.User, 'userGender' | 'nickName' | 'userPhone' | 'userEmail' | 'statusType'>
+      >;
 
     /** user update params */
     type UserUpdateParams = CommonType.RecordNullable<Pick<Api.SystemManage.User, 'id'> & UserAddParams>;
@@ -173,6 +177,8 @@ declare namespace Api {
       buttonDesc: string;
     };
 
+    type MenuRouteParam = { key: string; value: string }[];
+
     /**
      * icon type
      *
@@ -196,8 +202,8 @@ declare namespace Api {
     >;
 
     type Menu = Common.CommonRecord<{
-      /** parent menu id (sqid string; `0` for root) */
-      parentId: string | number;
+      /** parent menu id (sqid string; `null` for root) */
+      parentId: string | null;
       /** menu type */
       menuType: MenuType;
       /** menu name */
@@ -210,10 +216,14 @@ declare namespace Api {
       component?: string;
       /** iconify icon name or local icon name */
       icon: string;
+      /** local icon name returned separately when iconType is local */
+      localIcon?: string;
       /** icon type */
       iconType: IconType;
       /** buttons */
       buttons?: MenuButton[] | null;
+      /** route query params stored by backend */
+      routeParam?: MenuRouteParam | null;
       /** children menu */
       children?: Menu[] | null;
     }> &
@@ -254,11 +264,9 @@ declare namespace Api {
       | 'multiTab'
       | 'fixedIndexInTab'
     > & {
-      query: NonNullable<Api.SystemManage.Menu['query']>;
-      buttons: NonNullable<Api.SystemManage.Menu['buttons']>;
-      layout: string;
-      page: string;
-      pathParam: string;
+      routeParam: MenuRouteParam;
+      byMenuButtons: NonNullable<Api.SystemManage.Menu['buttons']>;
+      pathParam: string | null;
     };
 
     /** menu update params */
@@ -279,6 +287,11 @@ declare namespace Api {
       label: string;
       pId: string | number;
       children?: MenuTree[];
+    };
+
+    type MenuPageOption = {
+      key: string;
+      value: string;
     };
 
     type ButtonTree = {

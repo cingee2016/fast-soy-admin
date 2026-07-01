@@ -21,7 +21,7 @@ declare namespace Api {
       /** Whether the current session is an impersonation */
       impersonating?: boolean;
       /** The original admin user id who initiated impersonation */
-      impersonatorId?: number;
+      impersonatorId?: string;
     }
 
     /** update password params */

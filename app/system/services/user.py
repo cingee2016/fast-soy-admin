@@ -35,7 +35,7 @@ async def create_system_user(
     *,
     user_name: str,
     nick_name: str,
-    user_email: str,
+    user_email: str | None = None,
     user_gender: str | None = None,
     user_phone: str | None = None,
     role_codes: list[str] | None = None,
@@ -52,11 +52,11 @@ async def create_system_user(
         CreateUserResult(user, raw_password)
 
     Raises:
-        ValueError: 用户名或邮箱已存在
+        ValueError: 用户名或非空邮箱已存在
     """
     if await user_controller.get_by_username(user_name):
         raise ValueError(f"用户名 {user_name} 已存在")
-    if await user_controller.get_by_email(user_email):
+    if user_email and await user_controller.get_by_email(user_email):
         raise ValueError(f"邮箱 {user_email} 已被使用")
 
     raw_password = secrets.token_urlsafe(10)
@@ -116,10 +116,9 @@ async def list_users_with_roles(obj_in: UserSearch) -> tuple[int, list[dict], in
 
 async def create_managed_user(user_in: UserCreate) -> User:
     """后台创建用户：邮箱唯一性 + 事务内建用户并关联角色。"""
-    assert user_in.user_email is not None  # schema validator 保证
     assert user_in.by_user_role_code_list is not None
 
-    if await user_controller.get_by_email(user_in.user_email):
+    if user_in.user_email and await user_controller.get_by_email(user_in.user_email):
         raise BizError(code=Code.DUPLICATE_USER_EMAIL, msg="该邮箱已被注册")
 
     async with in_transaction(get_db_conn(User)):
@@ -132,6 +131,9 @@ async def create_managed_user(user_in: UserCreate) -> User:
 async def update_managed_user(redis: Redis, user_id: int, obj_in: UserUpdate) -> int:
     """后台更新用户：事务内更新 + 角色重绑；密码变更则失效 session。"""
     assert obj_in.by_user_role_code_list is not None
+
+    if obj_in.user_email and await User.filter(user_email=obj_in.user_email).exclude(id=user_id).exists():
+        raise BizError(code=Code.DUPLICATE_USER_EMAIL, msg="该邮箱已被注册")
 
     async with in_transaction(get_db_conn(User)):
         user = await user_controller.update(user_id=user_id, obj_in=obj_in)

@@ -18,6 +18,13 @@ class UserBase(SchemaBase):
     status_type: StatusType | None = Field(None, title="用户状态")
     by_user_role_code_list: list[str] | None = Field(None, title="用户角色编码列表")
 
+    def normalize_nullable_contacts(self) -> None:
+        for field in ("user_email", "user_phone"):
+            value = getattr(self, field)
+            if isinstance(value, str):
+                value = value.strip()
+                setattr(self, field, value or None)
+
 
 class UserSearch(UserBase, PageQueryBase):
     pass
@@ -26,12 +33,11 @@ class UserSearch(UserBase, PageQueryBase):
 class UserCreate(UserBase):
     @model_validator(mode="after")
     def validate_create(self):
+        self.normalize_nullable_contacts()
         if not self.user_name:
             raise SchemaValidationError(code=Code.USERNAME_REQUIRED, msg="用户名不能为空")
         if not self.password:
             raise SchemaValidationError(code=Code.PASSWORD_REQUIRED, msg="密码不能为空")
-        if not self.user_email:
-            raise SchemaValidationError(code=Code.USER_EMAIL_REQUIRED, msg="用户邮箱不能为空")
         if not self.by_user_role_code_list:
             raise SchemaValidationError(code=Code.USER_ROLE_REQUIRED, msg="用户至少需要一个角色")
         if not self.nick_name:
@@ -42,6 +48,7 @@ class UserCreate(UserBase):
 class UserUpdate(UserBase):
     @model_validator(mode="after")
     def validate_update(self):
+        self.normalize_nullable_contacts()
         if not self.by_user_role_code_list:
             raise SchemaValidationError(code=Code.USER_ROLE_REQUIRED, msg="用户至少需要一个角色")
         return self

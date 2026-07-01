@@ -28,7 +28,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         if not obj_in.nick_name:
             obj_in.nick_name = obj_in.user_name
 
-        obj = await super().create(obj_in, exclude={"byUserRoles"})
+        obj = await super().create(obj_in, exclude={"by_user_role_code_list"})
         return obj
 
     async def update(self, user_id: int, obj_in: UserUpdate) -> User:  # type: ignore
@@ -37,7 +37,11 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
         else:
             obj_in.password = None  # type: ignore[assignment]
 
-        return await super().update(id=user_id, obj_in=obj_in, exclude={"byUserRoles"})
+        obj_dict = obj_in.model_dump(exclude_unset=True, exclude={"by_user_role_code_list"})
+        if not obj_in.password:
+            obj_dict.pop("password", None)
+
+        return await super().update(id=user_id, obj_in=obj_dict)
 
     async def update_last_login(self, user_id: int) -> None:
         user = await self.model.get(id=user_id)

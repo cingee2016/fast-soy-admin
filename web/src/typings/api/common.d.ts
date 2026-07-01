@@ -36,11 +36,11 @@ declare namespace Api {
       /** record id (sqid-encoded string) */
       id: string;
       /** record creator */
-      createdBy: string;
+      createdBy: string | null;
       /** record create time */
       createdAt: number;
       /** record updater */
-      updatedBy: string;
+      updatedBy: string | null;
       /** record update time */
       updatedAt: number;
       /** record status */

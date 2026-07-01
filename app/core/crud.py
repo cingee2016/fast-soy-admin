@@ -7,7 +7,7 @@ from tortoise.functions import Count
 from tortoise.models import Model
 from tortoise.transactions import in_transaction
 
-from app.core.ctx import CTX_USER_ID
+from app.core.ctx import CTX_USER
 
 Total = NewType("Total", int)
 ModelType = TypeVar("ModelType", bound=Model)
@@ -29,8 +29,11 @@ def get_db_conn(model: type[Model]) -> str:
 
 
 def _get_current_user() -> str | None:
-    user_id = CTX_USER_ID.get()
-    return str(user_id) if user_id is not None else None
+    user = CTX_USER.get()
+    if user is None:
+        return None
+    user_name = getattr(user, "user_name", None)
+    return str(user_name) if user_name else None
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):

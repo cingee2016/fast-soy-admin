@@ -64,7 +64,7 @@ async def _(role_id: SqidPath):
         menu_objs = await menu_controller.model.filter(constant=False)
     else:
         menu_objs = await role_obj.by_role_menus
-    return Success(data={"byRoleHomeId": role_obj.by_role_home.id, "byRoleMenuIds": [m.id for m in menu_objs]})
+    return Success(data={"byRoleHomeId": encode_id(role_obj.by_role_home.id), "byRoleMenuIds": [encode_id(m.id) for m in menu_objs]})
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
@@ -91,7 +91,10 @@ async def _(role_id: SqidPath, role_in: RoleUpdateAuthrization, request: Request
 
     return Success(
         msg="更新成功",
-        data={"byRoleMenuIds": role_in.by_role_menu_ids, "byRoleHomeId": role_in.by_role_home_id},
+        data={
+            "byRoleMenuIds": [encode_id(menu_id) for menu_id in role_in.by_role_menu_ids] if role_in.by_role_menu_ids else [],
+            "byRoleHomeId": encode_id(role_in.by_role_home_id) if role_in.by_role_home_id else None,
+        },
     )
 
 
@@ -135,7 +138,7 @@ async def _(role_id: SqidPath):
     else:
         api_objs = await role_obj.by_role_apis
 
-    return Success(data={"byRoleApiIds": [a.id for a in api_objs]})
+    return Success(data={"byRoleApiIds": [encode_id(a.id) for a in api_objs]})
 
 
 @router.patch("/roles/{role_id}/apis", summary="更新角色API")
@@ -149,4 +152,5 @@ async def _(role_id: SqidPath, role_in: RoleUpdateAuthrization, request: Request
                 await role_obj.by_role_apis.add(api_obj)
 
     await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
-    return Success(msg="更新成功", data={"byRoleApiIds": role_in.by_role_api_ids})
+    api_ids = [encode_id(api_id) for api_id in role_in.by_role_api_ids] if role_in.by_role_api_ids else []
+    return Success(msg="更新成功", data={"byRoleApiIds": api_ids})
