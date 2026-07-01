@@ -59,6 +59,22 @@ class UpdatePassword(SchemaBase):
     new_password: Annotated[str, Field(max_length=128)] = Field(title="新密码")
 
 
+class UserProfileUpdate(SchemaBase):
+    nick_name: Annotated[str, Field(max_length=30)] | None = Field(None, title="昵称")
+    user_email: Annotated[str, Field(max_length=255)] | None = Field(None, title="邮箱")
+    user_phone: Annotated[str, Field(max_length=20)] | None = Field(None, title="手机号")
+    user_gender: GenderType | None = Field(None, title="性别")
+
+    @model_validator(mode="after")
+    def validate_update(self):
+        for field in ("nick_name", "user_email", "user_phone"):
+            value = getattr(self, field)
+            if isinstance(value, str):
+                value = value.strip()
+                setattr(self, field, value or None)
+        return self
+
+
 class UserRegister(SchemaBase):
     user_name: Annotated[str, Field(max_length=20)] | None = Field(None, title="用户名")
     password: Annotated[str, Field(max_length=128)] = Field(title="密码")
@@ -68,4 +84,4 @@ class UserRegister(SchemaBase):
     user_phone: Annotated[str, Field(max_length=20)] | None = Field(None, title="手机号")
 
 
-__all__ = ["UserBase", "UserSearch", "UserCreate", "UserUpdate", "UpdatePassword", "UserRegister"]
+__all__ = ["UserBase", "UserSearch", "UserCreate", "UserUpdate", "UpdatePassword", "UserProfileUpdate", "UserRegister"]

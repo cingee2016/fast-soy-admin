@@ -234,6 +234,7 @@ const local: App.I18n.BaseSchema = {
     404: '页面不存在',
     500: '服务器错误',
     home: '首页',
+    'user-center': '个人中心',
     manage: '系统管理',
     manage_api: 'API管理',
     manage_user: '用户管理',

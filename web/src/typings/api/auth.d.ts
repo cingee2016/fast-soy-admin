@@ -16,6 +16,9 @@ declare namespace Api {
       userId: string;
       userName: string;
       nickName: string;
+      userGender: Api.SystemManage.UserGender | null;
+      userEmail: string | null;
+      userPhone: string | null;
       roles: string[];
       buttons: string[];
       /** Whether the current session is an impersonation */
@@ -28,6 +31,14 @@ declare namespace Api {
     interface UpdatePasswordParams {
       oldPassword: string;
       newPassword: string;
+    }
+
+    /** update current user's profile params */
+    interface UpdateProfileParams {
+      nickName: string | null;
+      userGender: Api.SystemManage.UserGender | null;
+      userEmail: string | null;
+      userPhone: string | null;
     }
   }
 }

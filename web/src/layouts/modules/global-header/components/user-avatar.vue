@@ -11,14 +11,14 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
-const { toLogin } = useRouterPush();
+const { routerPushByKey, toLogin } = useRouterPush();
 const { SvgIconVNode } = useSvgIcon();
 
 function loginOrRegister() {
   toLogin();
 }
 
-type DropdownKey = 'logout' | 'exit-impersonate';
+type DropdownKey = 'user-center' | 'logout' | 'exit-impersonate';
 
 type DropdownOption =
   | {
@@ -32,7 +32,17 @@ type DropdownOption =
     };
 
 const options = computed(() => {
-  const opts: DropdownOption[] = [];
+  const opts: DropdownOption[] = [
+    {
+      label: $t('common.userCenter'),
+      key: 'user-center',
+      icon: SvgIconVNode({ icon: 'ph:user-circle', fontSize: 18 })
+    },
+    {
+      type: 'divider',
+      key: 'user-center-divider'
+    }
+  ];
 
   if (authStore.impersonating) {
     opts.push({
@@ -76,6 +86,8 @@ function handleDropdown(key: DropdownKey) {
     logout();
   } else if (key === 'exit-impersonate') {
     handleExitImpersonate();
+  } else {
+    routerPushByKey(key);
   }
 }
 </script>

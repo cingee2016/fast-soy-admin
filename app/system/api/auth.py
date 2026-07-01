@@ -13,7 +13,7 @@ from app.system.controllers import user_controller
 from app.system.models import Button, Role, StatusType, User
 from app.system.radar.developer import radar_log
 from app.system.schemas.login import CaptchaRequest, CodeLoginSchema, CredentialsSchema, JWTOut, RegisterSchema, ResetPasswordSchema
-from app.system.schemas.users import UpdatePassword
+from app.system.schemas.users import UpdatePassword, UserProfileUpdate
 from app.system.security import get_password_hash, verify_password
 from app.system.services.auth import (
     build_tokens,
@@ -25,6 +25,23 @@ from app.system.services.auth import (
 from app.system.services.captcha import send_captcha, verify_captcha
 
 router = APIRouter()
+
+
+async def _build_user_info_data(user_id: int) -> dict:
+    user_obj: User = await user_controller.get(id=user_id)
+    data = await user_obj.to_dict(exclude_fields=["id", "password", "created_at", "updated_at", "created_by", "updated_by"])
+
+    role_codes = CTX_ROLE_CODES.get()
+    button_codes = [b.button_code for b in await Button.all()] if SUPER_ADMIN_ROLE in role_codes else CTX_BUTTON_CODES.get()
+
+    data.update({"userId": encode_id(user_id), "roles": role_codes, "buttons": button_codes})
+
+    impersonator_id = CTX_IMPERSONATOR_ID.get()
+    if impersonator_id:
+        data["impersonating"] = True
+        data["impersonatorId"] = encode_id(impersonator_id)
+
+    return data
 
 
 @router.post("/login", summary="登录")
@@ -193,20 +210,8 @@ async def _(jwt_token: JWTOut, request: Request):
 @router.get("/user-info", summary="查看用户信息", dependencies=[DependAuth])
 async def _():
     user_id = get_current_user_id()
-    user_obj: User = await user_controller.get(id=user_id)
-    data = await user_obj.to_dict(exclude_fields=["id", "password", "created_at", "updated_at", "created_by", "updated_by"])
-
-    role_codes = CTX_ROLE_CODES.get()
-    button_codes = [b.button_code for b in await Button.all()] if SUPER_ADMIN_ROLE in role_codes else CTX_BUTTON_CODES.get()
-
-    data.update({"userId": encode_id(user_id), "roles": role_codes, "buttons": button_codes})
-
-    impersonator_id = CTX_IMPERSONATOR_ID.get()
-    if impersonator_id:
-        data["impersonating"] = True
-        data["impersonatorId"] = encode_id(impersonator_id)
-
-    radar_log("获取用户信息", data={"userId": user_obj.id})
+    data = await _build_user_info_data(user_id)
+    radar_log("获取用户信息", data={"userId": user_id})
     return Success(data=data)
 
 
@@ -228,6 +233,26 @@ async def _(body: UpdatePassword, request: Request):
 
     radar_log("修改密码", data={"userId": user_id})
     return Success(msg="密码修改成功，请重新登录")
+
+
+@router.patch("/profile", summary="修改个人资料", dependencies=[DependAuth])
+async def _(body: UserProfileUpdate):
+    user_id = get_current_user_id()
+
+    obj_dict = body.model_dump(exclude_unset=True)
+    if body.user_email and await User.filter(user_email=body.user_email).exclude(id=user_id).exists():
+        return Fail(code=Code.DUPLICATE_USER_EMAIL, msg="该邮箱已被注册")
+    if body.user_phone and await User.filter(user_phone=body.user_phone).exclude(id=user_id).exists():
+        return Fail(code=Code.DUPLICATE_USER_PHONE, msg="该手机号已被注册")
+
+    user_obj = await user_controller.get(id=user_id)
+    user_obj.update_from_dict(obj_dict)
+    user_obj.updated_by = user_obj.user_name
+    await user_obj.save()
+
+    radar_log("修改个人资料", data={"userId": user_id})
+    data = await _build_user_info_data(user_id)
+    return Success(msg="更新成功", data=data)
 
 
 @router.post("/impersonate/{user_id}", summary="模拟登录", dependencies=[DependPermission])

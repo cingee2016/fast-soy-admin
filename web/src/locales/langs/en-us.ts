@@ -238,6 +238,7 @@ const local: App.I18n.BaseSchema = {
     404: 'Page Not Found',
     500: 'Server Error',
     home: 'Home',
+    'user-center': 'User Center',
     manage: 'System Manage',
     manage_api: 'API Manage',
     manage_user: 'User Manage',

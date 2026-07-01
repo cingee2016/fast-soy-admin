@@ -180,7 +180,8 @@ const routeMap: RouteMap = {
   "manage_radar_requests": "/manage/radar/requests",
   "manage_role": "/manage/role",
   "manage_user": "/manage/user",
-  "manage_user-detail": "/manage/user-detail/:id"
+  "manage_user-detail": "/manage/user-detail/:id",
+  "user-center": "/user-center"
 };
 
 /**

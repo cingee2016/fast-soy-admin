@@ -5,6 +5,7 @@ from httpx import AsyncClient
 
 from app.core.code import Code
 from app.core.sqids import encode_id
+from app.system.models import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -204,3 +205,79 @@ class TestUserInfo:
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == Code.INVALID_TOKEN
+
+    async def test_update_profile(self, auth_client: AsyncClient, seed_data):
+        original = {
+            "nick_name": seed_data.nick_name,
+            "user_email": seed_data.user_email,
+            "user_phone": seed_data.user_phone,
+            "user_gender": seed_data.user_gender,
+        }
+        try:
+            resp = await auth_client.patch(
+                "/api/v1/auth/profile",
+                json={
+                    "nickName": "Soybean Profile",
+                    "userEmail": "profile-update@test.com",
+                    "userPhone": "18800009999",
+                    "userGender": "2",
+                },
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["code"] == "0000"
+            assert data["data"]["userId"] == encode_id(seed_data.id)
+            assert data["data"]["nickName"] == "Soybean Profile"
+            assert data["data"]["userEmail"] == "profile-update@test.com"
+            assert data["data"]["userPhone"] == "18800009999"
+            assert data["data"]["userGender"] == "2"
+
+            user = await User.get(id=seed_data.id)
+            assert user.nick_name == "Soybean Profile"
+            assert user.user_email == "profile-update@test.com"
+            assert user.user_phone == "18800009999"
+            assert user.user_gender == "2"
+        finally:
+            await User.filter(id=seed_data.id).update(**original)
+
+    async def test_update_profile_allows_empty_contacts(self, auth_client: AsyncClient, seed_data):
+        original = {
+            "user_email": seed_data.user_email,
+            "user_phone": seed_data.user_phone,
+        }
+        try:
+            resp = await auth_client.patch(
+                "/api/v1/auth/profile",
+                json={"userEmail": "", "userPhone": None},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["code"] == "0000"
+            assert data["data"]["userEmail"] is None
+            assert data["data"]["userPhone"] is None
+        finally:
+            await User.filter(id=seed_data.id).update(**original)
+
+    async def test_update_profile_rejects_duplicate_email_and_phone(self, auth_client: AsyncClient):
+        user_name = "profile_dup_user"
+        await User.filter(user_name=user_name).delete()
+        other = await User.create(
+            user_name=user_name,
+            password="x",
+            user_email="profile-duplicate@test.com",
+            user_phone="18800008888",
+        )
+        try:
+            email_resp = await auth_client.patch(
+                "/api/v1/auth/profile",
+                json={"userEmail": other.user_email},
+            )
+            assert email_resp.json()["code"] == Code.DUPLICATE_USER_EMAIL
+
+            phone_resp = await auth_client.patch(
+                "/api/v1/auth/profile",
+                json={"userPhone": other.user_phone},
+            )
+            assert phone_resp.json()["code"] == Code.DUPLICATE_USER_PHONE
+        finally:
+            await other.delete()
