@@ -35,6 +35,27 @@ async function getTree() {
 
 const byRoleApiIds = shallowRef<string[]>([]);
 
+function collectApiIdSet(nodes: Api.SystemManage.ApiTree[]) {
+  const ids = new Set<string>();
+
+  nodes.forEach(node => {
+    const children = node.children || [];
+    if (children.length) {
+      collectApiIdSet(children).forEach(id => ids.add(id));
+    } else {
+      ids.add(String(node.id));
+    }
+  });
+
+  return ids;
+}
+
+function getCheckedApiIds() {
+  const apiIdSet = collectApiIdSet(tree.value);
+
+  return byRoleApiIds.value.filter(id => apiIdSet.has(String(id))).map(String);
+}
+
 async function getChecks() {
   const { error, data } = await fetchGetRoleApi({ id: props.roleId });
   if (!error) {
@@ -47,7 +68,7 @@ async function handleSubmit() {
   // request
   const { error } = await fetchUpdateRoleApi({
     id: props.roleId,
-    byRoleApiIds: byRoleApiIds.value.filter(item => typeof item === 'string')
+    byRoleApiIds: getCheckedApiIds()
   });
   if (error) return;
   window.$message?.success?.($t('common.modifySuccess'));
