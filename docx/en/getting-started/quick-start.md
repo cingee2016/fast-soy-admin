@@ -21,8 +21,12 @@ cd fast-soy-admin
 ## Option A: Docker (recommended)
 
 ```bash
-just up  # == docker compose up -d
+docker compose up -d postgres redis             # first start dependency services
+docker compose run --rm app uv run python -m app.cli initdb
+just up                                         # == docker compose up -d
 ```
+
+Run `initdb` only once for a fresh database. For later updates that include model changes, run `docker compose exec app uv run tortoise migrate`.
 
 Visit `http://localhost:1880`. Services:
 
@@ -31,9 +35,9 @@ Visit `http://localhost:1880`. Services:
 - **Redis** (:6379) — cache
 
 ```bash
-just logs      # follow all logs
-just logs app  # backend only; `just logs nginx` / `just logs redis` work too; pass a second argument for line count
-just down      # stop & remove containers
+just logs      # == docker compose logs -f --tail=100
+just logs app  # == docker compose logs -f --tail=100 app
+just down      # == docker compose down
 ```
 
 ## Option B: Local development
