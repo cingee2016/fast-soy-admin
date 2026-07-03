@@ -100,7 +100,7 @@ Permissions live in Redis cache. After CUD, refresh:
 ```python
 from app.core.cache import load_role_permissions, load_user_roles
 
-await load_role_permissions(redis, role_code="R_HR_ADMIN")
+await load_role_permissions(redis, role_code="R_HR_MANAGER")
 await load_user_roles(redis, user_id=123)
 ```
 
@@ -123,7 +123,7 @@ Menu and API are **two separate** dimensions. Role seeds must grant **both**:
 
 ```python
 await ensure_role(
-    role_code="R_HR_ADMIN",
+    role_code="R_HR_MANAGER",
     menus=[..., "hr_employee"],
     apis=[
         ("post", "/api/v1/business/hr/employees/search"),

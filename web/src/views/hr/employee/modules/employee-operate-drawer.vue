@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
-import { fetchAddEmployee, fetchGetEmployee, fetchUpdateEmployee, fetchUploadEmployeeAvatar } from '@/service/api';
+import {
+  fetchAddEmployee,
+  fetchGetEmployee,
+  fetchTransferEmployeeDepartment,
+  fetchUpdateEmployee,
+  fetchUploadEmployeeAvatar
+} from '@/service/api';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 
@@ -11,7 +17,6 @@ interface Props {
   operateType: NaiveUI.TableOperateType;
   rowData?: Api.HrManage.Employee | null;
   departmentOptions: { label: string; value: string }[];
-  tagOptions: { label: string; value: string }[];
 }
 
 const props = defineProps<Props>();
@@ -39,14 +44,15 @@ const addModel = ref(createAddModel());
 const editModel = ref(createEditModel());
 
 function createAddModel(): Api.HrManage.EmployeeAddParams {
-  return { userName: '', name: '', email: '', userGender: null, departmentId: null, tagIds: [] };
+  return { userName: '', name: '', email: null, phone: null, userGender: null, departmentId: null };
 }
 
 function createEditModel(): Api.HrManage.EmployeeUpdateParams {
-  return { id: undefined, name: '', email: '', phone: '', position: '', avatar: null, tagIds: [] };
+  return { id: undefined, name: '', email: '', phone: '', position: '', avatar: null, departmentId: null };
 }
 
 const avatarFileList = ref<UploadFileInfo[]>([]);
+const originalDepartmentId = ref<string | null>(null);
 
 async function handleAvatarUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {
   if (!editModel.value.id || !file.file) {
@@ -72,7 +78,7 @@ function handleAvatarRemove() {
 const addRules: Record<string, App.Global.FormRule> = {
   userName: defaultRequiredRule,
   name: defaultRequiredRule,
-  email: defaultRequiredRule
+  departmentId: defaultRequiredRule
 };
 
 const editRules: Record<string, App.Global.FormRule> = {
@@ -82,11 +88,13 @@ const editRules: Record<string, App.Global.FormRule> = {
 async function handleInitModel() {
   addModel.value = createAddModel();
   editModel.value = createEditModel();
+  originalDepartmentId.value = null;
   avatarFileList.value = [];
   if (props.operateType === 'edit' && props.rowData) {
     const { data } = await fetchGetEmployee(props.rowData.id);
     if (data) {
       Object.assign(editModel.value, data);
+      originalDepartmentId.value = data.departmentId;
       if (data.avatar) {
         avatarFileList.value = [{ id: 'current', name: 'avatar', status: 'finished', url: data.avatar }];
       }
@@ -105,8 +113,13 @@ async function handleSubmit() {
     if (error) return;
     window.$message?.success($t('common.addSuccess'));
   } else {
-    const { error } = await fetchUpdateEmployee(editModel.value);
+    const { departmentId, ...basicPayload } = editModel.value;
+    const { error } = await fetchUpdateEmployee(basicPayload);
     if (error) return;
+    if (editModel.value.id && departmentId && departmentId !== originalDepartmentId.value) {
+      const { error: transferError } = await fetchTransferEmployeeDepartment(editModel.value.id, { departmentId });
+      if (transferError) return;
+    }
     window.$message?.success($t('common.updateSuccess'));
   }
   closeDrawer();
@@ -135,21 +148,15 @@ watch(visible, () => {
         <NFormItem :label="$t('page.hr.employee.email')" path="email">
           <NInput v-model:value="addModel.email" :placeholder="$t('page.hr.employee.form.email')" />
         </NFormItem>
+        <NFormItem :label="$t('page.hr.employee.phone')" path="phone">
+          <NInput v-model:value="addModel.phone" :placeholder="$t('page.hr.employee.form.phone')" />
+        </NFormItem>
         <NFormItem :label="$t('page.hr.employee.department')" path="departmentId">
           <NSelect
             v-model:value="addModel.departmentId"
             :options="departmentOptions"
             clearable
             :placeholder="$t('page.hr.employee.form.department')"
-          />
-        </NFormItem>
-        <NFormItem :label="$t('page.hr.employee.tags')">
-          <NSelect
-            v-model:value="addModel.tagIds"
-            :options="props.tagOptions"
-            multiple
-            clearable
-            :placeholder="$t('page.hr.employee.form.tags')"
           />
         </NFormItem>
       </NForm>
@@ -177,13 +184,12 @@ watch(visible, () => {
         <NFormItem :label="$t('page.hr.employee.position')">
           <NInput v-model:value="editModel.position" :placeholder="$t('page.hr.employee.form.position')" />
         </NFormItem>
-        <NFormItem :label="$t('page.hr.employee.tags')">
+        <NFormItem :label="$t('page.hr.employee.department')" path="departmentId">
           <NSelect
-            v-model:value="editModel.tagIds"
-            :options="props.tagOptions"
-            multiple
+            v-model:value="editModel.departmentId"
+            :options="departmentOptions"
             clearable
-            :placeholder="$t('page.hr.employee.form.tags')"
+            :placeholder="$t('page.hr.employee.form.department')"
           />
         </NFormItem>
       </NForm>

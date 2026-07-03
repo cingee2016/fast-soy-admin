@@ -6,14 +6,13 @@ declare namespace Api {
 
     // ---- Employee ----
     /**
-     * employee onboarding state
+     * employee lifecycle state
      *
-     * - `pending`: 待入职
-     * - `onboarding`: 入职中
+     * - `probation`: 待转正
      * - `active`: 在职
      * - `resigned`: 已离职
      */
-    type EmployeeStatus = 'pending' | 'onboarding' | 'active' | 'resigned';
+    type EmployeeStatus = 'probation' | 'active' | 'resigned';
 
     type Employee = Common.CommonRecord<{
       name: string;
@@ -33,10 +32,10 @@ declare namespace Api {
     type EmployeeAddParams = {
       userName: string;
       name: string;
-      email: string;
+      email?: string | null;
+      phone?: string | null;
       userGender?: string | null;
       departmentId?: string | null;
-      tagIds?: string[] | null;
     };
 
     type EmployeeUpdateParams = { id?: string } & {
@@ -45,7 +44,7 @@ declare namespace Api {
       phone?: string | null;
       position?: string | null;
       avatar?: string | null;
-      tagIds?: string[] | null;
+      departmentId?: string | null;
     };
 
     type EmployeeSearchParams = CommonType.RecordNullable<
@@ -60,7 +59,30 @@ declare namespace Api {
 
     type EmployeeTransitionParams = {
       toState: EmployeeStatus;
+      remark?: string | null;
     };
+
+    type EmployeeActionRemarkParams = {
+      remark?: string | null;
+    };
+
+    type EmployeeResignParams = {
+      remark: string;
+      newManagerEmployeeId?: string | null;
+    };
+
+    type EmployeeTransferParams = {
+      departmentId: string;
+      newManagerEmployeeId?: string | null;
+    };
+
+    type EmployeeStatusLog = Common.CommonRecord<{
+      employeeId: string;
+      fromStatus: EmployeeStatus | null;
+      toStatus: EmployeeStatus;
+      remark: string | null;
+      operatedBy: string | null;
+    }>;
 
     // ---- Department ----
     type Department = Common.CommonRecord<{
@@ -80,6 +102,11 @@ declare namespace Api {
     };
 
     type DepartmentUpdateParams = { id?: string } & Partial<DepartmentAddParams>;
+
+    type DepartmentManagerUpdateParams = {
+      id: string;
+      managerId?: string | null;
+    };
 
     type DepartmentSearchParams = CommonType.RecordNullable<
       {

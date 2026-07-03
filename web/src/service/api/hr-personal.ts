@@ -60,22 +60,6 @@ export function fetchTeamStats() {
   });
 }
 
-export function fetchAddTeamEmployee(data: Api.HrManage.EmployeeAddParams) {
-  return request<null, 'json'>({
-    url: '/business/hr/team/employees',
-    method: 'post',
-    data
-  });
-}
-
-export function fetchUpdateTeamEmployee(data: Api.HrManage.EmployeeUpdateParams) {
-  return request<null, 'json'>({
-    url: `/business/hr/team/employees/${data.id}`,
-    method: 'patch',
-    data
-  });
-}
-
 export function fetchUpdateSubordinateTags(empId: string, tagIds: string[]) {
   return request<null, 'json'>({
     url: `/business/hr/team/employees/${empId}/tags`,
@@ -84,10 +68,10 @@ export function fetchUpdateSubordinateTags(empId: string, tagIds: string[]) {
   });
 }
 
-export function fetchTransitionTeamEmployee(empId: string, data: Api.HrManage.EmployeeTransitionParams) {
+export function fetchRegularizeTeamEmployee(empId: string, data?: Api.HrManage.EmployeeActionRemarkParams) {
   return request<null, 'json'>({
-    url: `/business/hr/team/employees/${empId}/transition`,
+    url: `/business/hr/team/employees/${empId}/regularize`,
     method: 'post',
-    data
+    data: data ?? {}
   });
 }

@@ -61,11 +61,10 @@ class EmployeeStatus(str, Enum):
 
     状态流转规则::
 
-        pending → onboarding → active → resigned
+        probation → active → resigned → probation
     """
 
-    pending = "pending"
-    onboarding = "onboarding"
+    probation = "probation"
     active = "active"
     resigned = "resigned"
 
@@ -89,7 +88,7 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
     phone = fields.CharField(max_length=20, null=True, blank=True, description="电话")
     position = fields.CharField(max_length=50, null=True, blank=True, description="职位（引用字典 employee_position）")
     avatar = fields.CharField(max_length=500, null=True, blank=True, description="员工头像URL")
-    status = fields.CharEnumField(enum_type=EmployeeStatus, default=EmployeeStatus.pending, description="员工状态")
+    status = fields.CharEnumField(enum_type=EmployeeStatus, default=EmployeeStatus.probation, description="员工状态")
 
     # FK: 员工 → 系统用户 (一对一)
     user_id: int | None
@@ -103,3 +102,18 @@ class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
     class Meta:
         table = "biz_employee"
         manager = SoftDeleteManager()
+
+
+class EmployeeStatusLog(BaseModel, AuditMixin):
+    """员工状态流转日志。"""
+
+    id = fields.IntField(primary_key=True)
+    employee_id: int
+    employee: fields.ForeignKeyRelation[Employee] = fields.ForeignKeyField("app_system.Employee", related_name="status_logs", on_delete=fields.CASCADE, description="员工")
+    from_status = fields.CharEnumField(enum_type=EmployeeStatus, null=True, description="原状态")
+    to_status = fields.CharEnumField(enum_type=EmployeeStatus, description="目标状态")
+    remark = fields.CharField(max_length=500, null=True, blank=True, description="备注")
+    operated_by = fields.IntField(null=True, description="操作人用户ID")
+
+    class Meta:
+        table = "biz_employee_status_log"

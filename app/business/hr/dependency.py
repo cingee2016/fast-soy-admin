@@ -18,12 +18,12 @@ from typing import Any
 from fastapi import Depends
 
 from app.business.hr.ctx import set_current_department_id
-from app.business.hr.models import Department, Employee
+from app.business.hr.models import Department, Employee, EmployeeStatus
 from app.utils import BizError, Code, DependAuth, get_current_user_id
 
 
 async def _get_employee_for_user(user_id: int) -> Employee | None:
-    return await Employee.filter(user_id=user_id).select_related("department").first()
+    return await Employee.filter(user_id=user_id, status__in=[EmployeeStatus.probation, EmployeeStatus.active]).select_related("department").first()
 
 
 async def bind_hr_scope_context(_: Any = DependAuth) -> None:

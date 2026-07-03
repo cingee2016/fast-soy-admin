@@ -19,7 +19,6 @@ class DepartmentBase(SchemaBase):
     name: str | None = Field(None, title="部门名称")
     code: str | None = Field(None, title="部门编码")
     description: str | None = Field(None, title="部门描述")
-    manager_id: SqidId | None = Field(None, title="主管员工ID")
     status: StatusType | None = Field(None, title="状态")
 
 
@@ -39,6 +38,10 @@ class DepartmentUpdate(DepartmentBase):
 
 class DepartmentSearch(DepartmentBase, PageQueryBase):
     parent_id: SqidId | None = Field(None, title="父部门ID")
+
+
+class DepartmentManagerUpdate(SchemaBase):
+    manager_id: SqidId | None = Field(None, title="主管员工ID")
 
 
 # ============================================================
@@ -81,14 +84,14 @@ class EmployeeBase(SchemaBase):
 class EmployeeCreate(EmployeeBase):
     user_name: str = Field(title="用户名 (手机号)")
     name: str = Field(title="昵称/姓名")
-    email: str = Field(title="邮箱")
+    email: str | None = Field(None, title="邮箱")
+    phone: str | None = Field(None, title="电话")
     user_gender: str | None = Field(None, title="性别 (1男 2女)")
-    department_id: SqidId | None = Field(None, title="部门ID (主管创建时自动继承)")
-    tag_ids: list[SqidId] | None = Field(None, title="标签ID列表")
+    department_id: SqidId = Field(title="部门ID")
 
 
 class EmployeeUpdate(EmployeeBase):
-    tag_ids: list[SqidId] | None = Field(None, title="标签ID列表")
+    department_id: SqidId | None = Field(None, title="部门ID")
 
 
 class TagIds(SchemaBase):
@@ -111,4 +114,23 @@ class EmployeeSearch(EmployeeBase, PageQueryBase):
 class EmployeeTransition(SchemaBase):
     """员工状态流转请求"""
 
-    to_state: str = Field(title="目标状态", description="pending / onboarding / active / resigned")
+    to_state: EmployeeStatus = Field(title="目标状态", description="probation / active / resigned")
+    remark: str | None = Field(None, title="备注")
+
+
+class EmployeeRegularize(SchemaBase):
+    remark: str | None = Field(None, title="备注")
+
+
+class EmployeeResign(SchemaBase):
+    remark: str = Field(title="离职备注")
+    new_manager_employee_id: SqidId | None = Field(None, title="接任主管员工ID")
+
+
+class EmployeeRehire(SchemaBase):
+    remark: str | None = Field(None, title="备注")
+
+
+class EmployeeDepartmentTransfer(SchemaBase):
+    department_id: SqidId = Field(title="目标部门ID")
+    new_manager_employee_id: SqidId | None = Field(None, title="原部门接任主管员工ID")

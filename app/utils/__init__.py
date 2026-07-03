@@ -116,3 +116,6 @@ from app.system.security import create_access_token as create_access_token
 from app.system.security import get_password_hash as get_password_hash
 from app.system.security import verify_password as verify_password
 from app.system.services import create_system_user as create_system_user
+from app.system.services import grant_user_role_code as grant_user_role_code
+from app.system.services import revoke_user_role_code as revoke_user_role_code
+from app.system.services.auth import invalidate_user_session as invalidate_user_session

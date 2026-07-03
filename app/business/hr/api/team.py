@@ -1,5 +1,5 @@
 """
-HR 团队接口 — 部门主管对本部门下属的管理（搜索/创建/编辑/标签/状态流转/统计）。
+HR 团队接口 — 部门主管对本部门员工的管理（搜索/标签/转正/统计）。
 
 所有路径均带 ``/hr/team`` 前缀；调用方必须为本部门主管（``DependManager``）。
 具体写操作再叠加按钮码控制，便于前端按按钮显隐。
@@ -9,23 +9,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from app.business.hr.dependency import DependManager
 from app.business.hr.schemas import (
-    EmployeeCreate,
+    EmployeeRegularize,
     EmployeeSearch,
-    EmployeeTransition,
-    EmployeeUpdate,
     TagIds,
 )
 from app.business.hr.services import (
-    create_subordinate_employee,
     edit_subordinate_tags,
     get_team_overview,
-    list_employees_with_relations,
-    transition_subordinate,
-    update_subordinate_employee,
+    list_team_employees,
+    regularize_subordinate,
 )
 from app.utils import SqidPath, Success, SuccessExtra, require_buttons
 
@@ -37,9 +33,8 @@ router = APIRouter(tags=["HR团队"])
 
 @router.post("/team/employees/search", summary="[主管] 下属分页搜索", name="hr.team.list")
 async def team_employees_search(obj_in: EmployeeSearch, mgr: Employee = DependManager):
-    # 主管列表强制锁定本部门，复用员工列表的搜索、分页和关系预加载逻辑。
-    obj_in.department_id = mgr.department_id  # type: ignore[attr-defined]
-    total, records = await list_employees_with_relations(obj_in)
+    # 主管列表强制锁定本部门；默认隐藏离职员工，显式筛选 resigned 时才返回离职记录。
+    total, records = await list_team_employees(mgr, obj_in)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 
 
@@ -47,26 +42,6 @@ async def team_employees_search(obj_in: EmployeeSearch, mgr: Employee = DependMa
 async def team_stats(mgr: Employee = DependManager):
     data = await get_team_overview(mgr)
     return Success(data=data)
-
-
-@router.post(
-    "/team/employees",
-    summary="[主管] 创建下属",
-    name="hr.team.create",
-    dependencies=[require_buttons("B_HR_TEAM_EMP_CREATE")],
-)
-async def team_create_employee(emp_in: EmployeeCreate, request: Request, mgr: Employee = DependManager):
-    return await create_subordinate_employee(emp_in, mgr, request.app.state.redis)
-
-
-@router.patch(
-    "/team/employees/{emp_id}",
-    summary="[主管] 编辑下属",
-    name="hr.team.update",
-    dependencies=[require_buttons("B_HR_TEAM_EMP_EDIT")],
-)
-async def team_update_employee(emp_id: SqidPath, emp_in: EmployeeUpdate, mgr: Employee = DependManager):
-    return await update_subordinate_employee(mgr, emp_id, emp_in)
 
 
 @router.patch(
@@ -80,10 +55,10 @@ async def team_edit_subordinate_tags(emp_id: SqidPath, body: TagIds, mgr: Employ
 
 
 @router.post(
-    "/team/employees/{emp_id}/transition",
-    summary="[主管] 推进下属状态",
-    name="hr.team.transition",
-    dependencies=[require_buttons("B_HR_TEAM_EMP_TRANSITION")],
+    "/team/employees/{emp_id}/regularize",
+    summary="[主管] 办理下属转正",
+    name="hr.team.regularize",
+    dependencies=[require_buttons("B_HR_TEAM_REGULARIZE")],
 )
-async def team_transition_employee(emp_id: SqidPath, body: EmployeeTransition, mgr: Employee = DependManager):
-    return await transition_subordinate(mgr, emp_id, body.to_state)
+async def team_regularize_employee(emp_id: SqidPath, body: EmployeeRegularize, mgr: Employee = DependManager):
+    return await regularize_subordinate(mgr, emp_id, remark=body.remark)

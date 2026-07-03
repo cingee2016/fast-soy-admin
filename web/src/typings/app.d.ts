@@ -1040,12 +1040,14 @@ declare namespace App {
             title: string;
             name: string;
             code: string;
+            manager: string;
             description: string;
             addDepartment: string;
             editDepartment: string;
             form: {
               name: string;
               code: string;
+              manager: string;
               description: string;
             };
           };
@@ -1074,15 +1076,15 @@ declare namespace App {
               status: string;
             };
             status: {
-              pending: string;
-              onboarding: string;
+              probation: string;
               active: string;
               resigned: string;
             };
             transition: {
-              toOnboarding: string;
               toActive: string;
               toResigned: string;
+              toProbation: string;
+              resignRemark: string;
               confirm: string;
               success: string;
             };
@@ -1113,8 +1115,6 @@ declare namespace App {
             department: string;
             total: string;
             statusBreakdown: string;
-            addSubordinate: string;
-            editSubordinate: string;
             editTags: string;
           };
         };

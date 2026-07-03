@@ -75,7 +75,7 @@ return JSONResponse({"code": Code.FAIL, "msg": "失败"})
 - ✅ 业务角色种子**必须**显式声明 `data_scope`（不要依赖模型默认 `all`）
 - ✅ 涉及行级权限的列表接口**必须** `@override("list")` 拼 `build_scope_filter`
 - ❌ 不要靠"前端隐藏按钮"做安全——后端必须有对应校验
-- ❌ 不要在业务里直接判 `role_code == "R_HR_ADMIN"`——用 `has_role_code` / `has_button_code`
+- ❌ 不要在业务里直接判 `role_code == "R_HR_MANAGER"`——用 `has_role_code` / `has_button_code`
 
 ## 7. 模型
 

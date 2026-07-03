@@ -8,15 +8,13 @@ const loading = ref(false);
 const overview = ref<Api.HrManage.ShowcaseOverview | null>(null);
 
 const statusLabel: Record<string, string> = {
-  pending: '待入职',
-  onboarding: '入职中',
+  probation: '待转正',
   active: '在职',
   resigned: '已离职'
 };
 
 const statusTagType: Record<string, 'default' | 'info' | 'success' | 'warning'> = {
-  pending: 'warning',
-  onboarding: 'info',
+  probation: 'warning',
   active: 'success',
   resigned: 'default'
 };

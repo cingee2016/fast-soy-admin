@@ -54,8 +54,8 @@ R_<UPPER>                       # 角色编码
 | 例 | 含义 |
 |---|---|
 | `B_HR_EMP_CREATE` | HR / 员工 / 创建 |
-| `B_HR_EMP_TRANSITION` | HR / 员工 / 状态流转 |
-| `R_HR_ADMIN` | HR 管理员 |
+| `B_HR_EMP_REGULARIZE` | HR / 员工 / 办理转正 |
+| `R_HR_MANAGER` | HR 管理员 |
 | `R_DEPT_MGR` | 通用部门主管 |
 | `R_SUPER` | 超级管理员（保留） |
 
@@ -89,7 +89,7 @@ common.<key>         # 全局通用
 
 | 范围 | 模板 | 示例 |
 |---|---|---|
-| 系统级权限 | `role:{code}:*` / `user:{uid}:*` | `role:R_HR_ADMIN:apis` |
+| 系统级权限 | `role:{code}:*` / `user:{uid}:*` | `role:R_HR_MANAGER:apis` |
 | 业务模块自有 | `<module>_<resource>:<scope>` | `dict_options:tag_category` |
 | 启动协调 | `app:<purpose>` | `app:init_lock` / `app:init_done` |
 

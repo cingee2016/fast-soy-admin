@@ -46,7 +46,7 @@ HR_MENU_CHILDREN = [
             {"button_code": "B_HR_EMP_CREATE", "button_desc": "创建员工"},
             {"button_code": "B_HR_EMP_EDIT",   "button_desc": "编辑员工"},
             {"button_code": "B_HR_EMP_DELETE", "button_desc": "删除员工"},
-            {"button_code": "B_HR_EMP_TRANSITION", "button_desc": "状态流转"},
+            {"button_code": "B_HR_EMP_REGULARIZE", "button_desc": "办理转正"},
         ],
     },
 ]
@@ -65,7 +65,7 @@ B_<MODULE>_<RESOURCE>_<ACTION>
 | 例 | 含义 |
 |---|---|
 | `B_HR_DEPT_CREATE` | HR / 部门 / 创建 |
-| `B_HR_EMP_TRANSITION` | HR / 员工 / 状态流转 |
+| `B_HR_EMP_REGULARIZE` | HR / 员工 / 办理转正 |
 | `B_INV_PRODUCT_DELETE` | 库存 / 产品 / 删除 |
 
 通用约定：
@@ -112,7 +112,7 @@ from app.system.services import ensure_role
 
 await ensure_role(
     role_name="HR管理员",
-    role_code="R_HR_ADMIN",
+    role_code="R_HR_MANAGER",
     role_desc="人事专员",
     home_route="hr_employee",
     data_scope=DataScopeType.all,
@@ -133,7 +133,7 @@ await ensure_role(
 声明的 `route_name` / `button_code` / `(method, path)` 在 DB 中找不到时输出：
 
 ```
-ensure_role 'R_HR_ADMIN': missing apis [('post', '/api/v1/business/hr/old')] (route signature changed?)
+ensure_role 'R_HR_MANAGER': missing apis [('post', '/api/v1/business/hr/old')] (route signature changed?)
 ```
 
 **看到必须修**——意味着 seed 与代码脱节。详见 [启动初始化与对账](./init-data.md#ensure_role-配置漂移告警)。

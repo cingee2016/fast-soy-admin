@@ -880,15 +880,15 @@ const local: App.I18n.BaseSchema = {
           status: '请选择员工状态'
         },
         status: {
-          pending: '待入职',
-          onboarding: '入职中',
+          probation: '待转正',
           active: '在职',
           resigned: '已离职'
         },
         transition: {
-          toOnboarding: '办理入职',
           toActive: '确认转正',
           toResigned: '办理离职',
+          toProbation: '办理返聘',
+          resignRemark: '请输入离职备注',
           confirm: '确认变更员工状态吗？',
           success: '员工状态更新成功'
         },
@@ -899,10 +899,12 @@ const local: App.I18n.BaseSchema = {
         title: '部门列表',
         name: '部门名称',
         code: '部门编码',
+        manager: '主管',
         description: '描述',
         form: {
           name: '请输入部门名称',
           code: '请输入部门编码',
+          manager: '请选择主管',
           description: '请输入描述'
         },
         addDepartment: '新增部门',
@@ -934,8 +936,6 @@ const local: App.I18n.BaseSchema = {
         department: '所在部门',
         total: '团队人数',
         statusBreakdown: '状态分布',
-        addSubordinate: '新增下属',
-        editSubordinate: '编辑下属',
         editTags: '编辑标签'
       }
     }

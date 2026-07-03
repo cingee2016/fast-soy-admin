@@ -38,7 +38,7 @@
 |---|---|---|
 | `id` | int PK | 主键 |
 | `role_name` | str(20) unique | 角色名 |
-| `role_code` | str(20) unique | 角色编码（如 `R_HR_ADMIN`） |
+| `role_code` | str(20) unique | 角色编码（如 `R_HR_MANAGER`） |
 | `role_desc` | str(500) null | 描述 |
 | `data_scope` | enum(`DataScopeType`) default=`all` | 行级数据范围（[详见](./data-scope.md)） |
 | `by_role_home` | FK → Menu | 默认登录后跳转的菜单 |

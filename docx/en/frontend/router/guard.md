@@ -104,7 +104,7 @@ Then **restart the backend**: `init()` → write Menu → `refresh_all_cache()` 
 Only when `VITE_AUTH_ROUTE_MODE=static` does `meta.roles` apply — intersect with the user's current roles.
 
 ```typescript
-meta: { roles: ['R_ADMIN', 'R_HR_ADMIN'] }
+meta: { roles: ['R_ADMIN', 'R_HR_MANAGER'] }
 ```
 
 In dynamic mode `meta.roles` is ignored (the backend already filtered).

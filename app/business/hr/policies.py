@@ -20,7 +20,7 @@ async def build_employee_read_filter(ctx: PolicyContext):
 
 async def can_manage_employee(ctx: PolicyContext, obj: Any) -> bool:
     # 对象级策略用于 update / transition / avatar，补上列表 scope 之外的单对象保护。
-    if ctx.is_super or "R_HR_ADMIN" in ctx.role_codes:
+    if ctx.is_super or {"R_HR_MANAGER", "R_HR_SPECIALIST"} & set(ctx.role_codes):
         return True
     department_id = getattr(obj, "department_id", None)
     if department_id is None and isinstance(obj, dict):

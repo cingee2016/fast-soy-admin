@@ -108,7 +108,7 @@ await ensure_menu(
 只有 `VITE_AUTH_ROUTE_MODE=static` 时 `meta.roles` 才生效——按用户当前角色集合做交集判断。
 
 ```typescript
-meta: { roles: ['R_ADMIN', 'R_HR_ADMIN'] }
+meta: { roles: ['R_ADMIN', 'R_HR_MANAGER'] }
 ```
 
 动态模式下 `meta.roles` 会被忽略（后端已经按角色过滤过了）。

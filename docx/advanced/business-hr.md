@@ -1,537 +1,144 @@
-# HR 管理（第一个子业务模块）
+# HR 业务模块示例
 
-HR 模块是 `app/business/` 下第一个完整业务模块，演示业务模块在 FastSoyAdmin 中**应当如何组织**：manifest 自动发现、route key 权限声明、菜单/角色/按钮声明、CRUDRouter 的标准与扩展用法、状态机、行级/对象级数据权限、typed event、前端按钮鉴权。
+HR 模块演示一套带 RBAC、数据范围、状态机和系统用户联动的业务模块。当前版本以“员工生命周期”为核心：
 
-> 源码位置：[app/business/hr/](../../../app/business/hr/)、[web/src/views/hr/](../../../web/src/views/hr/)
-> 适合阅读对象：在本仓库新增业务模块的开发者。
+- 员工状态：`probation` 待转正、`active` 在职、`resigned` 已离职
+- 合法流转：`probation -> active`、`probation -> resigned`、`active -> resigned`、`resigned -> probation`
+- 新入职默认进入 `probation`
+- 离职会禁用绑定系统用户并失效已签发 token
+- 返聘会重新启用绑定系统用户，并回到 `probation`
 
-## 模块定位
-
-HR 模块管理三类资源：
-
-- **部门**（`Department`，树形结构 + 软删除 + 状态字段）
-- **标签**（`Tag`，员工技能/特长字典，分类引用系统字典 `tag_category`）
-- **员工**（`Employee`，含状态机：`pending → onboarding → active → resigned`）
-
-并暴露四套接口：
-
-| 角色场景 | 路由 | 文件 |
-|---|---|---|
-| 系统管理（HR 总管） | `/hr/departments/*`、`/hr/employees/*`、`/hr/tags/*` | [api/manage.py](../../../app/business/hr/api/manage.py) |
-| 部门主管管理下属 | `/hr/team/employees/*`、`/hr/team/stats` | [api/team.py](../../../app/business/hr/api/team.py) |
-| 普通员工自助 | `/hr/my/profile`、`/hr/my/avatar`、`/hr/my/tags`、`/hr/my/department` | [api/my.py](../../../app/business/hr/api/my.py) |
-| 公开数据展示（常量路由 Demo） | `/hr/public/showcase` | [api/public.py](../../../app/business/hr/api/public.py) |
-
-## 目录结构（业务模块约定）
-
-```
-app/business/hr/
-├── __init__.py
-├── module.py        # BusinessModule manifest（路由 / init / 事件 / policy）
-├── config.py        # BIZ_SETTINGS（按模块隔离的 Pydantic Settings）
-├── ctx.py           # 模块上下文变量（如 get_current_department_id）
-├── dependency.py    # 模块 FastAPI 依赖（DependEmployee / DependManager）
-├── models.py        # Tortoise 模型 + 状态枚举
-├── schemas.py       # Pydantic schema（继承 SchemaBase）
-├── controllers.py   # CRUDBase 子类（单资源 CRUD）
-├── services.py      # 多模型编排、缓存、状态机
-├── serializers.py   # 员工展示记录序列化
-├── files.py         # 头像上传校验与保存
-├── events.py        # typed EventSpec + 本地事件订阅
-├── policies.py      # DataPolicy（列表过滤 + 对象级校验）
-├── seed_data.py     # Demo 标签 / 部门 / 员工种子
-├── init_data.py     # INIT_DATA + async def init()
-└── api/
-    ├── __init__.py  # 兼容导出汇总后的 router
-    ├── manage.py    # 系统管理路由（HR 总管）
-    ├── team.py      # 部门主管路由（管理下属）
-    ├── my.py        # 员工自助路由
-    └── public.py    # 公开常量路由示例
-```
-
-`autodiscover` 在启动时扫描 `app/business/<name>/`，按以下约定加载（详见 [app/core/autodiscover.py](../../../app/core/autodiscover.py)）：
-
-| 约定 | 提供的能力 |
-|---|---|
-| `models.py` 或 `models/` | Tortoise 模型 → 注册到 `TORTOISE_ORM["apps"]` |
-| `module.py` 中的 `module = BusinessModule(...)` | manifest 路由、依赖排序、init、事件、policy |
-| `api/` 或 `api.py` 中的 `router: APIRouter` | 旧约定兼容；HR 已改用 manifest |
-| `init_data.py` 中的 `INIT_DATA` / `async def init()` | `init-plan` 可审计，启动时执行 |
-
-业务模块默认从 `app.utils` 导入框架能力；少数启动初始化 helper（如 `apply_init_data / ensure_user`）可来自 system 显式暴露的 service。业务模块之间不要互相 import，跨模块联动走事件。
+本示例不提供历史迁移说明；调整字段或枚举后，开发环境可直接重置数据库。
 
 ## 数据模型
 
-### 部门 Department
-
-```python
-class Department(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
-    id = fields.IntField(primary_key=True)
-    name = fields.CharField(max_length=100, unique=True)
-    code = fields.CharField(max_length=50, unique=True)
-    description = fields.CharField(max_length=500, null=True)
-    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable)
-    manager_id = fields.IntField(null=True)  # 主管员工 ID（避免循环 FK）
-```
-
-`TreeMixin` 提供 `parent_id / order / level`，配合 `CRUDRouter(tree_endpoint=True)` 自动生成 `GET /departments/tree`。
-
-### 员工 Employee
-
-```python
-class EmployeeStatus(str, Enum):
-    pending = "pending"
-    onboarding = "onboarding"
-    active = "active"
-    resigned = "resigned"
-
-
-class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
-    employee_no = fields.CharField(max_length=20, unique=True)
-    status = fields.CharEnumField(enum_type=EmployeeStatus, default=EmployeeStatus.pending)
-    user: fields.ForeignKeyNullableRelation = fields.ForeignKeyField(
-        "app_system.User", null=True, unique=True, on_delete=fields.SET_NULL
-    )
-    department: fields.ForeignKeyRelation[Department] = fields.ForeignKeyField(
-        "app_system.Department", related_name="employees"
-    )
-    tags: fields.ManyToManyRelation[Tag] = fields.ManyToManyField(
-        "app_system.Tag", related_name="employees"
-    )
-```
-
-> 注意 `Employee.status` 是**入职流程状态**，不是系统通用的"启用/禁用"字典。前端有专属 `employeeStatusRecord`（位于 [web/src/constants/business.ts](../../../web/src/constants/business.ts)）。
-
-## 权限模型（这是 HR 模块的核心设计）
-
-### 三层角色
-
-| 角色 | data_scope | HR 按钮 | 业务定位 |
-|---|---|---|---|
-| `R_SUPER` | all（自动跳过过滤） | 全部 | 系统超管 |
-| `R_HR_ADMIN` | `all` | 10 个 HR 按钮全集 | HR 总管 / 人事专员 |
-| `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | 任意部门主管 |
-| `R_USER` | `self` | 无 | 普通员工，走 `/hr/my/*` |
-
-`R_DEPT_MGR` 是**通用部门主管角色**——所有部门的主管都用同一个 role_code，靠 `data_scope=scope` + `scope_id_field="department_id"` 做行级隔离。
-
-### 按钮粒度（资源 × 操作）
-
-按钮码采用 `B_HR_<RESOURCE>_<ACTION>` 命名：
-
-| 按钮码 | 描述 | 挂在哪个菜单 |
-|---|---|---|
-| `B_HR_DEPT_CREATE / _EDIT / _DELETE` | 部门 增 / 改 / 删 | `hr_department` |
-| `B_HR_EMP_CREATE / _EDIT / _DELETE` | 员工 增 / 改 / 删 | `hr_employee` |
-| `B_HR_EMP_TRANSITION` | 员工状态流转 | `hr_employee` |
-| `B_HR_TAG_CREATE / _EDIT / _DELETE` | 标签 增 / 改 / 删 | `hr_tag` |
-
-「读列表」不发按钮——通过菜单可见 + API 授权控制。批量删除复用单删按钮码。
-
-### 角色 × 按钮 矩阵
-
-| 按钮 | SUPER | R_HR_ADMIN | R_DEPT_MGR | R_USER |
-|---|---|---|---|---|
-| `B_HR_DEPT_*` | ✅ | ✅ | ❌ | ❌ |
-| `B_HR_TAG_*` | ✅ | ✅ | ❌ | ❌ |
-| `B_HR_EMP_CREATE` | ✅ | ✅ | ✅ | ❌ |
-| `B_HR_EMP_EDIT` | ✅ | ✅ | ✅（行级限本部门） | ❌ |
-| `B_HR_EMP_TRANSITION` | ✅ | ✅ | ✅ | ❌ |
-| `B_HR_EMP_DELETE` | ✅ | ✅ | ❌（流程上 `resigned` 即可） | ❌ |
-
-### 后端怎么挂权限
-
-写接口在装饰器上声明所需按钮，由 [require_buttons](../../../app/core/dependency.py) 在请求阶段校验：
-
-```python
-# app/business/hr/api/manage.py
-@router.post(
-    "/employees",
-    summary="创建员工",
-    dependencies=[require_buttons("B_HR_EMP_CREATE")],
-)
-async def create_emp(...): ...
-```
-
-CRUDRouter 提供 `action_dependencies`，按路由名（`create / update / delete / batch_delete`）批量挂依赖：
-
-```python
-dept_crud = CRUDRouter(
-    prefix="/departments",
-    controller=department_controller,
-    create_schema=DepartmentCreate,
-    update_schema=DepartmentUpdate,
-    list_schema=DepartmentSearch,
-    soft_delete=True,
-    tree_endpoint=True,
-    action_dependencies={
-        "create":       [require_buttons("B_HR_DEPT_CREATE")],
-        "update":       [require_buttons("B_HR_DEPT_EDIT")],
-        "delete":       [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
-    },
-)
-```
-
-> `action_dependencies` 对 `@override` 替换的路由同样生效，所以在前缀模板上挂的依赖不会被自定义实现"漏掉"。
-
-### 前端怎么挂权限
-
-按钮码透传到前端后，模板里用 `hasAuth(...)` 控制按钮可见性。前端用法详见 [前端 / Hooks / useTable](../frontend/hooks/use-table.md#配合权限按钮)，完整样例在 [web/src/views/hr/employee/index.vue](../../../web/src/views/hr/employee/index.vue)。
-
-## 行级数据权限（data_scope）
-
-### 角色字段
-
-`Role` 模型有 `data_scope` 字段，枚举见 [app/core/data_scope.py](../../../app/core/data_scope.py)：
-
-- `all` — 全部数据（不过滤）
-- `scope` — 当前业务范围数据；在 HR 案例里映射为本部门
-- `self` — 仅本人数据
-- `custom` — 预留，当前降级到 `self`
-
-### init_data 必须显式声明 data_scope
-
-`ensure_role()` 接收 `data_scope: DataScopeType | None`，**不传**则使用 `Role` 模型默认值 `all` —— 这是个隐式的"全可见"，对部门主管/普通用户来说是错误的。**业务角色一律显式声明**：
-
-```python
-# app/business/hr/init_data.py
-HR_ROLE_SEEDS = [
-    {
-        "role_code": "R_HR_ADMIN",
-        "data_scope": DataScopeType.all,
-        "apis": ["hr.employees.list", "hr.employees.create", ...],
-        ...
-    },
-    {
-        "role_code": "R_DEPT_MGR",
-        "data_scope": DataScopeType.scope,
-        ...
-    },
-]
-```
-
-角色 API 授权使用 route key 字符串，而不是 `(method, path)` 元组。`just init-plan --strict` 会检查这些 key 能否解析到真实后端路由。
-
-### API override 使用方式
-
-HR 在模块依赖里先把当前登录用户绑定的部门写入 ContextVar，员工列表的 API override 再拼入 `DataPolicy`：
-
-```python
-# app/business/hr/api/manage.py
-router = APIRouter(tags=["HR管理"], dependencies=[DependHrScope])
-
-
-@emp_crud.override("list")
-async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    q = build_employee_list_query(obj_in)
-    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
-    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
-    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-```
-
-多角色取最宽松：用户同时持有 `R_HR_ADMIN`(all) 和 `R_DEPT_MGR`(scope) 时，最终生效 `all`。
-
-## 状态机：员工状态流转
-
-[app/business/hr/services.py](../../../app/business/hr/services.py) 用 [StateMachine](../../../app/core/state_machine.py) 声明合法转移：
-
-```python
-EMPLOYEE_FSM = StateMachine(
-    transitions={
-        "pending":    ["onboarding"],
-        "onboarding": ["active"],
-        "active":     ["resigned"],
-        "resigned":   [],  # 终态
-    }
-)
-
-
-async def transition_employee(emp_id: int, to_state: str):
-    emp = await employee_controller.get(id=emp_id)
-    await EMPLOYEE_FSM.transition(
-        obj=emp,
-        to_state=to_state,
-        state_field="status",
-        actor_id=get_current_user_id(),
-        log_fn=radar_log,
-    )
-    await emit("employee.status_changed", employee_id=emp_id, ...)
-    return Success(msg="状态更新成功", ...)
-```
-
-前端按当前状态**动态展示**下一步动作（不是固定的"启用/禁用"切换）：
-
-| 当前 | 下一状态 | 按钮文案 |
-|---|---|---|
-| `pending` | `onboarding` | 办理入职 |
-| `onboarding` | `active` | 确认转正 |
-| `active` | `resigned` | 办理离职 |
-| `resigned` | — | （不显示按钮，终态） |
-
-映射表见 [web/src/constants/business.ts](../../../web/src/constants/business.ts)（`employeeNextStatus` / `employeeTransitionLabel`）。
-
-## 启动 init_data 全景
-
-[app/business/hr/init_data.py](../../../app/business/hr/init_data.py) 先用声明式 `INIT_DATA` 对齐菜单、按钮、角色与 route key，再播 [seed_data.py](../../../app/business/hr/seed_data.py) 中的业务 Demo 数据：
-
-```python
-async def init():
-    await apply_init_data(INIT_DATA)  # 菜单 / 按钮 / 角色 / route key 授权
-    await _init_departments()    # 5 个部门
-    await _init_tags()           # 8 个标签
-    await _init_demo_employees() # 9 个员工 + 主管反向回填
-```
-
-### 菜单与按钮（声明 + 对账）
-
-`HR_MENU_CHILDREN` 是菜单/按钮的 single-source-of-truth，并被挂进 `INIT_DATA`：
-
-```python
-HR_MENU_CHILDREN = [
-    {
-        "menu_name": "部门管理", "route_name": "hr_department", "route_path": "/hr/department",
-        "buttons": [
-            {"button_code": "B_HR_DEPT_CREATE", "button_desc": "创建部门"},
-            {"button_code": "B_HR_DEPT_EDIT",   "button_desc": "编辑部门"},
-            {"button_code": "B_HR_DEPT_DELETE", "button_desc": "删除部门"},
-        ],
-    },
-    {"menu_name": "员工管理", ..., "buttons": [...]},
-    {"menu_name": "标签管理", ..., "buttons": [...]},
-]
-
-
-INIT_DATA = {
-    "menus": [
-        {
-            "menu_name": "HR管理",
-            "route_name": "hr",
-            "route_path": "/hr",
-            "children": HR_MENU_CHILDREN,
-            "reconcile": {"menus": True, "buttons": True},
-        }
-    ],
-    "roles": HR_ROLE_SEEDS,
-}
-```
-
-> 一旦 `INIT_DATA` 对菜单启用 `reconcile`，**该子树就被视为 IaC（基础设施即代码）**——通过 Web UI 在该子树下手工创建的菜单/按钮会在下次重启时被清除。详见 [启动初始化与对账](./init-data.md)。
-
-### 演示数据规模
-
-| 资源 | 数量 | 说明 |
-|---|---|---|
-| 部门 | 5 | TECH / MKT / OPS / PERSONNEL / FINANCE |
-| 标签 | 8 | 远程协作 / 文档驱动 / 跨部门协作 / … |
-| 员工 + 系统用户 | 9 | 工号 9001 ~ 9009，每人对应一个登录账号（密码 `123456`） |
-
-5 个部门各有一名主管：
-
-| 编码 | 部门 | 主管 | 角色 |
-|---|---|---|---|
-| TECH | 技术部 | 周航 (zhouhang) | R_DEPT_MGR |
-| MKT | 市场部 | 林妍 (linyan) | R_DEPT_MGR |
-| OPS | 行政部 | 宋羽 (songyu) | R_DEPT_MGR |
-| PERSONNEL | 人事部 | 韩梅 (hanmei) | **R_HR_ADMIN + R_DEPT_MGR** |
-| FINANCE | 财务部 | 秦风 (qinfeng) | R_DEPT_MGR |
-
-> 韩梅同时挂两个角色是**有意为之**：身份上她是人事部主管（R_DEPT_MGR 提供"本部门数据继承"，便于通过 `B_HR_EMP_CREATE` 自动落到本部门），职责上她是 HR 总管（R_HR_ADMIN 提供全公司按钮 + `data_scope=all`）。多角色取最宽松，最终效果是全公司可见 + 全按钮可用。
-
-### 业务种子数据的同步语义
-
-- 通过 `_safe_update_or_create` 按唯一键 upsert，**只新增/改字段，不删**。
-- 从 seed 中删除一条记录，DB 中**不会**自动清理——需要走迁移。
-- 删除 seed 中的角色，对应 `Role` 行也不会被清理；删除菜单/按钮才会（依赖 `reconcile_menu_subtree`）。
-
-## API 设计要点
-
-### 1. 用 CRUDRouter 把样板代码消灭掉
-
-部门和标签的 CRUD 完全是模板化的，直接用 `CRUDRouter` 一句声明：
-
-```python
-tag_crud = CRUDRouter(
-    prefix="/tags",
-    controller=tag_controller,
-    create_schema=TagCreate,
-    update_schema=TagUpdate,
-    list_schema=TagSearch,
-    search_fields=SearchFieldConfig(contains_fields=["name"], exact_fields=["category"]),
-    summary_prefix="标签",
-    action_dependencies={
-        "create":       [require_buttons("B_HR_TAG_CREATE")],
-        "update":       [require_buttons("B_HR_TAG_EDIT")],
-        "delete":       [require_buttons("B_HR_TAG_DELETE")],
-        "batch_delete": [require_buttons("B_HR_TAG_DELETE")],
-    },
-)
-```
-
-### 2. 用 `@override` 替换需要自定义逻辑的路由
-
-员工的 `list / get` 需要 `select_related / prefetch_related` 优化 N+1 + 行级 scope 过滤：
-
-```python
-emp_crud = CRUDRouter(
-    prefix="/employees",
-    controller=employee_controller,
-    list_schema=EmployeeSearch,
-    summary_prefix="员工",
-    soft_delete=True,
-    action_dependencies={
-        "delete":       [require_buttons("B_HR_EMP_DELETE")],
-        "batch_delete": [require_buttons("B_HR_EMP_DELETE")],
-    },
-)
-
-
-@emp_crud.override("list")
-async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    q = build_employee_list_query(obj_in)
-    scope = await get_current_data_scope(request.app.state.redis)
-    q &= build_scope_filter(
-        scope=scope,
-        user_id=CTX_USER_ID.get(),
-        scope_id=get_current_department_id(),
-        user_id_field="user_id",
-        scope_id_field="department_id",
-    )
-    total, records = await list_employees_with_relations(obj_in, search=q)
-    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-
-
-@emp_crud.override("get")
-async def _get_employee(item_id: SqidPath):
-    emp = await employee_controller.get(id=item_id)
-    await emp.fetch_related("department", "tags")
-    record = await emp.to_dict()
-    record["departmentName"] = emp.department.name
-    record["tagIds"]   = [t.id   for t in emp.tags]
-    record["tagNames"] = [t.name for t in emp.tags]
-    return Success(data=record)
-```
-
-> `emp_crud` 没有传 `create_schema / update_schema`，CRUDRouter 不会注册默认的 `POST/PATCH /employees` 路由——所以下面的手写 `@router.post / @router.patch` 不会被遮蔽。
-
-### 3. 创建员工：service 层处理多模型编排
-
-创建员工要联动**创建系统用户 + 员工 + 标签关联**，所以走 service 层：
-
-```python
-@router.post(
-    "/employees",
-    summary="创建员工",
-    dependencies=[require_buttons("B_HR_EMP_CREATE")],
-)
-async def create_emp(emp_in: EmployeeCreate, request: Request):
-    return await create_employee(emp_in, request.app.state.redis)
-```
-
-员工创建按入口分流：
-
-```python
-# HR 管理员入口：必须显式指定部门
-async def create_employee(emp_in: EmployeeCreate, redis):
-    if not emp_in.department_id:
-        return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="创建员工需要指定部门")
-    return await _create_employee_core(emp_in, redis)
-
-
-# 部门主管入口：部门强制继承自主管所在部门
-async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, redis):
-    emp_in.department_id = mgr.department_id
-    return await _create_employee_core(emp_in, redis)
-```
-
-随后在一个事务里创建系统用户（随机密码 + `must_change_password`）、员工、标签关联，并 `emit("employee.created", ...)` 触发事件。
-
-### 4. 缓存与失效
-
-业务模块**自带缓存**的标准模式：键命名 `<module>_<resource>:<scope>`，读时 miss → 查询 → 写入并设置 TTL，数据变更时主动 `redis.delete(...)` 失效。仓库内可参考的实现为字典选项缓存（[`app/system/api/dictionary.py`](../../../app/system/api/dictionary.py)，键形如 `dict_options:<type>`）。
-
-### 5. 公开接口（常量路由示例）
-
-`api/public.py` 暴露了一组**不经过鉴权**的端点，用于前端的常量路由（`/showcase`）——未登录即可访问，只返回聚合统计，不含任何敏感字段。在线 Demo：<https://fast-soy-admin.sleep0.de/showcase>。
-
-```python
-# app/business/hr/api/public.py
-router = APIRouter(prefix="/public", tags=["HR公开展示"])
-
-@router.get("/showcase", summary="[公开] HR 数据展示总览")
-async def showcase_overview():
-    return Success(data={
-        "totals": {"department": ..., "employee": ..., "tag": ...},
-        "employeeStatus": {...},
-        "departments": [{"name": ..., "code": ..., "employeeCount": ...}],
-    })
-```
-
-对应前端：
-
-- 视图：[web/src/views/showcase/index.vue](../../../web/src/views/showcase/index.vue)
-- API 调用：`fetchGetHrShowcase()`（[web/src/service/api/hr-manage.ts](../../../web/src/service/api/hr-manage.ts)）
-- 路由配置：`web/src/router/elegant/routes.ts` 中 `name: 'showcase'` + `meta.constant: true` + `component: 'layout.blank$view.showcase'`
-- 常量路由白名单：`web/build/plugins/router.ts` 的 `constantRoutes` 中加入了 `'showcase'`
-
-#### 后端也要种一条 `Menu` 记录（重要）
-
-**默认 `VITE_AUTH_ROUTE_MODE=dynamic`**，前端启动时会调用 `GET /api/v1/route/constant-routes` 从 Redis 拉常量路由，数据源是 `Menu.filter(constant=True, hide_in_menu=True)`（详见 [load_constant_routes](../../../app/core/cache.py)）。只在前端声明 `meta.constant: true` 是不够的——不种 `Menu`，后端返回空，前端挂不上路由，访问会 404。
-
-所以 `INIT_DATA["menus"]` 里必须配套一条：
-
-```python
-# app/business/hr/init_data.py
-INIT_DATA = {
-    "menus": [
-        {
-            "menu_name": "HR数据展示",
-            "route_name": "showcase",
-            "route_path": "/showcase",
-            "component": "layout.blank$view.showcase",
-            "menu_type": "1",
-            "constant": True,
-            "hide_in_menu": True,
-            "order": 100,
-        },
-        # ...后续其他菜单
-    ],
-}
-```
-
-启动流水线：`init()` → 写入 `Menu` 记录 → `refresh_all_cache()` → `load_constant_routes()` 重写 Redis `constant_routes` key → 前端下次启动拉到。**新增常量路由后必须重启一次后端**。
-
-> 如果是 `VITE_AUTH_ROUTE_MODE=static`（前端自带全部路由声明），则只需前端那一侧的改动；但本仓库默认是 dynamic，别漏。
-
-**公开接口的铁律：**
-
-1. **不要**在 router 或 endpoint 上挂 `DependAuth` / `DependPermission`
-2. **不要**返回包含 PII 的字段（`phone` / `email` / `employee_no` / `user_id`）
-3. **不要**返回可用于枚举探测的精确列表（如"所有员工姓名"）——只返回聚合计数
-4. 路径统一放在 `/<module>/public/*` 前缀下，便于 nginx / WAF 侧做 IP 限流策略
-5. 若数据可能较贵，建议搭配 Redis 缓存（参考字典选项实现 [`app/system/api/dictionary.py`](../../../app/system/api/dictionary.py)）
-
-## 用 HR 模块作为新模块的参考
-
-新建一个业务模块（例如 `crm`）建议照搬 HR 模块的目录与文件命名：
-
-```bash
-cp -r app/business/hr app/business/crm
-# 修改：模型表名前缀、菜单 route_name、角色 role_code、按钮 button_code、API prefix
-```
-
-务必做到的几点：
-
-1. **菜单/按钮/角色一律以 `INIT_DATA` 为唯一数据源**，新增/删除/重命名走 seed + 重启对账。
-2. **每个角色显式声明 `data_scope`**，不要依赖 `Role` 模型默认的 `all`。
-3. **角色 API 授权一律引用 route key**（如 `hr.employees.list`），提交前跑 `just init-plan --strict`。
-4. **写接口必须挂按钮权限**（`require_buttons` 或 `action_dependencies`），不要依赖前端隐藏按钮做安全。
-5. **前端按钮一律 `hasAuth(...)`**，与后端按钮码 1:1 对应。
-6. **删除按钮码或 route key 时检查 ensure_role 的 warning 日志**——`ensure_role` 会输出 `missing buttons / missing route keys` 警告，提示 seed 列表与代码脱节。
-
-## 相关文档
-
-- [启动初始化与对账](./init-data.md) — `ensure_menu / ensure_role / reconcile_menu_subtree` 的工作机制
-- [认证与权限](./auth.md) — JWT、`DependAuth / DependPermission`、按钮权限
-- [CRUD 基类](./crud.md) — `CRUDBase / CRUDRouter / SearchFieldConfig`
-- [API 路由](./api.md) — 路由约定（路径、命名、响应格式）
+核心模型位于 `app/business/hr/models.py`：
+
+- `Department`：部门树，`manager_id` 指向部门主管员工 ID
+- `Employee`：员工档案，绑定系统用户和部门，可关联多个标签
+- `Tag`：员工标签
+- `EmployeeStatusLog`：员工状态流转日志
+
+`Employee.status` 是业务生命周期状态，不是系统通用 `StatusType.enable / disable`。只有 `probation` 和 `active` 员工应保持系统用户启用；`resigned` 员工离职动作会禁用系统用户。
+
+## 角色设计
+
+| 角色 | 数据范围 | 菜单 | 职责 |
+| --- | --- | --- | --- |
+| `R_HR_MANAGER` | `all` | 我的工作台、部门管理、员工管理、标签管理 | HR 主管，负责部门、主管任命、员工状态、标签等全量维护 |
+| `R_HR_SPECIALIST` | `all` | 我的工作台、员工管理 | 人事专员，办理入职、返聘、基础资料和部门调整 |
+| `R_DEPT_MGR` | `scope` | 我的工作台、我的团队 | 部门主管，只管理本部门团队 |
+| `R_EMPLOYEE` | `self` | 我的工作台 | 普通员工，只维护自己的资料/标签并查看同部门同事 |
+
+`R_HR_MANAGER` 不自动拥有“我的团队”。如果 HR 主管同时也是某个部门主管，需要同时授予 `R_DEPT_MGR`。演示数据中的 `hanmei` 即为 `R_HR_MANAGER + R_DEPT_MGR`。
+
+## 按钮权限
+
+| 按钮 | 说明 | 默认角色 |
+| --- | --- | --- |
+| `B_HR_MY_TAG_EDIT` | 编辑自己的标签 | HR 主管、人事专员、部门主管、员工 |
+| `B_HR_MY_AVATAR_EDIT` | 上传自己的头像 | HR 主管、人事专员、部门主管、员工 |
+| `B_HR_TEAM_TAG_EDIT` | 部门主管编辑本部门员工标签 | 部门主管 |
+| `B_HR_TEAM_REGULARIZE` | 部门主管办理本部门员工转正 | 部门主管 |
+| `B_HR_DEPT_CREATE` | 创建部门 | HR 主管 |
+| `B_HR_DEPT_EDIT` | 编辑部门 | HR 主管 |
+| `B_HR_DEPT_DELETE` | 删除部门 | HR 主管 |
+| `B_HR_DEPT_MANAGER` | 任命/移除部门主管 | HR 主管 |
+| `B_HR_EMP_ONBOARD` | 办理入职 | HR 主管、人事专员 |
+| `B_HR_EMP_EDIT` | 编辑员工基础资料 | HR 主管、人事专员 |
+| `B_HR_EMP_TRANSFER` | 调整员工部门 | HR 主管、人事专员 |
+| `B_HR_EMP_TAG_EDIT` | HR 编辑任意员工标签 | HR 主管 |
+| `B_HR_EMP_REGULARIZE` | HR 办理员工转正 | HR 主管 |
+| `B_HR_EMP_RESIGN` | 办理离职 | HR 主管 |
+| `B_HR_EMP_REHIRE` | 办理返聘 | HR 主管、人事专员 |
+| `B_HR_TAG_CREATE` / `B_HR_TAG_EDIT` / `B_HR_TAG_DELETE` | 标签管理 | HR 主管 |
+
+## 主要接口
+
+管理端接口位于 `app/business/hr/api/manage.py`：
+
+- `POST /employees`：办理入职，创建系统用户并绑定 `R_EMPLOYEE`
+- `PATCH /employees/{id}`：编辑基础资料
+- `PATCH /employees/{id}/department`：调整部门
+- `PATCH /employees/{id}/tags`：HR 编辑标签
+- `POST /employees/{id}/regularize`：办理转正
+- `POST /employees/{id}/resign`：办理离职，备注必填
+- `POST /employees/{id}/rehire`：办理返聘
+- `GET /employees/{id}/status-logs`：查看状态日志
+- `PATCH /departments/{id}/manager`：任命或移除部门主管
+
+团队接口位于 `app/business/hr/api/team.py`：
+
+- `POST /team/employees/search`：部门主管查看本部门员工，默认隐藏离职员工
+- `PATCH /team/employees/{id}/tags`：编辑本部门员工标签
+- `POST /team/employees/{id}/regularize`：办理本部门员工转正，不能给自己转正
+- `GET /team/stats`：本部门概览
+
+个人接口位于 `app/business/hr/api/my.py`：
+
+- `GET /my/profile`：我的资料
+- `PATCH /my/profile`：维护自己的电话和邮箱
+- `PATCH /my/tags`：维护自己的标签
+- `GET /my/department`：查看同部门待转正/在职同事
+- `POST /my/avatar`：上传自己的头像
+
+## 入职与返聘
+
+首次入职由 HR 主管或人事专员办理：
+
+- 必填：`userName`、`name`、`departmentId`
+- 可空：`email`、`phone`
+- 自动创建系统用户
+- 自动绑定 `R_EMPLOYEE`
+- 员工状态为 `probation`
+
+返聘是独立动作：
+
+- 只允许对 `resigned` 员工执行
+- 必须已绑定系统用户
+- 执行后员工回到 `probation`
+- 系统用户恢复启用
+
+## 离职
+
+离职只能由 HR 主管办理：
+
+- `remark` 必填
+- `probation` 和 `active` 都可以离职
+- 离职后员工状态为 `resigned`
+- 绑定系统用户设置为 `disable`
+- 递增 `token_version`，使现有 access/refresh token 失效
+- 保留用户角色，不清理 `R_EMPLOYEE`
+
+如果离职员工是部门主管，必须先指定接任主管；接任主管必须是同部门 `probation` 或 `active` 员工。
+
+## 部门主管管理
+
+部门主管由 HR 主管在部门管理中任命：
+
+- 新部门不要求立即指定主管
+- 主管必须属于该部门
+- 主管状态必须是 `probation` 或 `active`
+- 任命后自动授予 `R_DEPT_MGR`
+- 移除或替换主管后，如果旧主管不再管理任何部门，自动回收 `R_DEPT_MGR`
+
+HR 主管或人事专员可以调整员工部门。如果被调整员工当前管理部门，必须先指定原部门接任主管。
+
+## 数据范围
+
+- HR 主管、人事专员：`all`，可查看全公司员工
+- 部门主管：`scope`，只看自己部门
+- 普通员工：`self`，只看自己和个人工作台允许的数据
+
+团队列表默认隐藏 `resigned`，但可以显式按状态筛选离职员工。个人“同部门同事”始终只返回 `probation` 和 `active`。
+
+## 演示账号
+
+| 用户 | 部门 | 角色 |
+| --- | --- | --- |
+| `hanmei` | 人事部 | `R_HR_MANAGER + R_DEPT_MGR` |
+| `liuqing` | 人事部 | `R_HR_SPECIALIST` |
+| `zhouhang` / `linyan` / `songyu` / `qinfeng` | 各业务部门 | `R_DEPT_MGR` |
+| 其他员工 | 各业务部门 | `R_EMPLOYEE` |
+
+`hanmei` 同时拥有 HR 主管和部门主管身份，因此既能进入员工/部门/标签管理，也能进入“我的团队”查看人事部团队。

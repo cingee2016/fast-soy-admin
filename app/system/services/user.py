@@ -85,6 +85,30 @@ async def create_system_user(
     return CreateUserResult(user=new_user, raw_password=raw_password)
 
 
+async def grant_user_role_code(redis: Redis, user: User, role_code: str) -> None:
+    """Grant one role to a user and refresh the user's permission cache."""
+    role = await role_controller.get_by_code(role_code)
+    if not role:
+        raise BizError(code=Code.NOT_FOUND, msg=f"角色 {role_code} 不存在")
+
+    await user.fetch_related("by_user_roles")
+    if role_code not in {item.role_code for item in user.by_user_roles}:
+        await user.by_user_roles.add(role)
+        await refresh_user_roles(redis, user.id)
+
+
+async def revoke_user_role_code(redis: Redis, user: User, role_code: str) -> None:
+    """Revoke one role from a user and refresh the user's permission cache."""
+    role = await role_controller.get_by_code(role_code)
+    if not role:
+        return
+
+    await user.fetch_related("by_user_roles")
+    if role_code in {item.role_code for item in user.by_user_roles}:
+        await user.by_user_roles.remove(role)
+        await refresh_user_roles(redis, user.id)
+
+
 # ---- 后台用户管理（api/users.py 调用入口）----
 
 

@@ -1,8 +1,14 @@
 <script setup lang="tsx">
-import { reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { NButton, NPopconfirm, NTag } from 'naive-ui';
 import { statusTypeRecord } from '@/constants/business';
-import { fetchBatchDeleteDepartment, fetchDeleteDepartment, fetchGetDepartmentList } from '@/service/api';
+import {
+  fetchBatchDeleteDepartment,
+  fetchDeleteDepartment,
+  fetchGetDepartmentList,
+  fetchGetEmployeeList,
+  fetchUpdateDepartmentManager
+} from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
 import { useAuth } from '@/hooks/business/auth';
@@ -12,6 +18,7 @@ import DepartmentSearch from './modules/department-search.vue';
 
 const appStore = useAppStore();
 const { hasAuth } = useAuth();
+const employeeOptions = ref<Api.HrManage.Employee[]>([]);
 
 const searchParams: Api.HrManage.DepartmentSearchParams = reactive({
   current: 1,
@@ -33,6 +40,13 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     { key: 'index', title: $t('common.index'), width: 64, align: 'center', render: (_, index) => index + 1 },
     { key: 'name', title: $t('page.hr.department.name'), align: 'center', minWidth: 120 },
     { key: 'code', title: $t('page.hr.department.code'), align: 'center', minWidth: 100 },
+    {
+      key: 'managerId',
+      title: $t('page.hr.department.manager'),
+      align: 'center',
+      minWidth: 100,
+      render: row => employeeOptions.value.find(item => item.id === row.managerId)?.name ?? '-'
+    },
     { key: 'description', title: $t('page.hr.department.description'), minWidth: 180 },
     {
       key: 'status',
@@ -49,9 +63,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       key: 'operate',
       title: $t('common.operate'),
       align: 'center',
-      width: 130,
+      width: 190,
       render: row => (
         <div class="flex-center gap-8px">
+          {hasAuth('B_HR_DEPT_MANAGER') && (
+            <NButton type="info" ghost size="small" onClick={() => openManagerDialog(row)}>
+              {$t('page.hr.department.manager')}
+            </NButton>
+          )}
           {hasAuth('B_HR_DEPT_EDIT') && (
             <NButton type="primary" ghost size="small" onClick={() => edit(row.id)}>
               {$t('common.edit')}
@@ -91,6 +110,41 @@ async function handleDelete(id: string) {
 function edit(id: string) {
   handleEdit(id);
 }
+
+const managerDialogVisible = ref(false);
+const managerTarget = ref<Api.HrManage.Department | null>(null);
+const selectedManagerId = ref<string | null>(null);
+const managerOptions = computed(() => {
+  if (!managerTarget.value) return [];
+  return employeeOptions.value
+    .filter(item => item.departmentId === managerTarget.value?.id && item.status !== 'resigned')
+    .map(item => ({ label: item.name, value: item.id }));
+});
+
+function openManagerDialog(row: Api.HrManage.Department) {
+  managerTarget.value = row;
+  selectedManagerId.value = row.managerId;
+  managerDialogVisible.value = true;
+}
+
+async function handleManagerSubmit() {
+  if (!managerTarget.value) return;
+  const { error } = await fetchUpdateDepartmentManager({
+    id: managerTarget.value.id,
+    managerId: selectedManagerId.value
+  });
+  if (error) return;
+  window.$message?.success($t('common.updateSuccess'));
+  managerDialogVisible.value = false;
+  await Promise.all([getData(), loadEmployeeOptions()]);
+}
+
+async function loadEmployeeOptions() {
+  const { data: employeeData } = await fetchGetEmployeeList({ current: 1, size: 999 });
+  employeeOptions.value = employeeData?.records ?? [];
+}
+
+onMounted(loadEmployeeOptions);
 </script>
 
 <template>
@@ -133,6 +187,23 @@ function edit(id: string) {
         :row-data="editingData"
         @submitted="getDataByPage"
       />
+      <NModal
+        v-model:show="managerDialogVisible"
+        preset="dialog"
+        :title="`${$t('page.hr.department.manager')} - ${managerTarget?.name ?? ''}`"
+        :show-icon="false"
+      >
+        <NSelect
+          v-model:value="selectedManagerId"
+          :options="managerOptions"
+          clearable
+          :placeholder="$t('page.hr.department.form.manager')"
+        />
+        <template #action>
+          <NButton @click="managerDialogVisible = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" @click="handleManagerSubmit">{{ $t('common.confirm') }}</NButton>
+        </template>
+      </NModal>
     </NCard>
   </div>
 </template>

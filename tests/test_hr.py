@@ -202,7 +202,7 @@ class TestEmployeeCRUD:
         assert "employee_no" in data["data"]
 
     async def test_create_employee_no_department(self, auth_client: AsyncClient):
-        """Super admin must specify department."""
+        """Onboarding requires a department."""
         resp = await auth_client.post(
             f"{PREFIX}/employees",
             json={
@@ -212,7 +212,7 @@ class TestEmployeeCRUD:
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["code"] == Code.HR_DEPARTMENT_REQUIRED
+        assert resp.json()["code"] == Code.REQUEST_VALIDATION
 
     async def test_get_employee(self, auth_client: AsyncClient, hr_data):
         emp_id = encode_id(hr_data["employee"].id)
@@ -222,10 +222,9 @@ class TestEmployeeCRUD:
 
     async def test_update_employee(self, auth_client: AsyncClient, hr_data):
         emp_id = encode_id(hr_data["employee"].id)
-        tag_ids = [encode_id(t.id) for t in hr_data["tags"]]
         resp = await auth_client.patch(
             f"{PREFIX}/employees/{emp_id}",
-            json={"position": "Senior Engineer", "tagIds": tag_ids},
+            json={"position": "Senior Engineer"},
         )
         assert resp.status_code == 200
         assert resp.json()["code"] == "0000"
@@ -234,11 +233,59 @@ class TestEmployeeCRUD:
         emp_id = encode_id(hr_data["employee"].id)
         # MAX_TAGS_PER_EMPLOYEE default is 10, send 11 fake ids
         resp = await auth_client.patch(
-            f"{PREFIX}/employees/{emp_id}",
+            f"{PREFIX}/employees/{emp_id}/tags",
             json={"tagIds": [encode_id(i) for i in range(1, 12)]},
         )
         assert resp.status_code == 200
         assert resp.json()["code"] == Code.HR_TAGS_EXCEED_LIMIT
+
+    async def test_employee_lifecycle_regularize_resign_rehire(self, auth_client: AsyncClient, hr_data):
+        from app.business.hr.models import Employee, EmployeeStatus
+        from app.system.models import StatusType, User
+
+        dept_id = encode_id(hr_data["department"].id)
+        create_resp = await auth_client.post(
+            f"{PREFIX}/employees",
+            json={
+                "userName": "13800003333",
+                "name": "Lifecycle Employee",
+                "departmentId": dept_id,
+            },
+        )
+        assert create_resp.status_code == 200
+        payload = create_resp.json()["data"]
+        emp = await Employee.get(id=payload["employee_id"])
+        assert emp.status == EmployeeStatus.probation
+
+        regularize_resp = await auth_client.post(f"{PREFIX}/employees/{encode_id(emp.id)}/regularize", json={})
+        assert regularize_resp.status_code == 200
+        assert regularize_resp.json()["code"] == "0000"
+        emp = await Employee.get(id=emp.id)
+        assert emp.status == EmployeeStatus.active
+
+        resign_resp = await auth_client.post(
+            f"{PREFIX}/employees/{encode_id(emp.id)}/resign",
+            json={"remark": "contract ended"},
+        )
+        assert resign_resp.status_code == 200
+        assert resign_resp.json()["code"] == "0000"
+        emp = await Employee.get(id=emp.id)
+        user = await User.get(id=payload["user_id"])
+        assert emp.status == EmployeeStatus.resigned
+        assert user.status_type == StatusType.disable
+
+        rehire_resp = await auth_client.post(f"{PREFIX}/employees/{encode_id(emp.id)}/rehire", json={})
+        assert rehire_resp.status_code == 200
+        assert rehire_resp.json()["code"] == "0000"
+        emp = await Employee.get(id=emp.id)
+        user = await User.get(id=payload["user_id"])
+        assert emp.status == EmployeeStatus.probation
+        assert user.status_type == StatusType.enable
+
+        logs_resp = await auth_client.get(f"{PREFIX}/employees/{encode_id(emp.id)}/status-logs")
+        assert logs_resp.status_code == 200
+        logs = logs_resp.json()["data"]
+        assert [log["toStatus"] for log in logs][:3] == ["probation", "resigned", "active"]
 
 
 # ===================== Manager Operations =====================

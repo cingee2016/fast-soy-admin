@@ -123,7 +123,7 @@ Then in business code wrap conditionally — or just reuse `Code.HR_INVALID_TRAN
 The state machine only validates "legality"; it doesn't check "who's allowed to transition". **Authorize at the route layer**:
 
 ```python
-@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_TRANSITION")])
+@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_REGULARIZE")])
 async def _(emp_id: SqidPath, body: EmployeeTransition):
     return await transition_employee(emp_id, body.to_state)
 ```

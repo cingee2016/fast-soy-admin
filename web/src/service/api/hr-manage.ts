@@ -32,6 +32,22 @@ export function fetchUpdateEmployee(data?: Api.HrManage.EmployeeUpdateParams) {
   });
 }
 
+export function fetchTransferEmployeeDepartment(empId: string, data: Api.HrManage.EmployeeTransferParams) {
+  return request<null, 'json'>({
+    url: `/business/hr/employees/${empId}/department`,
+    method: 'patch',
+    data
+  });
+}
+
+export function fetchUpdateEmployeeTags(empId: string, tagIds: string[]) {
+  return request<null, 'json'>({
+    url: `/business/hr/employees/${empId}/tags`,
+    method: 'patch',
+    data: { tagIds }
+  });
+}
+
 export function fetchDeleteEmployee(data?: Api.HrManage.CommonDeleteParams) {
   return request<null>({
     url: `/business/hr/employees/${data?.id}`,
@@ -53,6 +69,37 @@ export function fetchTransitionEmployee(empId: string, data: Api.HrManage.Employ
     url: `/business/hr/employees/${empId}/transition`,
     method: 'post',
     data
+  });
+}
+
+export function fetchRegularizeEmployee(empId: string, data?: Api.HrManage.EmployeeActionRemarkParams) {
+  return request<null, 'json'>({
+    url: `/business/hr/employees/${empId}/regularize`,
+    method: 'post',
+    data: data ?? {}
+  });
+}
+
+export function fetchResignEmployee(empId: string, data: Api.HrManage.EmployeeResignParams) {
+  return request<null, 'json'>({
+    url: `/business/hr/employees/${empId}/resign`,
+    method: 'post',
+    data
+  });
+}
+
+export function fetchRehireEmployee(empId: string, data?: Api.HrManage.EmployeeActionRemarkParams) {
+  return request<null, 'json'>({
+    url: `/business/hr/employees/${empId}/rehire`,
+    method: 'post',
+    data: data ?? {}
+  });
+}
+
+export function fetchGetEmployeeStatusLogs(empId: string) {
+  return request<Api.HrManage.EmployeeStatusLog[]>({
+    url: `/business/hr/employees/${empId}/status-logs`,
+    method: 'get'
   });
 }
 
@@ -91,6 +138,14 @@ export function fetchUpdateDepartment(data?: Api.HrManage.DepartmentUpdateParams
     url: `/business/hr/departments/${data?.id}`,
     method: 'patch',
     data
+  });
+}
+
+export function fetchUpdateDepartmentManager(data: Api.HrManage.DepartmentManagerUpdateParams) {
+  return request<null, 'json'>({
+    url: `/business/hr/departments/${data.id}/manager`,
+    method: 'patch',
+    data: { managerId: data.managerId ?? null }
   });
 }
 

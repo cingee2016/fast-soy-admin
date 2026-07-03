@@ -10,11 +10,11 @@ from __future__ import annotations
 import asyncio
 
 from app.business.hr.config import BIZ_SETTINGS
-from app.business.hr.models import Department, Employee, Tag
+from app.business.hr.models import Department, Employee, EmployeeStatus, Tag
 from app.business.hr.seed_data import HR_DEPARTMENT_SEEDS, HR_EMPLOYEE_SEEDS, HR_TAG_SEEDS
 from app.system.services import apply_init_data, ensure_user
 from app.system.services.init_helper import _safe_update_or_create
-from app.utils import DataScopeType
+from app.utils import DataScopeType, StatusType
 
 # 菜单和按钮是 HR 子树的 IaC 源；启用 reconcile 后，Web UI 手工加的同子树节点会被清理。
 HR_MENU_CHILDREN = [
@@ -38,10 +38,8 @@ HR_MENU_CHILDREN = [
         "icon": "mdi:account-supervisor-circle-outline",
         "order": 2,
         "buttons": [
-            {"button_code": "B_HR_TEAM_EMP_CREATE", "button_desc": "[主管] 创建下属"},
-            {"button_code": "B_HR_TEAM_EMP_EDIT", "button_desc": "[主管] 编辑下属"},
             {"button_code": "B_HR_TEAM_TAG_EDIT", "button_desc": "[主管] 编辑下属标签"},
-            {"button_code": "B_HR_TEAM_EMP_TRANSITION", "button_desc": "[主管] 推进下属状态"},
+            {"button_code": "B_HR_TEAM_REGULARIZE", "button_desc": "[主管] 办理下属转正"},
         ],
     },
     {
@@ -55,6 +53,7 @@ HR_MENU_CHILDREN = [
             {"button_code": "B_HR_DEPT_CREATE", "button_desc": "创建部门"},
             {"button_code": "B_HR_DEPT_EDIT", "button_desc": "编辑部门"},
             {"button_code": "B_HR_DEPT_DELETE", "button_desc": "删除部门"},
+            {"button_code": "B_HR_DEPT_MANAGER", "button_desc": "任命部门主管"},
         ],
     },
     {
@@ -65,10 +64,14 @@ HR_MENU_CHILDREN = [
         "icon": "mdi:account",
         "order": 4,
         "buttons": [
-            {"button_code": "B_HR_EMP_CREATE", "button_desc": "创建员工"},
+            {"button_code": "B_HR_EMP_ONBOARD", "button_desc": "办理入职"},
             {"button_code": "B_HR_EMP_EDIT", "button_desc": "编辑员工"},
+            {"button_code": "B_HR_EMP_TRANSFER", "button_desc": "调整员工部门"},
+            {"button_code": "B_HR_EMP_TAG_EDIT", "button_desc": "编辑员工标签"},
+            {"button_code": "B_HR_EMP_REGULARIZE", "button_desc": "办理转正"},
+            {"button_code": "B_HR_EMP_RESIGN", "button_desc": "办理离职"},
+            {"button_code": "B_HR_EMP_REHIRE", "button_desc": "办理返聘"},
             {"button_code": "B_HR_EMP_DELETE", "button_desc": "删除员工"},
-            {"button_code": "B_HR_EMP_TRANSITION", "button_desc": "员工状态流转"},
         ],
     },
     {
@@ -99,24 +102,34 @@ HR_MY_APIS = [
 HR_TEAM_APIS = [
     "hr.team.list",
     "hr.team.stats",
-    "hr.team.create",
-    "hr.team.update",
     "hr.team.tags",
-    "hr.team.transition",
+    "hr.team.regularize",
+    "hr.employees.status_logs",
     "hr.tags.list",
 ]
 
-HR_ADMIN_APIS = [
+HR_DEPARTMENT_READ_APIS = [
     "hr.departments.list",
     "hr.departments.tree",
+]
+
+HR_MANAGER_APIS = [
+    *HR_DEPARTMENT_READ_APIS,
     "hr.departments.create",
     "hr.departments.update",
     "hr.departments.delete",
     "hr.departments.batch_delete",
+    "hr.departments.manager",
     "hr.employees.list",
     "hr.employees.get",
-    "hr.employees.create",
+    "hr.employees.onboard",
     "hr.employees.update",
+    "hr.employees.transfer",
+    "hr.employees.tags",
+    "hr.employees.regularize",
+    "hr.employees.resign",
+    "hr.employees.rehire",
+    "hr.employees.status_logs",
     "hr.employees.delete",
     "hr.employees.batch_delete",
     "hr.employees.transition",
@@ -128,47 +141,74 @@ HR_ADMIN_APIS = [
     "hr.tags.batch_delete",
 ]
 
+HR_SPECIALIST_APIS = [
+    *HR_DEPARTMENT_READ_APIS,
+    "hr.employees.list",
+    "hr.employees.get",
+    "hr.employees.onboard",
+    "hr.employees.update",
+    "hr.employees.transfer",
+    "hr.employees.rehire",
+    "hr.employees.status_logs",
+    "hr.tags.list",
+]
+
 
 HR_ROLE_SEEDS = [
     {
-        "role_name": "HR管理员",
-        "role_code": "R_HR_ADMIN",
-        "role_desc": "HR 总管，掌管部门、员工、标签的全量维护",
+        "role_name": "HR主管",
+        "role_code": "R_HR_MANAGER",
+        "role_desc": "HR 主管，负责组织、员工、标签和状态流转的全量维护",
         "data_scope": DataScopeType.all,
-        "menus": ["home", "hr", "hr_my-workspace", "hr_team", "hr_department", "hr_employee", "hr_tag"],
+        "menus": ["home", "hr", "hr_my-workspace", "hr_department", "hr_employee", "hr_tag"],
         "buttons": [
             "B_HR_MY_TAG_EDIT",
             "B_HR_MY_AVATAR_EDIT",
-            "B_HR_TEAM_EMP_CREATE",
-            "B_HR_TEAM_EMP_EDIT",
-            "B_HR_TEAM_TAG_EDIT",
-            "B_HR_TEAM_EMP_TRANSITION",
             "B_HR_DEPT_CREATE",
             "B_HR_DEPT_EDIT",
             "B_HR_DEPT_DELETE",
-            "B_HR_EMP_CREATE",
+            "B_HR_DEPT_MANAGER",
+            "B_HR_EMP_ONBOARD",
             "B_HR_EMP_EDIT",
+            "B_HR_EMP_TRANSFER",
+            "B_HR_EMP_TAG_EDIT",
+            "B_HR_EMP_REGULARIZE",
+            "B_HR_EMP_RESIGN",
+            "B_HR_EMP_REHIRE",
             "B_HR_EMP_DELETE",
-            "B_HR_EMP_TRANSITION",
             "B_HR_TAG_CREATE",
             "B_HR_TAG_EDIT",
             "B_HR_TAG_DELETE",
         ],
-        "apis": HR_MY_APIS + HR_TEAM_APIS + HR_ADMIN_APIS,
+        "apis": HR_MY_APIS + HR_MANAGER_APIS,
+    },
+    {
+        "role_name": "人事专员",
+        "role_code": "R_HR_SPECIALIST",
+        "role_desc": "人事专员，可办理入职、返聘、基础资料和部门调整",
+        "data_scope": DataScopeType.all,
+        "menus": ["home", "hr", "hr_my-workspace", "hr_employee"],
+        "buttons": [
+            "B_HR_MY_TAG_EDIT",
+            "B_HR_MY_AVATAR_EDIT",
+            "B_HR_EMP_ONBOARD",
+            "B_HR_EMP_EDIT",
+            "B_HR_EMP_TRANSFER",
+            "B_HR_EMP_REHIRE",
+        ],
+        "apis": HR_MY_APIS + HR_SPECIALIST_APIS,
     },
     {
         "role_name": "部门主管",
         "role_code": "R_DEPT_MGR",
-        "role_desc": "部门主管，可管理本部门员工与下属",
+        "role_desc": "部门主管，可查看本部门团队、办理转正并维护员工标签",
         "data_scope": DataScopeType.scope,
         "menus": ["home", "hr", "hr_my-workspace", "hr_team"],
         "buttons": [
             "B_HR_MY_TAG_EDIT",
             "B_HR_MY_AVATAR_EDIT",
-            "B_HR_TEAM_EMP_CREATE",
-            "B_HR_TEAM_EMP_EDIT",
             "B_HR_TEAM_TAG_EDIT",
-            "B_HR_TEAM_EMP_TRANSITION",
+            "B_HR_TEAM_REGULARIZE",
         ],
         "apis": HR_MY_APIS + HR_TEAM_APIS,
     },
@@ -249,6 +289,7 @@ async def _ensure_demo_employee(seed: dict) -> Employee:
     employee_seed = seed["employee"]
     department = await Department.get(code=employee_seed["department_code"])
     employee_no = _employee_no(employee_seed["employee_no_serial"])
+    employee_status = employee_seed.get("status", EmployeeStatus.active.value)
 
     employee, _ = await _safe_update_or_create(
         Employee,
@@ -258,10 +299,14 @@ async def _ensure_demo_employee(seed: dict) -> Employee:
             "email": employee_seed["email"],
             "phone": employee_seed["phone"],
             "position": employee_seed["position"],
+            "status": employee_status,
             "user_id": user.id,
             "department_id": department.id,
         },
     )
+
+    user.status_type = StatusType.disable if employee_status == EmployeeStatus.resigned.value else StatusType.enable
+    await user.save(update_fields=["status_type"])
 
     await employee.tags.clear()
     for tag_name in employee_seed["tag_names"]:

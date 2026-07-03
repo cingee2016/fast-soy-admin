@@ -1,14 +1,17 @@
 <script setup lang="tsx">
 import { onMounted, reactive, ref } from 'vue';
 import { NButton, NPopconfirm, NTag } from 'naive-ui';
-import { employeeNextStatus, employeeStatusRecord, employeeStatusTagType, employeeTransitionLabel } from '@/constants/business';
+import { employeeStatusRecord, employeeStatusTagType } from '@/constants/business';
 import {
   fetchBatchDeleteEmployee,
   fetchDeleteEmployee,
   fetchGetDepartmentList,
   fetchGetEmployeeList,
   fetchGetTagList,
-  fetchTransitionEmployee
+  fetchRegularizeEmployee,
+  fetchRehireEmployee,
+  fetchResignEmployee,
+  fetchUpdateEmployeeTags
 } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { defaultTransform, useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
@@ -16,6 +19,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
 import EmployeeOperateDrawer from './modules/employee-operate-drawer.vue';
 import EmployeeSearch from './modules/employee-search.vue';
+import TeamTagDialog from '../team/modules/team-tag-dialog.vue';
 
 const appStore = useAppStore();
 const { hasAuth } = useAuth();
@@ -63,44 +67,62 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       key: 'operate',
       title: $t('common.operate'),
       align: 'center',
-      width: 220,
-      render: row => {
-        const next = employeeNextStatus[row.status];
-        const label = next ? employeeTransitionLabel[row.status] : null;
-        return (
-          <div class="flex-center gap-8px">
-            {next && label && hasAuth('B_HR_EMP_TRANSITION') && (
-              <NPopconfirm onPositiveClick={() => handleTransition(row.id, next)}>
-                {{
-                  default: () => $t('page.hr.employee.transition.confirm'),
-                  trigger: () => (
-                    <NButton type="info" ghost size="small">
-                      {$t(label)}
-                    </NButton>
-                  )
-                }}
-              </NPopconfirm>
-            )}
-            {hasAuth('B_HR_EMP_EDIT') && (
-              <NButton type="primary" ghost size="small" onClick={() => edit(row.id)}>
-                {$t('common.edit')}
-              </NButton>
-            )}
-            {hasAuth('B_HR_EMP_DELETE') && (
-              <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
-                {{
-                  default: () => $t('common.confirmDelete'),
-                  trigger: () => (
-                    <NButton type="error" ghost size="small">
-                      {$t('common.delete')}
-                    </NButton>
-                  )
-                }}
-              </NPopconfirm>
-            )}
-          </div>
-        );
-      }
+      width: 360,
+      render: row => (
+        <div class="flex-center flex-wrap gap-8px">
+          {row.status === 'probation' && hasAuth('B_HR_EMP_REGULARIZE') && (
+            <NPopconfirm onPositiveClick={() => handleRegularize(row.id)}>
+              {{
+                default: () => $t('page.hr.employee.transition.confirm'),
+                trigger: () => (
+                  <NButton type="info" ghost size="small">
+                    {$t('page.hr.employee.transition.toActive')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+          {row.status !== 'resigned' && hasAuth('B_HR_EMP_RESIGN') && (
+            <NButton type="warning" ghost size="small" onClick={() => handleResign(row.id)}>
+              {$t('page.hr.employee.transition.toResigned')}
+            </NButton>
+          )}
+          {row.status === 'resigned' && hasAuth('B_HR_EMP_REHIRE') && (
+            <NPopconfirm onPositiveClick={() => handleRehire(row.id)}>
+              {{
+                default: () => $t('page.hr.employee.transition.confirm'),
+                trigger: () => (
+                  <NButton type="success" ghost size="small">
+                    {$t('page.hr.employee.transition.toProbation')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+          {hasAuth('B_HR_EMP_TAG_EDIT') && (
+            <NButton type="warning" ghost size="small" onClick={() => openTagDialog(row)}>
+              {$t('page.hr.team.editTags')}
+            </NButton>
+          )}
+          {hasAuth('B_HR_EMP_EDIT') && (
+            <NButton type="primary" ghost size="small" onClick={() => edit(row.id)}>
+              {$t('common.edit')}
+            </NButton>
+          )}
+          {hasAuth('B_HR_EMP_DELETE') && (
+            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+              {{
+                default: () => $t('common.confirmDelete'),
+                trigger: () => (
+                  <NButton type="error" ghost size="small">
+                    {$t('common.delete')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+        </div>
+      )
     }
   ]
 });
@@ -118,8 +140,24 @@ async function handleDelete(id: string) {
   if (!error) onDeleted();
 }
 
-async function handleTransition(id: string, toState: Api.HrManage.EmployeeStatus) {
-  const { error } = await fetchTransitionEmployee(id, { toState });
+async function handleRegularize(id: string) {
+  const { error } = await fetchRegularizeEmployee(id);
+  if (error) return;
+  window.$message?.success($t('page.hr.employee.transition.success'));
+  getData();
+}
+
+async function handleResign(id: string) {
+  const remark = window.prompt($t('page.hr.employee.transition.resignRemark'))?.trim();
+  if (!remark) return;
+  const { error } = await fetchResignEmployee(id, { remark });
+  if (error) return;
+  window.$message?.success($t('page.hr.employee.transition.success'));
+  getData();
+}
+
+async function handleRehire(id: string) {
+  const { error } = await fetchRehireEmployee(id);
   if (error) return;
   window.$message?.success($t('page.hr.employee.transition.success'));
   getData();
@@ -128,6 +166,22 @@ async function handleTransition(id: string, toState: Api.HrManage.EmployeeStatus
 function edit(id: string) {
   handleEdit(id);
 }
+
+const tagDialogVisible = ref(false);
+const tagDialogTarget = ref<Api.HrManage.Employee | null>(null);
+function openTagDialog(row: Api.HrManage.Employee) {
+  tagDialogTarget.value = row;
+  tagDialogVisible.value = true;
+}
+async function handleTagSubmit(tagIds: string[]) {
+  if (!tagDialogTarget.value) return;
+  const { error } = await fetchUpdateEmployeeTags(tagDialogTarget.value.id, tagIds);
+  if (error) return;
+  window.$message?.success($t('common.updateSuccess'));
+  tagDialogVisible.value = false;
+  await getData();
+}
+
 
 // Load departments & tags for search filter and edit form
 const departmentOptions = ref<{ label: string; value: string }[]>([]);
@@ -152,7 +206,7 @@ onMounted(async () => {
     <NCard :title="$t('page.hr.employee.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
         <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData">
-          <NButton v-if="hasAuth('B_HR_EMP_CREATE')" size="small" ghost type="primary" @click="handleAdd">
+          <NButton v-if="hasAuth('B_HR_EMP_ONBOARD')" size="small" ghost type="primary" @click="handleAdd">
             <template #icon><icon-ic-round-plus class="text-icon" /></template>
             {{ $t('common.add') }}
           </NButton>
@@ -185,8 +239,13 @@ onMounted(async () => {
         :operate-type="operateType"
         :row-data="editingData"
         :department-options="departmentOptions"
-        :tag-options="tagOptions"
         @submitted="getDataByPage"
+      />
+      <TeamTagDialog
+        v-model:visible="tagDialogVisible"
+        :target="tagDialogTarget"
+        :tag-options="tagOptions"
+        @submitted="handleTagSubmit"
       />
     </NCard>
   </div>

@@ -75,7 +75,7 @@ See full convention in [API conventions](/en/develop/api).
 - ✅ Business role seeds **must** explicitly set `data_scope` (don't rely on the model default `all`)
 - ✅ List endpoints with row-level scope **must** `@override("list")` and apply `build_scope_filter`
 - ❌ Never rely on "frontend hides the button" for security — backend must enforce
-- ❌ Don't hard-compare `role_code == "R_HR_ADMIN"` in business code — use `has_role_code` / `has_button_code`
+- ❌ Don't hard-compare `role_code == "R_HR_MANAGER"` in business code — use `has_role_code` / `has_button_code`
 
 ## 7. Models
 

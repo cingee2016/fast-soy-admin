@@ -9,18 +9,37 @@ from app.business.hr.dependency import DependHrScope
 from app.business.hr.files import save_avatar
 from app.business.hr.schemas import (
     DepartmentCreate,
+    DepartmentManagerUpdate,
     DepartmentSearch,
     DepartmentUpdate,
     EmployeeCreate,
+    EmployeeDepartmentTransfer,
+    EmployeeRegularize,
+    EmployeeRehire,
+    EmployeeResign,
     EmployeeSearch,
     EmployeeTransition,
     EmployeeUpdate,
     TagCreate,
+    TagIds,
     TagSearch,
     TagUpdate,
 )
 from app.business.hr.serializers import employee_record
-from app.business.hr.services import build_employee_list_query, create_employee, list_employees_with_relations, transition_employee, update_employee
+from app.business.hr.services import (
+    appoint_department_manager,
+    build_employee_list_query,
+    create_employee,
+    list_employee_status_logs,
+    list_employees_with_relations,
+    regularize_employee,
+    rehire_employee,
+    resign_employee,
+    transfer_employee_department,
+    transition_employee,
+    update_employee,
+    update_managed_employee_tags,
+)
 from app.utils import (
     CRUDRouter,
     SearchFieldConfig,
@@ -114,17 +133,24 @@ router.include_router(emp_crud.router)
 # ---- 员工创建/更新/状态流转：独立走 service 层，按按钮权限隔离 ----
 
 
+@router.patch(
+    "/departments/{dept_id}/manager",
+    summary="任命部门主管",
+    name="hr.departments.manager",
+    dependencies=[require_buttons("B_HR_DEPT_MANAGER")],
+)
+async def appoint_manager(dept_id: SqidPath, body: DepartmentManagerUpdate, request: Request):
+    return await appoint_department_manager(dept_id, body.manager_id, request.app.state.redis)
+
+
 @router.post(
     "/employees",
-    summary="创建员工",
-    name="hr.employees.create",
-    dependencies=[require_buttons("B_HR_EMP_CREATE")],
+    summary="办理入职",
+    name="hr.employees.onboard",
+    dependencies=[require_buttons("B_HR_EMP_ONBOARD")],
 )
 async def create_emp(emp_in: EmployeeCreate, request: Request):
-    """HR 管理员视角：必须指定 department_id；自动创建系统用户。
-
-    部门主管创建下属请走 ``POST /hr/team/employees``。
-    """
+    """HR 视角办理入职：必须指定 department_id；自动创建系统用户。"""
     return await create_employee(emp_in, request.app.state.redis)
 
 
@@ -138,15 +164,74 @@ async def update_emp(emp_id: SqidPath, emp_in: EmployeeUpdate):
     return await update_employee(emp_id, emp_in)
 
 
+@router.patch(
+    "/employees/{emp_id}/department",
+    summary="调整员工部门",
+    name="hr.employees.transfer",
+    dependencies=[require_buttons("B_HR_EMP_TRANSFER")],
+)
+async def transfer_emp_department(emp_id: SqidPath, body: EmployeeDepartmentTransfer, request: Request):
+    return await transfer_employee_department(emp_id, body, request.app.state.redis)
+
+
+@router.patch(
+    "/employees/{emp_id}/tags",
+    summary="编辑员工标签",
+    name="hr.employees.tags",
+    dependencies=[require_buttons("B_HR_EMP_TAG_EDIT")],
+)
+async def update_emp_tags(emp_id: SqidPath, body: TagIds):
+    return await update_managed_employee_tags(emp_id, body.tag_ids)
+
+
+@router.post(
+    "/employees/{emp_id}/regularize",
+    summary="办理转正",
+    name="hr.employees.regularize",
+    dependencies=[require_buttons("B_HR_EMP_REGULARIZE")],
+)
+async def regularize_emp(emp_id: SqidPath, body: EmployeeRegularize):
+    return await regularize_employee(emp_id, remark=body.remark)
+
+
+@router.post(
+    "/employees/{emp_id}/resign",
+    summary="办理离职",
+    name="hr.employees.resign",
+    dependencies=[require_buttons("B_HR_EMP_RESIGN")],
+)
+async def resign_emp(emp_id: SqidPath, body: EmployeeResign, request: Request):
+    return await resign_employee(emp_id, remark=body.remark, new_manager_employee_id=body.new_manager_employee_id, redis=request.app.state.redis)
+
+
+@router.post(
+    "/employees/{emp_id}/rehire",
+    summary="办理返聘",
+    name="hr.employees.rehire",
+    dependencies=[require_buttons("B_HR_EMP_REHIRE")],
+)
+async def rehire_emp(emp_id: SqidPath, body: EmployeeRehire, request: Request):
+    return await rehire_employee(emp_id, remark=body.remark, redis=request.app.state.redis)
+
+
+@router.get(
+    "/employees/{emp_id}/status-logs",
+    summary="查看员工状态日志",
+    name="hr.employees.status_logs",
+)
+async def get_status_logs(emp_id: SqidPath):
+    return Success(data=await list_employee_status_logs(emp_id))
+
+
 @router.post(
     "/employees/{emp_id}/transition",
     summary="员工状态流转",
     name="hr.employees.transition",
-    dependencies=[require_buttons("B_HR_EMP_TRANSITION")],
+    dependencies=[require_buttons("B_HR_EMP_REGULARIZE", "B_HR_EMP_RESIGN", "B_HR_EMP_REHIRE")],
 )
-async def transition_emp(emp_id: SqidPath, body: EmployeeTransition):
-    """状态流转: pending → onboarding → active → resigned"""
-    return await transition_employee(emp_id, body.to_state)
+async def transition_emp(emp_id: SqidPath, body: EmployeeTransition, request: Request):
+    """兼容状态流转入口；新前端优先调用显式业务动作。"""
+    return await transition_employee(emp_id, body.to_state, remark=body.remark, redis=request.app.state.redis)
 
 
 @router.post(

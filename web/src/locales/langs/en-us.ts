@@ -884,15 +884,15 @@ const local: App.I18n.BaseSchema = {
           status: 'Please select employee status'
         },
         status: {
-          pending: 'Pending',
-          onboarding: 'Onboarding',
+          probation: 'Probation',
           active: 'Active',
           resigned: 'Resigned'
         },
         transition: {
-          toOnboarding: 'Start Onboarding',
           toActive: 'Mark Active',
           toResigned: 'Mark Resigned',
+          toProbation: 'Rehire',
+          resignRemark: 'Please enter resignation remark',
           confirm: 'Confirm employee status change?',
           success: 'Employee status updated'
         },
@@ -903,10 +903,12 @@ const local: App.I18n.BaseSchema = {
         title: 'Department List',
         name: 'Department Name',
         code: 'Department Code',
+        manager: 'Manager',
         description: 'Description',
         form: {
           name: 'Please enter department name',
           code: 'Please enter department code',
+          manager: 'Please select manager',
           description: 'Please enter description'
         },
         addDepartment: 'Add Department',
@@ -938,8 +940,6 @@ const local: App.I18n.BaseSchema = {
         department: 'Department',
         total: 'Headcount',
         statusBreakdown: 'Status Breakdown',
-        addSubordinate: 'Add Subordinate',
-        editSubordinate: 'Edit Subordinate',
         editTags: 'Edit Tags'
       }
     }

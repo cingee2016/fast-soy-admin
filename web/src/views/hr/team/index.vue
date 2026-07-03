@@ -1,25 +1,18 @@
 <script setup lang="tsx">
 import { onMounted, reactive, ref } from 'vue';
 import { NButton, NPopconfirm, NTag } from 'naive-ui';
-import {
-  employeeNextStatus,
-  employeeStatusOptions,
-  employeeStatusRecord,
-  employeeStatusTagType,
-  employeeTransitionLabel
-} from '@/constants/business';
+import { employeeStatusOptions, employeeStatusRecord, employeeStatusTagType } from '@/constants/business';
 import {
   fetchGetTagList,
+  fetchRegularizeTeamEmployee,
   fetchTeamEmployees,
   fetchTeamStats,
-  fetchTransitionTeamEmployee,
   fetchUpdateSubordinateTags
 } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
-import { defaultTransform, useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
+import { defaultTransform, useNaivePaginatedTable } from '@/hooks/common/table';
 import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
-import TeamOperateDrawer from './modules/team-operate-drawer.vue';
 import TeamTagDialog from './modules/team-tag-dialog.vue';
 
 const appStore = useAppStore();
@@ -34,7 +27,7 @@ const searchParams = reactive<Api.HrManage.EmployeeSearchParams>({
   status: null
 });
 
-const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination } = useNaivePaginatedTable({
+const { columns, columnChecks, data, loading, getData, mobilePagination } = useNaivePaginatedTable({
   api: () => fetchTeamEmployees(searchParams),
   transform: response => defaultTransform(response),
   onPaginationParamsChange: params => {
@@ -67,49 +60,34 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       key: 'operate',
       title: $t('common.operate'),
       align: 'center',
-      width: 280,
-      render: row => {
-        const next = employeeNextStatus[row.status];
-        const label = next ? employeeTransitionLabel[row.status] : null;
-        return (
-          <div class="flex-center gap-8px">
-            {next && label && hasAuth('B_HR_TEAM_EMP_TRANSITION') && (
-              <NPopconfirm onPositiveClick={() => handleTransition(row.id, next)}>
-                {{
-                  default: () => $t('page.hr.employee.transition.confirm'),
-                  trigger: () => (
-                    <NButton type="info" ghost size="small">
-                      {$t(label)}
-                    </NButton>
-                  )
-                }}
-              </NPopconfirm>
-            )}
-            {hasAuth('B_HR_TEAM_EMP_EDIT') && (
-              <NButton type="primary" ghost size="small" onClick={() => handleEdit(row.id)}>
-                {$t('common.edit')}
-              </NButton>
-            )}
-            {hasAuth('B_HR_TEAM_TAG_EDIT') && (
-              <NButton type="warning" ghost size="small" onClick={() => openTagDialog(row)}>
-                {$t('page.hr.team.editTags')}
-              </NButton>
-            )}
-          </div>
-        );
-      }
+      width: 180,
+      render: row => (
+        <div class="flex-center gap-8px">
+          {row.status === 'probation' && hasAuth('B_HR_TEAM_REGULARIZE') && (
+            <NPopconfirm onPositiveClick={() => handleRegularize(row.id)}>
+              {{
+                default: () => $t('page.hr.employee.transition.confirm'),
+                trigger: () => (
+                  <NButton type="info" ghost size="small">
+                    {$t('page.hr.employee.transition.toActive')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+          {hasAuth('B_HR_TEAM_TAG_EDIT') && (
+            <NButton type="warning" ghost size="small" onClick={() => openTagDialog(row)}>
+              {$t('page.hr.team.editTags')}
+            </NButton>
+          )}
+        </div>
+      )
     }
   ]
 });
 
-const { drawerVisible, operateType, editingData, handleAdd, handleEdit: openEdit } = useTableOperate(data, 'id', getData);
-
-function handleEdit(id: string) {
-  openEdit(id);
-}
-
-async function handleTransition(id: string, toState: Api.HrManage.EmployeeStatus) {
-  const { error } = await fetchTransitionTeamEmployee(id, { toState });
+async function handleRegularize(id: string) {
+  const { error } = await fetchRegularizeTeamEmployee(id);
   if (error) return;
   window.$message?.success($t('page.hr.employee.transition.success'));
   await Promise.all([getData(), loadStats()]);
@@ -141,10 +119,6 @@ async function loadStats() {
   stats.value = s ?? null;
 }
 
-async function onTeamSubmitted() {
-  await Promise.all([getDataByPage(), loadStats()]);
-}
-
 onMounted(async () => {
   await Promise.all([loadStats(), loadTagOptions()]);
 });
@@ -168,12 +142,7 @@ onMounted(async () => {
 
     <NCard :title="$t('page.hr.team.title')" :bordered="false" size="small" class="card-wrapper sm:flex-1-hidden">
       <template #header-extra>
-        <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData">
-          <NButton v-if="hasAuth('B_HR_TEAM_EMP_CREATE')" size="small" ghost type="primary" @click="handleAdd">
-            <template #icon><icon-ic-round-plus class="text-icon" /></template>
-            {{ $t('page.hr.team.addSubordinate') }}
-          </NButton>
-        </TableHeaderOperation>
+        <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData" />
       </template>
       <NDataTable
         :columns="columns"
@@ -186,13 +155,6 @@ onMounted(async () => {
         :row-key="row => row.id"
         :pagination="mobilePagination"
         class="sm:h-full"
-      />
-      <TeamOperateDrawer
-        v-model:visible="drawerVisible"
-        :operate-type="operateType"
-        :row-data="editingData"
-        :tag-options="tagOptions"
-        @submitted="onTeamSubmitted"
       />
       <TeamTagDialog
         v-model:visible="tagDialogVisible"

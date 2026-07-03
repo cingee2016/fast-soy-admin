@@ -54,8 +54,8 @@ R_<UPPER>                       # Role code
 | Example | Meaning |
 |---|---|
 | `B_HR_EMP_CREATE` | HR / employee / create |
-| `B_HR_EMP_TRANSITION` | HR / employee / state transition |
-| `R_HR_ADMIN` | HR admin |
+| `B_HR_EMP_REGULARIZE` | HR / employee / regularize |
+| `R_HR_MANAGER` | HR admin |
 | `R_DEPT_MGR` | generic department manager |
 | `R_SUPER` | super admin (reserved) |
 
@@ -89,7 +89,7 @@ common.<key>         # global
 
 | Scope | Template | Example |
 |---|---|---|
-| System-level permission | `role:{code}:*` / `user:{uid}:*` | `role:R_HR_ADMIN:apis` |
+| System-level permission | `role:{code}:*` / `user:{uid}:*` | `role:R_HR_MANAGER:apis` |
 | Business module | `<module>_<resource>:<scope>` | `dict_options:tag_category` |
 | Startup coordination | `app:<purpose>` | `app:init_lock` / `app:init_done` |
 

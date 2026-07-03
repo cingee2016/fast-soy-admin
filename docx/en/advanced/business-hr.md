@@ -1,521 +1,144 @@
-# HR Module (first business module)
-
-The first complete business module under `app/business/`, demonstrating **how a business module should be organized** in FastSoyAdmin: manifest autodiscover, route-key permissions, menu / role / button declarations, standard + extended `CRUDRouter` usage, state machine, row-level and object-level data policies, typed events, and frontend button gating.
-
-> Source: `app/business/hr/`, `web/src/views/hr/`
-> Target reader: developers adding new business modules to this repo.
-
-## Module scope
-
-HR manages three resources:
-
-- **Department** (`Department`, tree + soft delete + status)
-- **Tag** (`Tag`, employee skill / interest dictionary; category references the system dictionary `tag_category`)
-- **Employee** (`Employee`, with state machine: `pending → onboarding → active → resigned`)
-
-Four sets of endpoints:
-
-| Audience | Routes | File |
-|---|---|---|
-| Admin (HR director) | `/hr/departments/*`, `/hr/employees/*`, `/hr/tags/*` | `api/manage.py` |
-| Department manager — manage subordinates | `/hr/team/employees/*`, `/hr/team/stats` | `api/team.py` |
-| Self-service for employees | `/hr/my/profile`, `/hr/my/avatar`, `/hr/my/tags`, `/hr/my/department` | `api/my.py` |
-| Public showcase (constant route demo) | `/hr/public/showcase` | `api/public.py` |
-
-## Directory layout (module convention)
-
-```
-app/business/hr/
-├── __init__.py
-├── module.py        # BusinessModule manifest (routers / init / events / policies)
-├── config.py        # BIZ_SETTINGS (per-module Pydantic Settings)
-├── ctx.py           # module ContextVars (e.g. get_current_department_id)
-├── dependency.py    # module FastAPI deps (DependEmployee / DependManager)
-├── models.py        # Tortoise models + state enums
-├── schemas.py       # Pydantic schemas (extend SchemaBase)
-├── controllers.py   # CRUDBase subclasses (single-resource CRUD)
-├── services.py      # multi-model orchestration, cache, FSM
-├── serializers.py   # employee display-record serialization
-├── files.py         # avatar validation and storage
-├── events.py        # typed EventSpec + local subscribers
-├── policies.py      # DataPolicy (list filters + object checks)
-├── seed_data.py     # Demo tag / department / employee seeds
-├── init_data.py     # INIT_DATA + async def init()
-└── api/
-    ├── __init__.py  # compatibility aggregate router
-    ├── manage.py    # admin routes (HR director)
-    ├── team.py      # dept-manager routes (manage subordinates)
-    ├── my.py        # self-service routes
-    └── public.py    # public constant-route demo
-```
-
-`autodiscover` scans `app/business/<name>/` at startup with these rules (see `app/core/autodiscover.py`):
-
-| Rule | Capability |
-|---|---|
-| `models.py` or `models/` | Tortoise models → registered in `TORTOISE_ORM["apps"]` |
-| `module.py` with `module = BusinessModule(...)` | manifest routers, dependency ordering, init, events, policies |
-| `router: APIRouter` in `api/` or `api.py` | legacy compatibility; HR now uses the manifest |
-| `INIT_DATA` / `async def init()` in `init_data.py` | auditable by `init-plan`, then executed at startup |
-
-Business modules import framework capabilities through `app.utils` by default. A few startup helpers explicitly exposed by system services (for example `apply_init_data / ensure_user`) are allowed. Business modules must not import sibling modules directly; cross-module work should use events.
-
-## Data models
-
-### Department
-
-```python
-class Department(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
-    id = fields.IntField(primary_key=True)
-    name = fields.CharField(max_length=100, unique=True)
-    code = fields.CharField(max_length=50, unique=True)
-    description = fields.CharField(max_length=500, null=True)
-    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable)
-    manager_id = fields.IntField(null=True)  # manager employee id (avoids circular FK)
-```
-
-`TreeMixin` provides `parent_id / order / level`; combined with `CRUDRouter(tree_endpoint=True)` it auto-generates `GET /departments/tree`.
-
-### Employee
-
-```python
-class EmployeeStatus(str, Enum):
-    pending = "pending"
-    onboarding = "onboarding"
-    active = "active"
-    resigned = "resigned"
-
-
-class Employee(BaseModel, AuditMixin, SoftDeleteMixin):
-    employee_no = fields.CharField(max_length=20, unique=True)
-    status = fields.CharEnumField(enum_type=EmployeeStatus, default=EmployeeStatus.pending)
-    user: fields.ForeignKeyNullableRelation = fields.ForeignKeyField(
-        "app_system.User", null=True, unique=True, on_delete=fields.SET_NULL
-    )
-    department: fields.ForeignKeyRelation[Department] = fields.ForeignKeyField(
-        "app_system.Department", related_name="employees"
-    )
-    tags: fields.ManyToManyRelation[Tag] = fields.ManyToManyField(
-        "app_system.Tag", related_name="employees"
-    )
-```
+# HR Business Module Example
+
+The HR module demonstrates RBAC, data scopes, a state machine, and system-user integration in a business module. The current design is centered on the employee lifecycle:
 
-> Note `Employee.status` is the **onboarding workflow state**, NOT the generic `enable / disable` dictionary. The frontend has a dedicated `employeeStatusRecord` (in `web/src/constants/business.ts`).
+- Employee states: `probation`, `active`, `resigned`
+- Valid transitions: `probation -> active`, `probation -> resigned`, `active -> resigned`, `resigned -> probation`
+- New onboarding creates a `probation` employee
+- Resignation disables the bound system user and invalidates issued tokens
+- Rehire enables the bound system user again and moves the employee back to `probation`
+
+This example does not include migration guidance for the old enum values. In development, reset the database after changing the model.
+
+## Data Model
+
+Core models live in `app/business/hr/models.py`:
 
-## Permission model (HR's core design)
-
-### Three role tiers
-
-| Role | data_scope | HR buttons | Business positioning |
-|---|---|---|---|
-| `R_SUPER` | all (auto bypass) | all | system super admin |
-| `R_HR_ADMIN` | `all` | all 10 HR buttons | HR director / specialist |
-| `R_DEPT_MGR` | `scope` | `B_HR_EMP_CREATE / EDIT / TRANSITION` | any department manager |
-| `R_USER` | `self` | none | regular employee, uses `/hr/my/*` |
-
-`R_DEPT_MGR` is a **generic department-manager role** — every department's manager uses the same role_code; row-level isolation comes from `data_scope=scope` + `scope_id_field="department_id"`.
-
-### Button granularity (resource × action)
-
-Button code: `B_HR_<RESOURCE>_<ACTION>`:
+- `Department`: department tree; `manager_id` stores the manager employee ID
+- `Employee`: employee profile bound to one system user and one department
+- `Tag`: employee tags
+- `EmployeeStatusLog`: status transition log
 
-| Code | Description | Mounted on |
-|---|---|---|
-| `B_HR_DEPT_CREATE / _EDIT / _DELETE` | Department create / edit / delete | `hr_department` |
-| `B_HR_EMP_CREATE / _EDIT / _DELETE` | Employee create / edit / delete | `hr_employee` |
-| `B_HR_EMP_TRANSITION` | Employee state transition | `hr_employee` |
-| `B_HR_TAG_CREATE / _EDIT / _DELETE` | Tag create / edit / delete | `hr_tag` |
-
-"Read list" doesn't need a button — gated by menu visibility + API authorization. Batch delete reuses the single-delete code.
-
-### Role × button matrix
-
-| Button | SUPER | R_HR_ADMIN | R_DEPT_MGR | R_USER |
-|---|---|---|---|---|
-| `B_HR_DEPT_*` | ✅ | ✅ | ❌ | ❌ |
-| `B_HR_TAG_*` | ✅ | ✅ | ❌ | ❌ |
-| `B_HR_EMP_CREATE` | ✅ | ✅ | ✅ | ❌ |
-| `B_HR_EMP_EDIT` | ✅ | ✅ | ✅ (row-scoped to own dept) | ❌ |
-| `B_HR_EMP_TRANSITION` | ✅ | ✅ | ✅ | ❌ |
-| `B_HR_EMP_DELETE` | ✅ | ✅ | ❌ (workflow-wise `resigned` suffices) | ❌ |
-
-### Backend wiring
-
-Write endpoints declare required buttons via decorator; checked by `require_buttons` at request time:
-
-```python
-# app/business/hr/api/manage.py
-@router.post(
-    "/employees",
-    summary="Create employee",
-    dependencies=[require_buttons("B_HR_EMP_CREATE")],
-)
-async def create_emp(...): ...
-```
-
-`CRUDRouter` provides `action_dependencies` to bulk-attach by route name (`create / update / delete / batch_delete`):
-
-```python
-dept_crud = CRUDRouter(
-    prefix="/departments",
-    controller=department_controller,
-    create_schema=DepartmentCreate,
-    update_schema=DepartmentUpdate,
-    list_schema=DepartmentSearch,
-    soft_delete=True,
-    tree_endpoint=True,
-    action_dependencies={
-        "create":       [require_buttons("B_HR_DEPT_CREATE")],
-        "update":       [require_buttons("B_HR_DEPT_EDIT")],
-        "delete":       [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
-    },
-)
-```
-
-> `action_dependencies` apply to `@override`-replaced routes too — so customizations can't accidentally drop the permission check.
-
-### Frontend wiring
-
-Once button codes are surfaced to the frontend, templates use `hasAuth(...)` to gate visibility. For the actual frontend syntax see [Frontend / Hooks / useTable / Pair with permission buttons](/en/frontend/hooks/use-table#pair-with-permission-buttons); a full example lives in `web/src/views/hr/employee/index.vue`.
-
-## Row-level data scope
-
-### Role field
-
-`Role` has a `data_scope` field; enum in `app/core/data_scope.py`:
-
-- `all` — all data (no filter)
-- `scope` — current business scope; mapped to own department in this HR case
-- `self` — self only
-- `custom` — reserved; currently falls back to `self`
-
-### init_data must declare data_scope explicitly
-
-`ensure_role()` accepts `data_scope: DataScopeType | None`; **omitting** keeps the model default `all` — an implicit "all-visible" that's wrong for dept managers / regular users. **Business roles always declare it explicitly**:
-
-```python
-# app/business/hr/init_data.py
-HR_ROLE_SEEDS = [
-    {
-        "role_code": "R_HR_ADMIN",
-        "data_scope": DataScopeType.all,
-        "apis": ["hr.employees.list", "hr.employees.create", ...],
-        ...
-    },
-    {
-        "role_code": "R_DEPT_MGR",
-        "data_scope": DataScopeType.scope,
-        ...
-    },
-]
-```
-
-Role API grants use route-key strings, not `(method, path)` tuples. `just init-plan --strict` checks that every key resolves to a real backend route.
-
-### API override usage
-
-HR first binds the current user's department into a module-local ContextVar, then the employee-list API override asks the registered `DataPolicy` for the final scope filter:
-
-```python
-# app/business/hr/api/manage.py
-@emp_crud.override("list")
-async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    q = build_employee_list_query(obj_in)
-    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
-    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
-    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-```
-
-Multi-role: most permissive wins. A user holding both `R_HR_ADMIN`(all) and `R_DEPT_MGR`(scope) ends up with `all`.
-
-## State machine: employee state transitions
-
-`app/business/hr/services.py` declares legal transitions via `StateMachine`:
-
-```python
-EMPLOYEE_FSM = StateMachine(
-    transitions={
-        "pending":    ["onboarding"],
-        "onboarding": ["active"],
-        "active":     ["resigned"],
-        "resigned":   [],  # terminal
-    }
-)
-
-
-async def transition_employee(emp_id: int, to_state: str):
-    emp = await employee_controller.get(id=emp_id)
-    await EMPLOYEE_FSM.transition(
-        obj=emp,
-        to_state=to_state,
-        state_field="status",
-        actor_id=get_current_user_id(),
-        log_fn=radar_log,
-    )
-    await emit(HR_EMPLOYEE_STATUS_CHANGED, employee_id=emp_id, ...)
-    return Success(msg="state updated", ...)
-```
-
-The frontend **dynamically** renders the next-action button based on the current state (not a fixed enable/disable toggle):
-
-| Current | Next | Button label |
-|---|---|---|
-| `pending` | `onboarding` | "Start onboarding" |
-| `onboarding` | `active` | "Confirm" |
-| `active` | `resigned` | "Resign" |
-| `resigned` | — | (no button; terminal) |
-
-Mapping table: `web/src/constants/business.ts` (`employeeNextStatus` / `employeeTransitionLabel`).
-
-## Startup init_data overview
-
-`app/business/hr/init_data.py` first reconciles declarative menus, buttons, roles, and route keys through `INIT_DATA`, then seeds demo data from `seed_data.py`:
-
-```python
-async def init():
-    await apply_init_data(INIT_DATA)  # menus / buttons / roles / route-key grants
-    await _init_departments()    # 5 departments
-    await _init_tags()           # 8 tags
-    await _init_demo_employees() # 9 employees + manager back-fill
-```
-
-### Menus & buttons (declarative + reconciliation)
-
-`HR_MENU_CHILDREN` is the single source of truth for menus / buttons and is mounted inside `INIT_DATA`:
-
-```python
-HR_MENU_CHILDREN = [
-    {
-        "menu_name": "Departments", "route_name": "hr_department", "route_path": "/hr/department",
-        "buttons": [
-            {"button_code": "B_HR_DEPT_CREATE", "button_desc": "create"},
-            {"button_code": "B_HR_DEPT_EDIT",   "button_desc": "edit"},
-            {"button_code": "B_HR_DEPT_DELETE", "button_desc": "delete"},
-        ],
-    },
-    {"menu_name": "Employees", ..., "buttons": [...]},
-    {"menu_name": "Tags",      ..., "buttons": [...]},
-]
-
-
-INIT_DATA = {
-    "menus": [
-        {
-            "menu_name": "HR",
-            "route_name": "hr",
-            "route_path": "/hr",
-            "children": HR_MENU_CHILDREN,
-            "reconcile": {"menus": True, "buttons": True},
-        }
-    ],
-    "roles": HR_ROLE_SEEDS,
-}
-```
-
-> Once `INIT_DATA` enables `reconcile` for a menu subtree, **the subtree is treated as IaC** — Web-UI-created menus / buttons under it are reaped on next restart. See [Init data](/en/develop/init-data).
-
-### Demo data
-
-| Resource | Count | Notes |
-|---|---|---|
-| Department | 5 | TECH / MKT / OPS / PERSONNEL / FINANCE |
-| Tag | 8 | Remote, doc-driven, cross-team, ... |
-| Employee + system user | 9 | numbers 9001–9009; each has a login (password `123456`) |
-
-Each of the 5 departments has a manager:
-
-| Code | Department | Manager | Roles |
-|---|---|---|---|
-| TECH | Tech | zhouhang | R_DEPT_MGR |
-| MKT | Marketing | linyan | R_DEPT_MGR |
-| OPS | Operations | songyu | R_DEPT_MGR |
-| PERSONNEL | HR | hanmei | **R_HR_ADMIN + R_DEPT_MGR** |
-| FINANCE | Finance | qinfeng | R_DEPT_MGR |
-
-> hanmei holding both roles is **intentional**: as PERSONNEL's manager she gets `R_DEPT_MGR` ("inherit own department" so `B_HR_EMP_CREATE` defaults to her department); as HR director she gets `R_HR_ADMIN` (all buttons + `data_scope=all`). Most-permissive wins → company-wide visibility + full button set.
-
-### Business seed sync semantics
-
-- `_safe_update_or_create` upserts by unique key — **inserts/updates fields, never deletes**
-- Removing an entry from the seed does **not** clean the DB — write a migration
-- Removing a role from the seed does **not** clean the `Role` row; only menus / buttons can be reaped (via `reconcile_menu_subtree`)
-
-## API design highlights
-
-### 1. Use CRUDRouter to kill boilerplate
-
-Department and tag CRUD are templated — declare with one `CRUDRouter`:
-
-```python
-tag_crud = CRUDRouter(
-    prefix="/tags",
-    controller=tag_controller,
-    create_schema=TagCreate,
-    update_schema=TagUpdate,
-    list_schema=TagSearch,
-    search_fields=SearchFieldConfig(contains_fields=["name"], exact_fields=["category"]),
-    summary_prefix="Tag",
-    route_key_prefix="hr.tags",
-    action_dependencies={
-        "create":       [require_buttons("B_HR_TAG_CREATE")],
-        "update":       [require_buttons("B_HR_TAG_EDIT")],
-        "delete":       [require_buttons("B_HR_TAG_DELETE")],
-        "batch_delete": [require_buttons("B_HR_TAG_DELETE")],
-    },
-)
-```
-
-### 2. `@override` for routes that need custom logic
-
-Employee `list / get` need `select_related / prefetch_related` to avoid N+1 + row-level scope:
-
-```python
-emp_crud = CRUDRouter(
-    prefix="/employees",
-    controller=employee_controller,
-    list_schema=EmployeeSearch,
-    summary_prefix="Employee",
-    soft_delete=True,
-    route_key_prefix="hr.employees",
-    action_dependencies={
-        "delete":       [require_buttons("B_HR_EMP_DELETE")],
-        "batch_delete": [require_buttons("B_HR_EMP_DELETE")],
-    },
-)
-
-
-@emp_crud.override("list")
-async def _list_employees(obj_in: EmployeeSearch, request: Request):
-    q = build_employee_list_query(obj_in)
-    scope_q = await apply_data_policy("hr.employees.read", redis=request.app.state.redis, module="hr")
-    total, records = await list_employees_with_relations(obj_in, search=q & scope_q)
-    return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-
-
-@emp_crud.override("get")
-async def _get_employee(item_id: SqidPath):
-    emp = await employee_controller.get(id=item_id)
-    await emp.fetch_related("department", "tags")
-    record = await emp.to_dict()
-    record["departmentName"] = emp.department.name
-    record["tagIds"]   = [t.id   for t in emp.tags]
-    record["tagNames"] = [t.name for t in emp.tags]
-    return Success(data=record)
-```
-
-> `emp_crud` doesn't pass `create_schema / update_schema`, so `CRUDRouter` doesn't register the default `POST/PATCH /employees` — leaving room for the hand-written ones below.
-
-### 3. Create employee: service handles cross-model orchestration
-
-Creating an employee chains **system user creation + employee + tag association**, so it goes through services:
-
-```python
-@router.post(
-    "/employees",
-    summary="Create employee",
-    dependencies=[require_buttons("B_HR_EMP_CREATE")],
-)
-async def create_emp(emp_in: EmployeeCreate, request: Request):
-    return await create_employee(emp_in, request.app.state.redis)
-```
-
-Employee creation is split by entrypoint:
-
-```python
-# HR admin entrypoint: department must be explicit
-async def create_employee(emp_in: EmployeeCreate, redis):
-    if not emp_in.department_id:
-        return Fail(code=Code.HR_DEPARTMENT_REQUIRED, msg="department required")
-    return await _create_employee_core(emp_in, redis)
-
-
-# Department-manager entrypoint: department is inherited from the manager
-async def create_subordinate_employee(emp_in: EmployeeCreate, mgr: Employee, redis):
-    emp_in.department_id = mgr.department_id
-    return await _create_employee_core(emp_in, redis)
-```
-
-Then in a transaction: create the system user (random password + `must_change_password`), employee, tag associations, and `emit("employee.created", ...)`.
-
-### 4. Cache & invalidation
-
-Standard pattern for **module-local caching**: name keys `<module>_<resource>:<scope>`; on read, miss → query → write with TTL; on data change, invalidate explicitly via `redis.delete(...)`. The live in-repo reference is the dictionary-options cache ([`app/system/api/dictionary.py`](../../app/system/api/dictionary.py.md), keys like `dict_options:<type>`).
-
-### 5. Public endpoint (constant route example)
-
-`api/public.py` exposes endpoints that **bypass auth entirely**, used by the frontend's constant route (`/showcase`) — accessible without login, returning only aggregated stats with no sensitive fields. Live demo: <https://fast-soy-admin.sleep0.de/showcase>.
-
-```python
-# app/business/hr/api/public.py
-router = APIRouter(prefix="/public", tags=["HR Public Showcase"])
-
-@router.get("/showcase", summary="[Public] HR data overview")
-async def showcase_overview():
-    return Success(data={
-        "totals": {"department": ..., "employee": ..., "tag": ...},
-        "employeeStatus": {...},
-        "departments": [{"name": ..., "code": ..., "employeeCount": ...}],
-    })
-```
-
-Frontend counterparts:
-
-- View: [web/src/views/showcase/index.vue](../../web/src/views/showcase/index.vue.md)
-- API call: `fetchGetHrShowcase()` ([web/src/service/api/hr-manage.ts](../../web/src/service/api/hr-manage.ts.md))
-- Route config: `web/src/router/elegant/routes.ts` with `name: 'showcase'` + `meta.constant: true` + `component: 'layout.blank$view.showcase'`
-- Constant route whitelist: `'showcase'` is added to `constantRoutes` in `web/build/plugins/router.ts`
-
-#### Backend must also seed a `Menu` row (important)
-
-By default `VITE_AUTH_ROUTE_MODE=dynamic`. The frontend calls `GET /api/v1/route/constant-routes` at startup and pulls constant routes from Redis; the data source is `Menu.filter(constant=True, hide_in_menu=True)` (see [load_constant_routes](../../app/core/cache.py.md)). Declaring `meta.constant: true` only on the frontend isn't enough — without a `Menu` row, the backend returns empty, the frontend can't mount the route, and the page 404s.
-
-So `INIT_DATA["menus"]` must include:
-
-```python
-# app/business/hr/init_data.py
-INIT_DATA = {
-    "menus": [
-        {
-            "menu_name": "HR Showcase",
-            "route_name": "showcase",
-            "route_path": "/showcase",
-            "component": "layout.blank$view.showcase",
-            "menu_type": "1",
-            "constant": True,
-            "hide_in_menu": True,
-            "order": 100,
-        },
-        # ...other menus
-    ],
-}
-```
-
-Startup pipeline: `init()` → write the `Menu` row → `refresh_all_cache()` → `load_constant_routes()` rewrites the Redis `constant_routes` key → frontend picks it up next startup. **Restart the backend after adding a constant route.**
-
-> Under `VITE_AUTH_ROUTE_MODE=static` (frontend ships all route declarations itself) only the frontend-side change is needed; this repo defaults to dynamic, don't skip the backend step.
-
-## Use HR as a template for new modules
-
-To create a new business module (e.g. `crm`), copy HR's structure:
-
-```bash
-cp -r app/business/hr app/business/crm
-# Update: model table prefix, menu route_name, role role_code, button button_code, API prefix
-```
-
-Must-do checklist:
-
-1. **Menus / buttons / roles are single-sourced from `INIT_DATA`** — add / delete / rename via seeds + restart reconciliation
-2. **Each role declares `data_scope` explicitly** — never rely on the default `all`
-3. **Role API grants reference route keys** (for example `hr.employees.list`) — run `just init-plan --strict` before committing
-4. **Write endpoints attach button permissions** (`require_buttons` or `action_dependencies`) — never rely on hidden buttons for security
-5. **Frontend buttons all use `hasAuth(...)`** — 1:1 with backend button codes
-6. **Watch `ensure_role` warnings** when removing button codes / route keys — `missing buttons / missing route keys` warnings indicate seeds are out of sync with code
-
-## Related
-
-- [Init data](/en/develop/init-data) — `ensure_menu / ensure_role / reconcile_menu_subtree` semantics
-- [Auth](/en/develop/auth) — JWT, dependencies, button permissions
-- [CRUDBase](/en/develop/crud) — `CRUDBase / build_search / SearchFieldConfig`
-- [API conventions](/en/develop/api) — paths / methods / response format
+`Employee.status` is the HR lifecycle state. It is not the generic `StatusType.enable / disable`. Employees in `probation` or `active` should have enabled system users; resignation sets the bound system user to disabled.
+
+## Roles
+
+| Role | Data scope | Menus | Responsibility |
+| --- | --- | --- | --- |
+| `R_HR_MANAGER` | `all` | My Workspace, Departments, Employees, Tags | HR manager with full department, manager, employee status, and tag capabilities |
+| `R_HR_SPECIALIST` | `all` | My Workspace, Employees | HR specialist for onboarding, rehire, basic profile editing, and department transfer |
+| `R_DEPT_MGR` | `scope` | My Workspace, My Team | Department manager, limited to their own department |
+| `R_EMPLOYEE` | `self` | My Workspace | Employee self-service |
+
+`R_HR_MANAGER` does not automatically include My Team. If an HR manager also manages a department, grant `R_DEPT_MGR` as well. Demo user `hanmei` intentionally has `R_HR_MANAGER + R_DEPT_MGR`.
+
+## Buttons
+
+| Button | Meaning | Default roles |
+| --- | --- | --- |
+| `B_HR_MY_TAG_EDIT` | Edit own tags | All HR roles and employees |
+| `B_HR_MY_AVATAR_EDIT` | Upload own avatar | All HR roles and employees |
+| `B_HR_TEAM_TAG_EDIT` | Department manager edits team tags | Department manager |
+| `B_HR_TEAM_REGULARIZE` | Department manager regularizes a team member | Department manager |
+| `B_HR_DEPT_CREATE` | Create department | HR manager |
+| `B_HR_DEPT_EDIT` | Edit department | HR manager |
+| `B_HR_DEPT_DELETE` | Delete department | HR manager |
+| `B_HR_DEPT_MANAGER` | Appoint/remove department manager | HR manager |
+| `B_HR_EMP_ONBOARD` | Onboard employee | HR manager, HR specialist |
+| `B_HR_EMP_EDIT` | Edit employee basic fields | HR manager, HR specialist |
+| `B_HR_EMP_TRANSFER` | Transfer employee department | HR manager, HR specialist |
+| `B_HR_EMP_TAG_EDIT` | HR edits any employee tags | HR manager |
+| `B_HR_EMP_REGULARIZE` | HR regularizes employee | HR manager |
+| `B_HR_EMP_RESIGN` | Resign employee | HR manager |
+| `B_HR_EMP_REHIRE` | Rehire employee | HR manager, HR specialist |
+| `B_HR_TAG_CREATE` / `B_HR_TAG_EDIT` / `B_HR_TAG_DELETE` | Tag management | HR manager |
+
+## Main APIs
+
+Management APIs live in `app/business/hr/api/manage.py`:
+
+- `POST /employees`: onboard employee, create a system user, and bind `R_EMPLOYEE`
+- `PATCH /employees/{id}`: edit basic fields
+- `PATCH /employees/{id}/department`: transfer department
+- `PATCH /employees/{id}/tags`: HR edits tags
+- `POST /employees/{id}/regularize`: regularize
+- `POST /employees/{id}/resign`: resign; `remark` is required
+- `POST /employees/{id}/rehire`: rehire
+- `GET /employees/{id}/status-logs`: view transition logs
+- `PATCH /departments/{id}/manager`: appoint or remove department manager
+
+Team APIs live in `app/business/hr/api/team.py`:
+
+- `POST /team/employees/search`: department manager searches their own team; resigned employees are hidden by default
+- `PATCH /team/employees/{id}/tags`: edit a team member's tags
+- `POST /team/employees/{id}/regularize`: regularize a team member; managers cannot regularize themselves
+- `GET /team/stats`: department overview
+
+Personal APIs live in `app/business/hr/api/my.py`:
+
+- `GET /my/profile`: my profile
+- `PATCH /my/profile`: update own phone and email
+- `PATCH /my/tags`: update own tags
+- `GET /my/department`: view same-department `probation` and `active` colleagues
+- `POST /my/avatar`: upload own avatar
+
+## Onboarding And Rehire
+
+Onboarding is handled by HR managers or HR specialists:
+
+- Required: `userName`, `name`, `departmentId`
+- Optional: `email`, `phone`
+- Creates a system user
+- Grants `R_EMPLOYEE`
+- Creates the employee as `probation`
+
+Rehire is a separate action:
+
+- Only allowed from `resigned`
+- Requires an existing bound system user
+- Moves the employee to `probation`
+- Enables the system user
+
+## Resignation
+
+Only HR managers can resign employees:
+
+- `remark` is required
+- Both `probation` and `active` employees can resign
+- Employee status becomes `resigned`
+- Bound system user becomes disabled
+- `token_version` is incremented, invalidating existing access and refresh tokens
+- User roles are retained, including `R_EMPLOYEE`
+
+If the employee manages a department, the request must provide a replacement manager. The replacement must be a `probation` or `active` employee in the same department.
+
+## Department Manager Management
+
+HR managers appoint department managers from Department Management:
+
+- New departments do not require a manager
+- The manager must belong to the department
+- The manager must be `probation` or `active`
+- Appointment grants `R_DEPT_MGR`
+- Removing or replacing a manager revokes `R_DEPT_MGR` from the old manager if they no longer manage any department
+
+HR managers and HR specialists may transfer employees between departments. If the employee currently manages a department, the request must provide a replacement manager for the old department first.
+
+## Data Scope
+
+- HR manager and HR specialist: `all`, can view all employees
+- Department manager: `scope`, limited to own department
+- Employee: `self`, limited to personal workspace data
+
+Team lists hide `resigned` by default, but can explicitly filter by that status. My Department always returns only `probation` and `active` colleagues.
+
+## Demo Accounts
+
+| User | Department | Roles |
+| --- | --- | --- |
+| `hanmei` | HR | `R_HR_MANAGER + R_DEPT_MGR` |
+| `liuqing` | HR | `R_HR_SPECIALIST` |
+| `zhouhang` / `linyan` / `songyu` / `qinfeng` | Business departments | `R_DEPT_MGR` |
+| Other employees | Business departments | `R_EMPLOYEE` |
+
+`hanmei` has both identities, so she can access employee, department, and tag management as HR manager, and My Team for the HR department as department manager.

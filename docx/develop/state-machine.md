@@ -132,7 +132,7 @@ class _OrderTransitionError(BizError):
 状态机只校验"合法性"，不做"谁有权这么做"。**鉴权放在路由层**：
 
 ```python
-@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_TRANSITION")])
+@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_REGULARIZE")])
 async def _(emp_id: SqidPath, body: EmployeeTransition):
     return await transition_employee(emp_id, body.to_state)
 ```

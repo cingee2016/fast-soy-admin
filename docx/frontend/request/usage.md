@@ -20,7 +20,7 @@ declare namespace Api {
   namespace HR {
     interface EmployeeSearch extends Common.PaginatingCommonParams {
       name?: string;
-      status?: 'pending' | 'onboarding' | 'active' | 'resigned';
+      status?: 'probation' | 'active' | 'resigned';
     }
 
     interface Employee {

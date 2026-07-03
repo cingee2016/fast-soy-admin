@@ -38,7 +38,7 @@ Table: `roles`
 |---|---|---|
 | `id` | int PK | — |
 | `role_name` | str(20) unique | role name |
-| `role_code` | str(20) unique | role code (e.g. `R_HR_ADMIN`) |
+| `role_code` | str(20) unique | role code (e.g. `R_HR_MANAGER`) |
 | `role_desc` | str(500) null | description |
 | `data_scope` | enum(`DataScopeType`) default=`all` | row-level scope (see [data scope](/en/develop/data-scope)) |
 | `by_role_home` | FK → Menu | default landing menu |

@@ -5,3 +5,5 @@ from app.system.services.init_helper import ensure_user as ensure_user
 from app.system.services.init_helper import reconcile_menu_subtree as reconcile_menu_subtree
 from app.system.services.user import CreateUserResult as CreateUserResult
 from app.system.services.user import create_system_user as create_system_user
+from app.system.services.user import grant_user_role_code as grant_user_role_code
+from app.system.services.user import revoke_user_role_code as revoke_user_role_code

@@ -813,7 +813,7 @@ function previewSelectOptions(field: FieldConfig): SelectOption[] {
         { label: '启用', value: 'enabled' },
         { label: '停用', value: 'disabled' },
         { label: '在职', value: 'active' },
-        { label: '入职中', value: 'onboarding' }
+        { label: '待转正', value: 'probation' }
       ];
     }
     if (hint.includes('category')) {
