@@ -5,8 +5,12 @@
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin
 cd fast-soy-admin
-docker compose up -d
+docker compose up -d postgres redis
+docker compose run --rm app uv run python -m app.cli initdb
+just up  # == docker compose up -d
 ```
+
+Run `initdb` only once for a fresh database. The final `just up` starts the full stack and lets the app write default users, menus, roles, APIs, and business seed data.
 
 | Service | Port | Purpose |
 |---|---|---|
@@ -17,16 +21,16 @@ docker compose up -d
 ### Logs
 
 ```bash
-docker compose logs -f      # all services
-docker compose logs -f app  # backend only
-just logs                   # justfile entry; supports `just logs app` for service filtering and `just logs app 200` for line count
+just logs          # == docker compose logs -f --tail=100
+just logs app      # == docker compose logs -f --tail=100 app
+just logs app 200  # == docker compose logs -f --tail=200 app
 ```
 
 ### Update
 
 ```bash
 git pull
-docker compose down && docker compose up -d --build  # add --build for code changes (or `just rebuild`)
+just down && just rebuild  # == docker compose down && docker compose up -d --build
 ```
 
 ## Manual deployment

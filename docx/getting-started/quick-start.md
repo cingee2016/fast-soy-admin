@@ -21,8 +21,12 @@ cd fast-soy-admin
 ## 方式一：Docker 部署（推荐）
 
 ```bash
-just up  # == docker compose up -d
+docker compose up -d postgres redis             # 首次先启动依赖服务
+docker compose run --rm app uv run python -m app.cli initdb
+just up                                         # == docker compose up -d
 ```
+
+`initdb` 只需要在全新数据库上执行一次；后续更新如果包含模型变更，按迁移流程执行 `docker compose exec app uv run tortoise migrate`。
 
 访问 `http://localhost:1880`，服务包括：
 
@@ -31,9 +35,9 @@ just up  # == docker compose up -d
 - **Redis** (:6379) — 缓存
 
 ```bash
-just logs      # 实时查看所有服务日志
-just logs app  # 仅后端；可用 `just logs nginx` / `just logs redis` 过滤服务，第二个参数指定行数
-just down      # 停止并移除容器
+just logs      # == docker compose logs -f --tail=100
+just logs app  # == docker compose logs -f --tail=100 app
+just down      # == docker compose down
 ```
 
 ## 方式二：本地开发
