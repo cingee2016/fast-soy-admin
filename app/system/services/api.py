@@ -7,6 +7,8 @@ UI 仅提供只读浏览：列表 / 树 / tags。
 
 from __future__ import annotations
 
+import hashlib
+
 from tortoise.expressions import Q
 
 from app.core.constants import SUPER_ADMIN_ROLE
@@ -57,19 +59,28 @@ async def list_apis_with_scope(obj_in: ApiSearch) -> tuple[int, list[dict], int,
 
 def build_api_tree(apis: list[Api]) -> list[dict]:
     """根据 tags 链构建 API 树形结构。"""
-    parent_map: dict[str, dict] = {"root": {"id": "root", "children": []}}
+    parent_map: dict[str, dict] = {"root": {"key": "api-tag:root", "children": []}}
     for api in apis:
         tags = api.tags
         parent_id = "root"
         for tag in tags:
             node_id = f"{parent_id}>{tag}"
             if node_id not in parent_map:
-                node = {"id": node_id, "summary": tag, "children": []}
+                digest = hashlib.blake2b(node_id.encode(), digest_size=6).digest()
+                node = {
+                    "key": f"api-tag:{encode_id(int.from_bytes(digest, 'big'))}",
+                    "label": tag,
+                    "isParent": True,
+                    "resourceId": None,
+                    "children": [],
+                }
                 parent_map[node_id] = node
                 parent_map[parent_id]["children"].append(node)
             parent_id = node_id
         parent_map[parent_id]["children"].append({
-            "id": encode_id(api.id),
-            "summary": api.summary,
+            "key": f"api:{encode_id(api.id)}",
+            "label": api.summary,
+            "isParent": False,
+            "resourceId": encode_id(api.id),
         })
     return parent_map["root"]["children"]

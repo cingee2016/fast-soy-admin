@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 from app.core.code import Code
 from app.core.sqids import encode_id
-from app.system.models import Api, Button, Menu
+from app.system.models import Api, Button, Menu, MenuType, StatusType
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -213,7 +213,7 @@ class TestRoleMenuAuth:
         assert tree_resp.status_code == 200
         tree_data = tree_resp.json()
         assert tree_data["code"] == "0000"
-        assert any(item["id"] == menu_id for item in tree_data["data"])
+        assert any(item["resourceId"] == menu_id for item in tree_data["data"])
 
         update_resp = await auth_client.patch(
             f"/api/v1/system-manage/roles/{role_id}/menus",
@@ -222,13 +222,85 @@ class TestRoleMenuAuth:
         assert update_resp.status_code == 200
         update_data = update_resp.json()
         assert update_data["code"] == "0000"
-        assert update_data["data"]["byRoleMenuIds"] == [menu_id]
+        assert set(update_data["data"]["byRoleMenuIds"]) == {menu_id, home_menu_id}
 
         get_resp = await auth_client.get(f"/api/v1/system-manage/roles/{role_id}/menus")
         assert get_resp.status_code == 200
         get_data = get_resp.json()
         assert get_data["code"] == "0000"
-        assert get_data["data"]["byRoleMenuIds"] == [menu_id]
+        assert set(get_data["data"]["byRoleMenuIds"]) == {menu_id, home_menu_id}
+
+    async def test_role_menu_ids_return_leaf_sqids(self, auth_client: AsyncClient, home_menu_id: str):
+        create_resp = await auth_client.post(
+            "/api/v1/system-manage/roles",
+            json={
+                "roleName": "叶子菜单权限角色",
+                "roleCode": "R_MENU_LEAF_IDS_TEST",
+                "roleDesc": "叶子菜单权限角色",
+                "byRoleHomeId": home_menu_id,
+            },
+        )
+        role_id = create_resp.json()["data"]["createdId"]
+        parent = await Menu.create(
+            menu_name="叶子权限父菜单",
+            menu_type=MenuType.catalog,
+            route_name="role_menu_leaf_parent",
+            route_path="/role-menu-leaf-parent",
+            component="layout.base",
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        child = await Menu.create(
+            menu_name="叶子权限子菜单",
+            menu_type=MenuType.menu,
+            route_name="role_menu_leaf_child",
+            route_path="/role-menu-leaf-parent/child",
+            component="view.home",
+            parent_id=parent.id,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        child_id = encode_id(child.id)
+
+        update_resp = await auth_client.patch(
+            f"/api/v1/system-manage/roles/{role_id}/menus",
+            json={"byRoleHomeId": home_menu_id, "byRoleMenuIds": [child_id]},
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.json()["code"] == "0000"
+
+        get_resp = await auth_client.get(f"/api/v1/system-manage/roles/{role_id}/menus")
+        assert get_resp.status_code == 200
+        get_data = get_resp.json()
+        assert get_data["code"] == "0000"
+        assert set(get_data["data"]["byRoleMenuIds"]) == {child_id, home_menu_id}
+
+    async def test_role_menu_update_includes_home_menu(self, auth_client: AsyncClient, home_menu_id: str):
+        create_resp = await auth_client.post(
+            "/api/v1/system-manage/roles",
+            json={
+                "roleName": "首页菜单权限角色",
+                "roleCode": "R_MENU_HOME_TEST",
+                "roleDesc": "首页菜单权限角色",
+                "byRoleHomeId": home_menu_id,
+            },
+        )
+        role_id = create_resp.json()["data"]["createdId"]
+
+        update_resp = await auth_client.patch(
+            f"/api/v1/system-manage/roles/{role_id}/menus",
+            json={"byRoleHomeId": home_menu_id, "byRoleMenuIds": []},
+        )
+        assert update_resp.status_code == 200
+        update_data = update_resp.json()
+        assert update_data["code"] == "0000"
+        assert update_data["data"]["byRoleMenuIds"] == [home_menu_id]
+
+        get_resp = await auth_client.get(f"/api/v1/system-manage/roles/{role_id}/menus")
+        assert get_resp.status_code == 200
+        get_data = get_resp.json()
+        assert get_data["code"] == "0000"
+        assert get_data["data"]["byRoleMenuIds"] == [home_menu_id]
 
 
 class TestRoleApiAuth:
@@ -256,7 +328,11 @@ class TestRoleApiAuth:
         assert tree_resp.status_code == 200
         tree_data = tree_resp.json()
         assert tree_data["code"] == "0000"
-        assert any(child["id"] == api_id for node in tree_data["data"] for child in node.get("children", []))
+        parent_node = next(node for node in tree_data["data"] if node["label"] == "角色API权限")
+        assert parent_node["isParent"] is True
+        assert parent_node["resourceId"] is None
+        assert not {"id", "summary"} & parent_node.keys()
+        assert any(child["resourceId"] == api_id and child["isParent"] is False for child in parent_node.get("children", []))
 
         update_resp = await auth_client.patch(
             f"/api/v1/system-manage/roles/{role_id}/apis",

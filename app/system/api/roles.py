@@ -10,7 +10,7 @@ from app.core.router import CRUDRouter, SearchFieldConfig
 from app.core.sqids import encode_id
 from app.core.types import SqidPath
 from app.system.controllers import menu_controller, role_controller
-from app.system.models import Api, Button, Role
+from app.system.models import Api, Button, Menu, Role
 from app.system.schemas.admin import RoleCreate, RoleSearch, RoleUpdate, RoleUpdateAuthrization
 
 # 标准 CRUD 路由：list(POST /search), get, delete, batch_delete, create, update
@@ -29,6 +29,12 @@ crud = CRUDRouter(
     enable_routes={"list", "create", "update", "delete", "batch_delete"},
 )
 router = crud.router
+
+
+def _get_leaf_menu_ids(menu_objs: list[Menu]) -> set[int]:
+    menu_ids = {menu.id for menu in menu_objs}
+    parent_ids = {menu.parent_id for menu in menu_objs if menu.parent_id in menu_ids}
+    return menu_ids - parent_ids
 
 
 # ---- 覆盖 create：需要刷新 Redis 权限缓存 ----
@@ -64,17 +70,28 @@ async def _(role_id: SqidPath):
         menu_objs = await menu_controller.model.filter(constant=False)
     else:
         menu_objs = await role_obj.by_role_menus
-    return Success(data={"byRoleHomeId": encode_id(role_obj.by_role_home.id), "byRoleMenuIds": [encode_id(m.id) for m in menu_objs]})
+    leaf_menu_ids = _get_leaf_menu_ids(list(menu_objs))
+    return Success(
+        data={
+            "byRoleHomeId": encode_id(role_obj.by_role_home.id),
+            "byRoleMenuIds": [encode_id(m.id) for m in menu_objs if m.id in leaf_menu_ids],
+        }
+    )
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
 async def _(role_id: SqidPath, role_in: RoleUpdateAuthrization, request: Request):
     role_obj = await role_controller.get(id=role_id)
+    menu_ids: list[int] = []
     if role_in.by_role_home_id:
+        menu_ids = [int(menu_id) for menu_id in (role_in.by_role_menu_ids or [])]
+        home_menu_id = int(role_in.by_role_home_id)
+        if home_menu_id not in menu_ids:
+            menu_ids.append(home_menu_id)
         async with in_transaction(get_db_conn(Role)):
             role_obj = await role_controller.update(id=role_id, obj_in=dict(by_role_home_id=role_in.by_role_home_id))
-            if role_in.by_role_menu_ids:
-                menu_objs = await menu_controller.get_by_id_list(id_list=role_in.by_role_menu_ids)
+            if menu_ids:
+                menu_objs = await menu_controller.get_by_id_list(id_list=menu_ids)
                 if not menu_objs:
                     return Success(msg="获取角色菜单对象失败", code=2000)
 
@@ -92,7 +109,7 @@ async def _(role_id: SqidPath, role_in: RoleUpdateAuthrization, request: Request
     return Success(
         msg="更新成功",
         data={
-            "byRoleMenuIds": [encode_id(menu_id) for menu_id in role_in.by_role_menu_ids] if role_in.by_role_menu_ids else [],
+            "byRoleMenuIds": [encode_id(menu_id) for menu_id in menu_ids] if role_in.by_role_home_id else [],
             "byRoleHomeId": encode_id(role_in.by_role_home_id) if role_in.by_role_home_id else None,
         },
     )

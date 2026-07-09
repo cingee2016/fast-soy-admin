@@ -285,10 +285,24 @@ declare namespace Api {
     /** menu list */
     type MenuList = Common.PaginatingQueryRecord<Menu>;
 
-    type MenuTree = {
-      id: string | number;
+    type AuthTreeMeta = {
+      hidden?: boolean;
+      invalid?: boolean;
+      reason?: string;
+    };
+
+    type AuthTreeNode = {
+      key: string;
       label: string;
-      pId: string | number;
+      isParent: boolean;
+      resourceId: string | null;
+      disabled?: boolean;
+      meta?: AuthTreeMeta;
+      children?: AuthTreeNode[];
+    };
+
+    type MenuTree = AuthTreeNode & {
+      routeName?: string | null;
       children?: MenuTree[];
     };
 
@@ -297,18 +311,9 @@ declare namespace Api {
       value: string;
     };
 
-    type ButtonTree = {
-      id: string | number;
-      label: string;
-      pId: string | number;
-      children?: ButtonTree[];
-    };
+    type ButtonTree = AuthTreeNode;
 
-    type ApiTree = {
-      id: string | number;
-      summary: string;
-      children?: ApiTree[];
-    };
+    type ApiTree = AuthTreeNode;
 
     /**
      * dictionary status

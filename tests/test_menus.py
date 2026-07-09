@@ -23,6 +23,160 @@ class TestMenuList:
         data = resp.json()
         assert data["code"] == "0000"
 
+        parent = await Menu.create(
+            menu_name="MenuTreeParent",
+            menu_type=MenuType.catalog,
+            route_name="menu_tree_parent",
+            route_path="/menu-tree-parent",
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        child = await Menu.create(
+            menu_name="MenuTreeChild",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_parent_child",
+            route_path="/menu-tree-parent/child",
+            parent_id=parent.id,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+
+        resp = await auth_client.get("/api/v1/system-manage/menus/tree")
+        assert resp.status_code == 200
+        data = resp.json()
+        parent_node = next(item for item in data["data"] if item["label"] == "MenuTreeParent")
+        child_node = next(item for item in parent_node["children"] if item["label"] == "MenuTreeChild")
+        assert parent_node["key"] == f"menu:{encode_id(parent.id)}"
+        assert parent_node["isParent"] is True
+        assert parent_node["resourceId"] is None
+        assert parent_node["routeName"] == "menu_tree_parent"
+        assert parent_node["meta"] == {"hidden": False}
+        assert not {"id", "pId", "component", "routePath", "href", "hideInMenu"} & parent_node.keys()
+        assert child_node["key"] == f"menu:{encode_id(child.id)}"
+        assert child_node["isParent"] is False
+        assert child_node["resourceId"] == encode_id(child.id)
+        assert not {"id", "pId", "component", "routePath", "href", "hideInMenu"} & child_node.keys()
+
+        root_menu = await Menu.create(
+            menu_name="MenuTreeRootMenu",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_root_menu",
+            route_path="/menu-tree-root-menu",
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        empty_catalog = await Menu.create(
+            menu_name="MenuTreeEmptyCatalog",
+            menu_type=MenuType.catalog,
+            route_name="menu_tree_empty_catalog",
+            route_path="/menu-tree-empty-catalog",
+            status_type=StatusType.enable,
+            constant=False,
+        )
+
+        resp = await auth_client.get("/api/v1/system-manage/menus/tree")
+        assert resp.status_code == 200
+        data = resp.json()
+        root_menu_node = next(item for item in data["data"] if item["label"] == "MenuTreeRootMenu")
+        assert root_menu_node["key"] == f"menu:{encode_id(root_menu.id)}"
+        assert root_menu_node["isParent"] is False
+        assert root_menu_node["resourceId"] == encode_id(root_menu.id)
+        assert "children" not in root_menu_node
+        assert not any(item["key"] == f"menu:{encode_id(empty_catalog.id)}" for item in data["data"])
+
+        hidden = await Menu.create(
+            menu_name="MenuTreeHidden",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_hidden",
+            route_path="/menu-tree-hidden",
+            hide_in_menu=True,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+        hidden_id = encode_id(hidden.id)
+
+        default_resp = await auth_client.get("/api/v1/system-manage/menus/tree")
+        assert default_resp.status_code == 200
+        assert not any(item["resourceId"] == hidden_id for item in default_resp.json()["data"])
+
+        hidden_resp = await auth_client.get("/api/v1/system-manage/menus/tree?includeHidden=true")
+        assert hidden_resp.status_code == 200
+        hidden_node = next(item for item in hidden_resp.json()["data"] if item["resourceId"] == hidden_id)
+        assert hidden_node["key"] == f"menu:{hidden_id}"
+        assert hidden_node["isParent"] is False
+        assert hidden_node["meta"] == {"hidden": True}
+
+        active_child = await Menu.create(
+            menu_name="MenuTreeActiveHiddenChild",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_active_hidden_child",
+            route_path="/menu-tree-parent/active-hidden-child",
+            parent_id=0,
+            active_menu_id=parent.id,
+            hide_in_menu=True,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+
+        default_resp = await auth_client.get("/api/v1/system-manage/menus/tree")
+        assert default_resp.status_code == 200
+        parent_node = next(item for item in default_resp.json()["data"] if item["label"] == "MenuTreeParent")
+        assert "MenuTreeActiveHiddenChild" not in [item["label"] for item in parent_node["children"]]
+
+        hidden_resp = await auth_client.get("/api/v1/system-manage/menus/tree?includeHidden=true")
+        assert hidden_resp.status_code == 200
+        parent_node = next(item for item in hidden_resp.json()["data"] if item["label"] == "MenuTreeParent")
+        active_child_node = next(item for item in parent_node["children"] if item["label"] == "MenuTreeActiveHiddenChild")
+        assert parent_node["key"] == f"menu:{encode_id(parent.id)}"
+        assert parent_node["isParent"] is True
+        assert parent_node["resourceId"] is None
+        assert active_child_node["resourceId"] == encode_id(active_child.id)
+        assert active_child_node["isParent"] is False
+        assert active_child_node["meta"] == {"hidden": True}
+
+        path_child = await Menu.create(
+            menu_name="MenuTreePathHiddenChild",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_path_hidden_child",
+            route_path="/menu-tree-parent/path-hidden-child",
+            parent_id=0,
+            hide_in_menu=True,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+
+        hidden_resp = await auth_client.get("/api/v1/system-manage/menus/tree?includeHidden=true")
+        assert hidden_resp.status_code == 200
+        parent_node = next(item for item in hidden_resp.json()["data"] if item["label"] == "MenuTreeParent")
+        path_child_node = next(item for item in parent_node["children"] if item["label"] == "MenuTreePathHiddenChild")
+        assert path_child_node["resourceId"] == encode_id(path_child.id)
+        assert path_child_node["isParent"] is False
+        assert path_child_node["meta"] == {"hidden": True}
+
+        route_name_child = await Menu.create(
+            menu_name="MenuTreeRouteNameHiddenChild",
+            menu_type=MenuType.menu,
+            route_name="menu_tree_root_menu-detail",
+            route_path="/menu-tree-root-menu-detail/:id",
+            parent_id=0,
+            hide_in_menu=True,
+            status_type=StatusType.enable,
+            constant=False,
+        )
+
+        hidden_resp = await auth_client.get("/api/v1/system-manage/menus/tree?includeHidden=true")
+        assert hidden_resp.status_code == 200
+        root_menu_node = next(item for item in hidden_resp.json()["data"] if item["label"] == "MenuTreeRootMenu")
+        route_name_child_node = next(
+            item for item in root_menu_node["children"] if item["label"] == "MenuTreeRouteNameHiddenChild"
+        )
+        assert root_menu_node["key"] == f"menu:{encode_id(root_menu.id)}"
+        assert root_menu_node["isParent"] is True
+        assert root_menu_node["resourceId"] is None
+        assert route_name_child_node["resourceId"] == encode_id(route_name_child.id)
+        assert route_name_child_node["isParent"] is False
+        assert route_name_child_node["meta"] == {"hidden": True}
+
     async def test_get_menu_pages(self, auth_client: AsyncClient):
         resp = await auth_client.get("/api/v1/system-manage/menus/pages")
         assert resp.status_code == 200
@@ -56,7 +210,7 @@ class TestMenuList:
                 children = node.get("children") or []
                 if children:
                     leaves.extend(collect_leaf_nodes(children))
-                elif not str(node["id"]).startswith("parent$"):
+                elif not node["isParent"]:
                     leaves.append(node)
             return leaves
 
@@ -68,13 +222,29 @@ class TestMenuList:
                 children = node.get("children") or []
                 if children:
                     labels.extend(collect_leaf_labels(children))
-                elif not str(node["id"]).startswith("parent$"):
+                elif not node["isParent"]:
                     labels.append(node["label"])
             return labels
 
         assert "测试按钮名" in collect_leaf_labels(data["data"])
         assert "B_TEST_TREE_ACTION" not in collect_leaf_labels(data["data"])
-        assert any(node["id"] == encode_id(button.id) for node in leaf_nodes)
+        assert any(node["resourceId"] == encode_id(button.id) for node in leaf_nodes)
+
+        def find_menu_parent(nodes: list[dict]) -> dict | None:
+            for node in nodes:
+                if node["label"] == "ButtonTreeMenu":
+                    return node
+                found = find_menu_parent(node.get("children") or [])
+                if found:
+                    return found
+            return None
+
+        parent = find_menu_parent(data["data"])
+        assert parent is not None
+        assert parent["key"] == f"menu:{encode_id(menu.id)}"
+        assert parent["isParent"] is True
+        assert parent["resourceId"] is None
+        assert not {"id", "pId"} & parent.keys()
 
 
 class TestMenuCRUD:

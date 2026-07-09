@@ -28,50 +28,23 @@
 A batteries-included full-stack admin template — usable as an internal-tools scaffold and as a reference for modern full-stack development.
 
 - **Backend** — FastAPI · Pydantic v2 · Tortoise ORM · Redis
-- **Frontend** — Vue3 · Vite7 · TypeScript · Naive UI · UnoCSS · Pinia · Alova · Elegant Router
+- **Frontend** — Vue3 · Vite8 · TypeScript · Naive UI · UnoCSS · Pinia · Alova · Elegant Router
 - **Infra** — Docker Compose (Nginx + FastAPI + Redis), multi-worker startup lock, fastapi-guard, built-in Radar dashboard
 - **Code generator** — `cli-init` to scaffold, write `models.py`, `cli-crud` to emit backend + frontend CRUD
 
 ## Highlights
 
-**AI-native**
-
-- **AI-coding friendly** — ships with [CLAUDE.md](CLAUDE.md) and full project docs so agents produce code that matches project conventions out of the box
-- **Generator as the AI workbench** — `cli-crud` collapses "add a table" into one command; the agent only owns `models.py` and override diffs, the rest is emitted by the CLI
-
-**Engineering velocity**
-
-- **End-to-end CLI codegen** — one command turns a Tortoise model into full backend (schemas / controllers / api) + frontend (views / service / typings / i18n) CRUD
-- **CRUDRouter + `@crud.override`** — the factory emits 6 standard routes; only override diffs. "No aggregate roots" boundary is explicit to prevent abstraction bloat
-
-**Extensible architecture**
-
-- **Autodiscovered modules** — drop a package into `app/business/<name>/` and routes, models, and init data register themselves; modules are decoupled, cross-module talk goes via the event bus (`emit` / `on`)
-- **Multi-database friendly** — modules can declare their own `DB_URL` and get a dedicated `conn_<biz>`; transactions always go through `in_transaction(get_db_conn(Model))`
-- **Multi-worker startup coordination** — a Redis leader lock serializes `init_menus → refresh_api_list → init_data → refresh_cache`, so K8s replicas don't double-reconcile
-
-**Security & permissions**
-
-- **Three-tier RBAC + row-level `data_scope`** — menu / API / button checks plus `all / scope / self / custom` data scope; button checks live in services, not just in UI
-- **Menu / role IaC reconciliation** — `ensure_menu` / `reconcile_menu_subtree` / `refresh_api_list` give three explicit semantics so you know which subtrees are code-owned and which are user-editable
-- **Sqid public IDs** — auto-increment IDs never leak; enumeration-safe
-
-**Contracts & typing**
-
-- **Unified responses** — `{code, msg, data}` with HTTP 200 + snake_case ↔ camelCase; `BizError` propagates business failures with unique codes
-- **End-to-end type safety** — basedpyright (standard) on the backend, vue-tsc on the frontend, both gated in CI
-- **Statically checked i18n** — generator output merges via `import.meta.glob`; `App.I18n.GeneratedPages` lets `vue-tsc` validate every `$t` key
-
-**Observability & resilience**
-
-- **Built-in Radar dashboard** — `/manage/radar/*` for real-time request / SQL / exception / permission-deny logs
-- **fastapi-guard** — rate limiting + IP banning; blocks brute-force and scanner traffic automatically
-- **Redis cache + graceful fallback** — role permissions, constant routes and `token_version` are cached; queries fall back to the DB if Redis is down
-- **State machine / event bus** — first-class primitives for workflows like tickets, approvals, orders
-
-**Deployment**
-
-- **One-command Docker** — Nginx + FastAPI + Redis pre-wired; `docker compose up -d` and you're live
+- **AI-coding friendly** — ships with [CLAUDE.md](CLAUDE.md) and project conventions
+- **One-command CRUD** — Tortoise models generate backend, frontend, types, and i18n
+- **Overridable route factory** — `CRUDRouter` for standard APIs, `@crud.override` for custom behavior
+- **Modular business apps** — `app/business/<name>/` autodiscovery with event-bus integration
+- **Multi-database support** — PostgreSQL / SQLite / MySQL / SQL Server / Oracle
+- **RBAC permissions** — menu / API / button checks plus row-level `data_scope`
+- **IaC-style bootstrap** — menus, roles, and APIs can be reconciled on startup
+- **Unified API contract** — `{code, msg, data}`, camelCase, and Sqid public IDs
+- **Full-stack type checks** — basedpyright + vue-tsc + static i18n validation
+- **Ops built in** — Radar dashboard, Redis fallback, rate limiting, and IP banning
+- **Docker-ready** — Nginx + FastAPI + Redis pre-wired
 
 ## Links
 
@@ -87,9 +60,6 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 | Branch | Purpose |
 | --- | --- |
 | `main` | Clean skeleton with no business examples (default) |
-| `example` | Includes the HR example (`app/business/hr/` — employees / departments / tags) |
-
-> Want a clean start now? Delete `app/business/hr/` before launching — autodiscover will skip it.
 
 ## Getting Started
 
@@ -106,14 +76,13 @@ A batteries-included full-stack admin template — usable as an internal-tools s
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just up                                                  # docker compose up -d
-docker compose exec app uv run python -m app.cli initdb  # first-run: create tables + seed
-docker compose restart app
+just docker-db-init  # first start dependencies and initialize the database
+just up              # start the full stack and write default/business seeds
 ```
 
 Open `http://localhost:1880`.
 
-> Migrations do **not** run automatically; the container's SQLite is **not** volume-mounted by default. For production, switch to an external DB or mount a volume for `app_system.sqlite3`. See the [deployment guide](https://sleep1223.github.io/fast-soy-admin-docs/en/ops/deployment).
+> Run `initdb` only once for a fresh database; migrations do **not** run automatically. The final app startup writes default users, menus, roles, APIs, and business seed data. See the [deployment guide](https://sleep1223.github.io/fast-soy-admin-docs/en/ops/deployment).
 
 ### Local development
 
@@ -167,7 +136,6 @@ app/
 ├── core/           # Framework infra (CRUDBase / CRUDRouter / Schema / auth / cache / events / Sqids)
 ├── system/         # System modules (auth / user / role / menu / api / dictionary / radar)
 ├── business/       # Business modules (autodiscovered)
-│   └── hr/         #   Reference module
 ├── cli/            # Code generator
 └── utils/          # Unified re-export surface for business modules
 web/src/

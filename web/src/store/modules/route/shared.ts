@@ -77,15 +77,20 @@ export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
   const menus: App.Global.Menu[] = [];
 
   routes.forEach(route => {
-    if (!route.meta?.hideInMenu) {
-      const menu = getGlobalMenuByBaseRoute(route);
+    const visibleChildren = route.children ? getGlobalMenusByAuthRoutes(route.children) : [];
 
-      if (route.children?.some(child => !child.meta?.hideInMenu)) {
-        menu.children = getGlobalMenusByAuthRoutes(route.children);
-      }
-
-      menus.push(menu);
+    if (route.meta?.hideInMenu) {
+      menus.push(...visibleChildren);
+      return;
     }
+
+    const menu = getGlobalMenuByBaseRoute(route);
+
+    if (visibleChildren.length) {
+      menu.children = visibleChildren;
+    }
+
+    menus.push(menu);
   });
 
   return menus;

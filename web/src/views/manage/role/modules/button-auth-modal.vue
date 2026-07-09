@@ -2,6 +2,12 @@
 import { computed, shallowRef, watch } from 'vue';
 import { fetchGetMenuButtonTree, fetchGetRoleButton, fetchUpdateRoleButton } from '@/service/api';
 import { $t } from '@/locales';
+import {
+  enhanceAuthTreeNodes,
+  getCheckedKeysByResourceIds,
+  getCheckedLeafIds,
+  overrideAuthTreeNodeClickBehavior
+} from './shared';
 
 defineOptions({
   name: 'ButtonAuthModal'
@@ -36,38 +42,21 @@ const tree = shallowRef<Api.SystemManage.ButtonTree[]>([]);
 async function getButtonTree() {
   const { error, data } = await fetchGetMenuButtonTree();
   if (!error) {
-    tree.value = data;
+    return enhanceAuthTreeNodes(data);
   }
+
+  return [];
 }
 
 const byRoleButtonIds = shallowRef<string[]>([]);
 
-function collectButtonIdSet(nodes: Api.SystemManage.ButtonTree[]) {
-  const ids = new Set<string>();
-
-  nodes.forEach(node => {
-    const children = node.children || [];
-    if (children.length) {
-      collectButtonIdSet(children).forEach(id => ids.add(id));
-    } else if (!String(node.id).startsWith('parent$')) {
-      ids.add(String(node.id));
-    }
-  });
-
-  return ids;
-}
-
-function getCheckedButtonIds() {
-  const buttonIdSet = collectButtonIdSet(tree.value);
-
-  return byRoleButtonIds.value.filter(id => buttonIdSet.has(String(id))).map(String);
-}
-
 async function getChecks() {
   const { error, data } = await fetchGetRoleButton({ id: props.roleId });
   if (!error) {
-    byRoleButtonIds.value = data.byRoleButtonIds || [];
+    return data.byRoleButtonIds || [];
   }
+
+  return [];
 }
 
 async function handleSubmit() {
@@ -76,7 +65,7 @@ async function handleSubmit() {
 
   const { error } = await fetchUpdateRoleButton({
     id: props.roleId,
-    byRoleButtonIds: getCheckedButtonIds()
+    byRoleButtonIds: getCheckedLeafIds(byRoleButtonIds.value, tree.value)
   });
   if (error) return;
   window.$message?.success?.($t('common.modifySuccess'));
@@ -85,8 +74,10 @@ async function handleSubmit() {
 }
 
 function init() {
-  getChecks();
-  getButtonTree();
+  Promise.all([getChecks(), getButtonTree()]).then(([resourceIds, buttonTree]) => {
+    tree.value = buttonTree;
+    byRoleButtonIds.value = getCheckedKeysByResourceIds(resourceIds, buttonTree);
+  });
 }
 
 watch(visible, val => {
@@ -101,7 +92,8 @@ watch(visible, val => {
     <NTree
       v-model:checked-keys="byRoleButtonIds"
       :data="tree"
-      key-field="id"
+      key-field="key"
+      :override-default-node-click-behavior="overrideAuthTreeNodeClickBehavior"
       default-expand-all
       block-line
       cascade
