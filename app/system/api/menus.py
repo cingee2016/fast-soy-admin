@@ -44,11 +44,7 @@ def _get_hidden_menu_effective_parent(menu: Menu, menus: list[Menu], menu_ids: s
     route_name_candidates = [
         item
         for item in menus
-        if item.id != menu.id
-        and not item.hide_in_menu
-        and item.id in menu_ids
-        and item.route_name
-        and (route_name.startswith(f"{item.route_name}_") or route_name.startswith(f"{item.route_name}-"))
+        if item.id != menu.id and not item.hide_in_menu and item.id in menu_ids and item.route_name and (route_name.startswith(f"{item.route_name}_") or route_name.startswith(f"{item.route_name}-"))
     ]
     if route_name_candidates:
         return max(route_name_candidates, key=lambda item: len(item.route_name or "")).id
@@ -58,13 +54,7 @@ def _get_hidden_menu_effective_parent(menu: Menu, menus: list[Menu], menu_ids: s
         return menu.parent_id
 
     candidates = [
-        item
-        for item in menus
-        if item.id != menu.id
-        and not item.hide_in_menu
-        and item.id in menu_ids
-        and item.route_path
-        and route_path.startswith(f"{(item.route_path or '').rstrip('/')}/")
+        item for item in menus if item.id != menu.id and not item.hide_in_menu and item.id in menu_ids and item.route_path and route_path.startswith(f"{(item.route_path or '').rstrip('/')}/")
     ]
     if not candidates:
         return menu.parent_id

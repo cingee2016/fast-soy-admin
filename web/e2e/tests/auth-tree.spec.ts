@@ -142,7 +142,8 @@ test.describe('authorization trees', () => {
       await ctx.get(`${API_BASE}/system-manage/menus/tree?includeHidden=true`)
     );
     const home = flatten(menuTree).find(node => node.routeName === 'home');
-    const menuParent = flatten(menuTree).find(node => node.routeName === 'manage_radar') || findParentWithLeaves(menuTree);
+    const menuParent =
+      flatten(menuTree).find(node => node.routeName === 'manage_radar') || findParentWithLeaves(menuTree);
     const menuLeafIds = leafResourceIds(menuParent?.children || []);
 
     expect(typeof home?.resourceId).toBe('string');

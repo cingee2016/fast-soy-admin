@@ -8,8 +8,16 @@ import { translateOptions } from '@/utils/common';
 import { $t } from '@/locales';
 
 const authStore = useAuthStore();
-const { formRef: profileFormRef, validate: validateProfile, restoreValidation: restoreProfileValidation } = useNaiveForm();
-const { formRef: passwordFormRef, validate: validatePassword, restoreValidation: restorePasswordValidation } = useNaiveForm();
+const {
+  formRef: profileFormRef,
+  validate: validateProfile,
+  restoreValidation: restoreProfileValidation
+} = useNaiveForm();
+const {
+  formRef: passwordFormRef,
+  validate: validatePassword,
+  restoreValidation: restorePasswordValidation
+} = useNaiveForm();
 const { formRules, patternRules, createConfirmPwdRule, createRequiredRule } = useFormRules();
 
 const profileModel = reactive<Api.Auth.UpdateProfileParams>({
@@ -120,11 +128,7 @@ syncProfileModel();
           </NDescriptionsItem>
         </NDescriptions>
 
-        <NAlert
-          v-if="authStore.impersonating"
-          type="warning"
-          :title="$t('page.userCenter.profile.impersonating')"
-        />
+        <NAlert v-if="authStore.impersonating" type="warning" :title="$t('page.userCenter.profile.impersonating')" />
 
         <NForm
           ref="profileFormRef"

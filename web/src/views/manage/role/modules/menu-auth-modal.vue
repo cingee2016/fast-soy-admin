@@ -108,10 +108,7 @@ function filterHomeOption(pattern: string, option: SelectOption) {
   const homeOption = option as HomeSelectOption;
   const keyword = pattern.toLowerCase();
 
-  return (
-    homeOption.label.toLowerCase().includes(keyword) ||
-    homeOption.menuPath.toLowerCase().includes(keyword)
-  );
+  return homeOption.label.toLowerCase().includes(keyword) || homeOption.menuPath.toLowerCase().includes(keyword);
 }
 
 const invalidMenus = computed(() => {
