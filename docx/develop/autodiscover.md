@@ -22,7 +22,7 @@
 
 ## 标准目录结构
 
-参考 `app/business/hr/`：
+参考 `app/business/inventory/`：
 
 ```
 app/business/<name>/
@@ -58,7 +58,7 @@ Settings._build_tortoise_orm()
       "conn_billing": "postgres://...",    # 仅当业务模块声明独立 DB
     },
     "apps": {
-      "app_system":  {"models": [..., "app.business.hr.models", ...], "default_connection": "conn_system"},
+      "app_system":  {"models": [..., "app.business.inventory.models", ...], "default_connection": "conn_system"},
       "app_billing": {"models": ["app.business.billing.models"], "default_connection": "conn_billing"},
     },
   }
@@ -146,7 +146,7 @@ async with in_transaction(get_db_conn(Invoice)):  # 自动选 conn_billing
 ## init_data.init() 执行规则
 
 - 仅 leader worker 执行（多 worker 通过 Redis 锁协调）
-- 顺序：按模块名字母排序（`hr` < `inventory` < `notify`）
+- 顺序：按模块名字母排序（`inventory` < `inventory` < `notify`）
 - 单个模块抛异常**不影响**其他模块——异常被捕获并记录到 `app.state.init_errors`
 - 模块内部：`init()` 应当幂等（使用 `ensure_*` 系列）
 - manifest 模块可用 `PermissionSpec(init_data=INIT_DATA)`，让 `just init-plan --strict` 在启动前检查菜单/角色/API route key 漂移
@@ -157,7 +157,7 @@ async with in_transaction(get_db_conn(Invoice)):  # 自动选 conn_billing
 
 `autodiscover` 是把"业务模块"做成插件的关键。配套的强约定：
 
-- 业务模块**不得反向 import** 其他业务模块（`app.business.crm.*` 不能 `from app.business.hr import ...`）
+- 业务模块**不得反向 import** 其他业务模块（`app.business.crm.*` 不能 `from app.business.inventory import ...`）
 - 业务模块的 import 入口走 [`app.utils`](../reference/utils.md)
 - 跨模块联动通过 [事件总线](./events.md)
 
@@ -167,4 +167,4 @@ async with in_transaction(get_db_conn(Invoice)):  # 自动选 conn_billing
 
 - [开发指南](../getting-started/workflow.md) — 用 CLI 创建一个新业务模块
 - [启动初始化与对账](./init-data.md) — `init()` 怎么执行、怎么对账
-- [HR 模块](../advanced/business-hr.md) — 标准业务模块的样例
+- [业务开发](intro.md) — 标准业务模块说明

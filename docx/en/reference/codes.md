@@ -124,18 +124,18 @@ Project-specific codes. The framework doesn't touch them; the frontend doesn't a
 
 > Module convention: business module codes must start at `4000` (do **not** occupy the `2xxx` system range). Append your module's range at the end of `app/core/code.py` (e.g. `41xx`, `42xx`). One unique code per failure scenario — never re-use `2400`.
 
-### 40xx — HR business (sample of module-specific codes)
+### 40xx — Inventory business (sample of module-specific codes)
 
 | Code | Constant | Meaning |
 |---|---|---|
-| `4000` | `HR_DEPARTMENT_REQUIRED` | Super-admin must specify department on employee create |
-| `4001` | `HR_MANAGER_REQUIRED` | Only department managers may create employees |
-| `4002` | `HR_CREATE_FORBIDDEN` | No permission to create employee |
-| `4003` | `HR_TAGS_EXCEED_LIMIT` | Employee tag count over limit |
-| `4004` | `HR_EMPLOYEE_NOT_IN_DEPT` | Employee not in current manager's department |
-| `4005` | `HR_USER_NOT_EMPLOYEE` | Current user is not bound to an employee |
-| `4006` | `HR_MANAGER_ONLY` | Only department managers may perform this |
-| `4007` | `HR_INVALID_TRANSITION` | Disallowed state transition |
+| `4000` | `INVENTORY_WAREHOUSE_REQUIRED` | Super-admin must specify warehouse on product create |
+| `4001` | `INVENTORY_MANAGER_REQUIRED` | Only warehouse managers may create products |
+| `4002` | `INVENTORY_CREATE_FORBIDDEN` | No permission to create product |
+| `4003` | `INVENTORY_TAGS_EXCEED_LIMIT` | Product tag count over limit |
+| `4004` | `INVENTORY_PRODUCT_NOT_IN_WAREHOUSE` | Product not in current manager's warehouse |
+| `4005` | `INVENTORY_PRODUCT_BIND_REQUIRED` | Current user is not bound to an product |
+| `4006` | `INVENTORY_MANAGER_ONLY` | Only warehouse managers may perform this |
+| `4007` | `INVENTORY_INVALID_TRANSITION` | Disallowed state transition |
 
 ## Raising
 
@@ -143,7 +143,7 @@ Project-specific codes. The framework doesn't touch them; the frontend doesn't a
 from app.utils import BizError, Code, Fail
 
 # A: raise (recommended; transparent across layers)
-raise BizError(code=Code.HR_INVALID_TRANSITION, msg="invalid transition")
+raise BizError(code=Code.INVENTORY_INVALID_TRANSITION, msg="invalid transition")
 
 # B: return Fail (api layer only; more direct)
 return Fail(code=Code.OLD_PASSWORD_WRONG, msg="old password wrong")

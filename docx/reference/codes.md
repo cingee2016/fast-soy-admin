@@ -124,18 +124,18 @@
 
 > 业务模块约定：业务码统一从 `4000` 起（不得占用 `2xxx` 系统段），在 `app/core/code.py` 末尾追加本模块的码段（如 `41xx`、`42xx`），**不要**反复使用 `2400`。每个失败场景一个唯一码，便于前端精确弹窗与测试断言。
 
-### 40xx — HR 业务（业务模块码示例）
+### 40xx — Inventory 业务（业务模块码示例）
 
 | 码 | 常量 | 说明 |
 |---|---|---|
-| `4000` | `HR_DEPARTMENT_REQUIRED` | 超级管理员创建员工需指定部门 |
-| `4001` | `HR_MANAGER_REQUIRED` | 仅部门主管可创建员工 |
-| `4002` | `HR_CREATE_FORBIDDEN` | 无权限创建员工 |
-| `4003` | `HR_TAGS_EXCEED_LIMIT` | 员工标签数量超出上限 |
-| `4004` | `HR_EMPLOYEE_NOT_IN_DEPT` | 该员工不在当前主管部门中 |
-| `4005` | `HR_USER_NOT_EMPLOYEE` | 当前用户未关联员工信息 |
-| `4006` | `HR_MANAGER_ONLY` | 仅部门主管可执行此操作 |
-| `4007` | `HR_INVALID_TRANSITION` | 不允许的状态流转 |
+| `4000` | `INVENTORY_WAREHOUSE_REQUIRED` | 超级管理员创建商品需指定仓库 |
+| `4001` | `INVENTORY_MANAGER_REQUIRED` | 仅仓库主管可创建商品 |
+| `4002` | `INVENTORY_CREATE_FORBIDDEN` | 无权限创建商品 |
+| `4003` | `INVENTORY_TAGS_EXCEED_LIMIT` | 商品标签数量超出上限 |
+| `4004` | `INVENTORY_PRODUCT_NOT_IN_WAREHOUSE` | 该商品不在当前主管仓库中 |
+| `4005` | `INVENTORY_PRODUCT_BIND_REQUIRED` | 当前用户未关联商品信息 |
+| `4006` | `INVENTORY_MANAGER_ONLY` | 仅仓库主管可执行此操作 |
+| `4007` | `INVENTORY_INVALID_TRANSITION` | 不允许的状态流转 |
 
 ## 抛出方式
 
@@ -145,7 +145,7 @@
 from app.utils import BizError, Code, Fail
 
 # 方式 A：抛异常（推荐，能在任意层穿透）
-raise BizError(code=Code.HR_INVALID_TRANSITION, msg="不允许从 'resigned' 转换为 'active'")
+raise BizError(code=Code.INVENTORY_INVALID_TRANSITION, msg="不允许从 'resigned' 转换为 'active'")
 
 # 方式 B：返回 Fail（仅在 api 层用，更直白）
 return Fail(code=Code.OLD_PASSWORD_WRONG, msg="原密码错误")

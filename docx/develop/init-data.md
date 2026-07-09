@@ -9,7 +9,7 @@
 1. `init_menus()` — 系统菜单（`app/system/init_data.py`）
 2. `refresh_api_list()` — **全量对账** FastAPI 路由与 `Api` 表
 3. `init_users()` — 系统种子用户
-4. 遍历所有业务模块的 `init_data.init()`（HR、后续新增模块……）
+4. 遍历所有业务模块的 `init_data.init()`（Inventory、后续新增模块……）
 5. `refresh_all_cache()` — 刷新权限/菜单缓存
 
 多 worker 场景下通过 Redis 分布式锁 `app:init_lock` 保证仅一个进程执行 init，其余 worker 等待完成信号；每次启动前 leader 会先删除旧锁，因此每次重启都会真的跑一次 init。
@@ -99,7 +99,7 @@ async def init() -> None:
 [app/system/services/init_helper.py](../../../app/system/services/init_helper.py) 的 `ensure_role` 会对 `menus` / `buttons` / `apis` 做 clear-and-readd。若声明列表里引用的 `route_name` / `button_code` / `(method, path)` 在数据库里找不到对应记录，会发出 warning：
 
 ```
-ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/hr/departments/{dept_id}/old')] (route signature changed?)
+ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/inventory/warehouses/{dept_id}/old')] (route signature changed?)
 ```
 
 这常见于以下情况：
@@ -113,8 +113,8 @@ ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/hr/departmen
 
 `reconcile_menu_subtree` 只处理菜单与按钮，以下几类**仍需手动清库**（SQL 或 Tortoise 迁移）：
 
-1. **角色** — `HR_ROLE_SEEDS` 移除一个角色后，DB 里的 `Role` 行不会被清掉，挂在它身上的用户关系也保持原样
-2. **业务种子数据** — `HR_DEPARTMENT_SEEDS` / `HR_TAG_SEEDS` / `HR_EMPLOYEE_SEEDS` 的移除同理
+1. **角色** — `INVENTORY_ROLE_SEEDS` 移除一个角色后，DB 里的 `Role` 行不会被清掉，挂在它身上的用户关系也保持原样
+2. **业务种子数据** — `INVENTORY_WAREHOUSE_SEEDS` / `INVENTORY_TAG_SEEDS` / `INVENTORY_PRODUCT_SEEDS` 的移除同理
 3. **跨子树的孤儿按钮** — 若某按钮同时被多个子树引用，仅从当前子树移除不会触发 `delete()`
 
 这些场景发生频率低，且删除涉及级联语义（比如删角色要不要删关联用户的 role 挂载？），所以刻意不自动化 —— 走正式的 Tortoise 迁移更安全。
@@ -128,4 +128,4 @@ ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/hr/departmen
 | 删除菜单/按钮 | 启用 `reconcile_menu_subtree`，改 `init_data.py`，重启即生效 |
 | 重命名菜单 `route_name` / 按钮 `button_code` | 启用 `reconcile_menu_subtree`，重启自动删旧建新 |
 | 删除角色或种子业务数据 | 写 Tortoise 迁移 |
-| 修改 API 路由路径 | 同步更新 `init_data.py` 中 `HR_ROLE_SEEDS` 的 `apis` 列表，否则启动会 warning |
+| 修改 API 路由路径 | 同步更新 `init_data.py` 中 `INVENTORY_ROLE_SEEDS` 的 `apis` 列表，否则启动会 warning |

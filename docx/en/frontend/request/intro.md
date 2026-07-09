@@ -9,7 +9,7 @@ web/src/service/
 ├── api/      # per-module fetchXxx functions
 │   ├── auth.ts
 │   ├── system-manage.ts
-│   ├── hr-manage.ts
+│   ├── inventory-manage.ts
 │   └── ...
 └── request/  # generic request layer (interceptors, codes, refresh)
     └── index.ts

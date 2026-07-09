@@ -56,13 +56,13 @@ Source: [src/router/guard/](../../../web/src/router/guard/).
 | `login` | login |
 | `403 / 404 / 500` | error pages |
 | `home` | home (typically requires login — `home` is NOT constant) |
-| `showcase` | HR public data showcase demo (`/showcase`) — calls `GET /api/v1/business/hr/public/showcase` |
+| `showcase` | Inventory public data showcase demo (`/showcase`) — calls `GET /api/v1/business/inventory/public/showcase` |
 
 The backend writes `Menu.constant=True` rows into Redis `constant_routes` via `load_constant_routes`; the frontend fetches once at startup.
 
 ### Adding a new constant route
 
-Using `/showcase` (HR public data showcase) as the example — **both frontend and backend must be updated**, neither can be skipped (live demo: <https://fast-soy-admin.sleep0.de/showcase>):
+Using `/showcase` (Inventory public data showcase) as the example — **both frontend and backend must be updated**, neither can be skipped (live demo: <https://fast-soy-admin.sleep0.de/showcase>):
 
 #### 1. Frontend page + whitelist
 
@@ -84,7 +84,7 @@ With the default `VITE_AUTH_ROUTE_MODE=dynamic`, the frontend calls `GET /api/v1
 ```python
 # app/business/<module>/init_data.py
 await ensure_menu(
-    menu_name="HR Showcase",
+    menu_name="Inventory Showcase",
     route_name="showcase",
     route_path="/showcase",
     component="layout.blank$view.showcase",
@@ -104,7 +104,7 @@ Then **restart the backend**: `init()` → write Menu → `refresh_all_cache()` 
 Only when `VITE_AUTH_ROUTE_MODE=static` does `meta.roles` apply — intersect with the user's current roles.
 
 ```typescript
-meta: { roles: ['R_ADMIN', 'R_HR_ADMIN'] }
+meta: { roles: ['R_ADMIN', 'R_INVENTORY_ADMIN'] }
 ```
 
 In dynamic mode `meta.roles` is ignored (the backend already filtered).

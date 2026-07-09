@@ -35,7 +35,7 @@ from app.core.cache import (
 )
 ```
 
-启动时 `refresh_all_cache(redis)` 一次性把所有数据加载进去。CUD 时**增量**刷新——例如修改某个角色后调 `await load_role_permissions(redis, role_code="R_HR_ADMIN")`，否则用户继续看缓存的旧权限。
+启动时 `refresh_all_cache(redis)` 一次性把所有数据加载进去。CUD 时**增量**刷新——例如修改某个角色后调 `await load_role_permissions(redis, role_code="R_INVENTORY_ADMIN")`，否则用户继续看缓存的旧权限。
 
 ### Redis 故障降级
 
@@ -132,7 +132,7 @@ key 由参数序列化生成，分页 + 过滤组合多时容易把 Redis 撑爆
 
 ```bash
 # 查看角色权限缓存
-redis-cli get "role:R_HR_ADMIN:apis" | jq
+redis-cli get "role:R_INVENTORY_ADMIN:apis" | jq
 
 # 强制失效某用户的会话（让所有旧 token 立即作废）
 redis-cli incr "token_version:123"

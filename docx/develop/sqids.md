@@ -37,13 +37,13 @@ from app.utils import SqidId, SqidPath, SchemaBase
 | `SqidPath` | `int + BeforeValidator(sqid→int)` | FastAPI 路径参数（仅入参） |
 
 ```python
-class DepartmentUpdate(SchemaBase):
+class WarehouseUpdate(SchemaBase):
     parent_id: SqidId | None = None     # body 字段：可选
 
-class EmployeeAssign(SchemaBase):
-    employee_ids: list[SqidId]          # 列表中的每项也走编解码
+class ProductAssign(SchemaBase):
+    product_ids: list[SqidId]          # 列表中的每项也走编解码
 
-@router.get("/departments/{item_id}")
+@router.get("/warehouses/{item_id}")
 async def _(item_id: SqidPath):         # FastAPI 路径参数
     obj = await dept_controller.get(id=item_id)
     return Success(data=await obj.to_dict())
@@ -76,7 +76,7 @@ await dept.to_dict()
 `CRUDBase` 的 `id: int` 参数始终是**真整数**——`SqidPath` 在路由层已经把 sqid 解码完成。所以：
 
 ```python
-@router.get("/departments/{item_id}")
+@router.get("/warehouses/{item_id}")
 async def _(item_id: SqidPath):           # item_id: int
     return Success(data=await dept_controller.get(id=item_id))
 ```

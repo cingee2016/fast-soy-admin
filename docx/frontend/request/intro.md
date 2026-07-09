@@ -9,7 +9,7 @@ web/src/service/
 ├── api/      # 各模块的 fetchXxx 函数
 │   ├── auth.ts
 │   ├── system-manage.ts
-│   ├── hr-manage.ts
+│   ├── inventory-manage.ts
 │   └── ...
 └── request/  # 通用请求层（拦截器、错误码处理、token 刷新）
     └── index.ts

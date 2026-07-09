@@ -7,25 +7,25 @@ API functions live in [src/service/api/](../../../web/src/service/api/), one fil
 ### 1. Backend endpoint
 
 ```python
-# app/business/hr/api/manage.py
-@router.post("/employees/search", summary="search employees")
-async def _(obj_in: EmployeeSearch): ...
+# app/business/inventory/api/manage.py
+@router.post("/products/search", summary="search products")
+async def _(obj_in: ProductSearch): ...
 ```
 
 ### 2. TS types
 
 ```typescript
-// web/src/typings/api/hr-manage.d.ts
+// web/src/typings/api/inventory-manage.d.ts
 declare namespace Api {
-  namespace HR {
-    interface EmployeeSearch extends Common.PaginatingCommonParams {
+  namespace Inventory {
+    interface ProductSearch extends Common.PaginatingCommonParams {
       name?: string;
       status?: 'pending' | 'onboarding' | 'active' | 'resigned';
     }
 
-    interface Employee {
+    interface Product {
       id: string;          // sqid
-      employeeNo: string;
+      productNo: string;
       status: string;
       tenantId: string;
       tenantName: string;
@@ -34,7 +34,7 @@ declare namespace Api {
       createdAt: string;
     }
 
-    type EmployeeListResp = Common.PaginatingQueryRecord<Employee>;
+    type ProductListResp = Common.PaginatingQueryRecord<Product>;
   }
 }
 ```
@@ -42,25 +42,25 @@ declare namespace Api {
 ### 3. API function
 
 ```typescript
-// web/src/service/api/hr-manage.ts
-export function fetchEmployeeList(params: Api.HR.EmployeeSearch) {
-  return request.Post<Api.HR.EmployeeListResp>('/business/hr/employees/search', params);
+// web/src/service/api/inventory-manage.ts
+export function fetchProductList(params: Api.Inventory.ProductSearch) {
+  return request.Post<Api.Inventory.ProductListResp>('/business/inventory/products/search', params);
 }
 
-export function fetchCreateEmployee(body: Api.HR.EmployeeCreate) {
-  return request.Post<Api.Common.CreatedId>('/business/hr/employees', body);
+export function fetchCreateProduct(body: Api.Inventory.ProductCreate) {
+  return request.Post<Api.Common.CreatedId>('/business/inventory/products', body);
 }
 
-export function fetchUpdateEmployee(id: string, body: Api.HR.EmployeeUpdate) {
-  return request.Patch<Api.Common.UpdatedId>(`/business/hr/employees/${id}`, body);
+export function fetchUpdateProduct(id: string, body: Api.Inventory.ProductUpdate) {
+  return request.Patch<Api.Common.UpdatedId>(`/business/inventory/products/${id}`, body);
 }
 
-export function fetchDeleteEmployee(id: string) {
-  return request.Delete<Api.Common.DeletedId>(`/business/hr/employees/${id}`);
+export function fetchDeleteProduct(id: string) {
+  return request.Delete<Api.Common.DeletedId>(`/business/inventory/products/${id}`);
 }
 
-export function fetchBatchDeleteEmployees(ids: string[]) {
-  return request.Delete<Api.Common.BatchDeletedIds>('/business/hr/employees', { ids });
+export function fetchBatchDeleteProducts(ids: string[]) {
+  return request.Delete<Api.Common.BatchDeletedIds>('/business/inventory/products', { ids });
 }
 ```
 
@@ -69,7 +69,7 @@ export function fetchBatchDeleteEmployees(ids: string[]) {
 Direct `await`:
 
 ```typescript
-const { data, error } = await fetchEmployeeList({ current: 1, size: 10 });
+const { data, error } = await fetchProductList({ current: 1, size: 10 });
 if (error) {
   // network error (business failures already handled by onBackendFail)
   return;
@@ -81,7 +81,7 @@ Or with [`useTable`](/en/frontend/hooks/use-table):
 
 ```typescript
 const { data, loading, columns, pagination, getData } = useNaivePaginatedTable({
-  apiFn: fetchEmployeeList,
+  apiFn: fetchProductList,
   apiParams: { current: 1, size: 10, name: '', status: '' },
   columns: () => [...],
 });
@@ -108,7 +108,7 @@ Backend resource IDs are [sqid](/en/develop/sqids) strings (e.g. `Yc7vN3kE`). Fr
 
 ```typescript
 const id: string = '...sqid...';
-fetchUpdateEmployee(id, { name: 'X' });
+fetchUpdateProduct(id, { name: 'X' });
 ```
 
 `Api.Common.CreatedId` / `UpdatedId` / `DeletedId` are all `string`.
@@ -130,7 +130,7 @@ The backend returns `{ code, msg, data }`. `transformBackendResponse` strips the
 ```typescript
 import { abortRequestByMethodName } from '@/service/request';
 // e.g. in onBeforeUnmount
-abortRequestByMethodName('fetchEmployeeList');
+abortRequestByMethodName('fetchProductList');
 ```
 
 ## See also

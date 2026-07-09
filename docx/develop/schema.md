@@ -7,7 +7,7 @@
 ```python
 from app.utils import SchemaBase
 
-class DepartmentCreate(SchemaBase):
+class WarehouseCreate(SchemaBase):
     name: str
     parent_id: int | None = None
 ```
@@ -34,7 +34,7 @@ model_config = ConfigDict(
 ```python
 from app.utils import PageQueryBase
 
-class DepartmentSearch(PageQueryBase):
+class WarehouseSearch(PageQueryBase):
     name: str | None = None
     status: str | None = None
 ```
@@ -127,14 +127,14 @@ async def _(obj_in: UserSearch):
 ```python
 from app.utils import make_optional, SchemaBase
 
-class EmployeeCreate(SchemaBase):
+class ProductCreate(SchemaBase):
     name: str
     email: str
     team_id: int
 
-EmployeeUpdate = make_optional(EmployeeCreate, "EmployeeUpdate")
+ProductUpdate = make_optional(ProductCreate, "ProductUpdate")
 # 等价于:
-# class EmployeeUpdate(SchemaBase):
+# class ProductUpdate(SchemaBase):
 #     name: str | None = None
 #     email: str | None = None
 #     team_id: int | None = None

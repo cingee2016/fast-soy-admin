@@ -9,17 +9,17 @@ from tortoise import fields
 from app.utils import AuditMixin, BaseModel, SoftDeleteMixin, StatusType, TreeMixin
 
 
-class Department(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
-    """Department"""
+class Warehouse(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
+    """Warehouse"""
 
     id = fields.IntField(primary_key=True)
-    name = fields.CharField(max_length=100, unique=True, description="department name")
-    code = fields.CharField(max_length=50, unique=True, description="department code")
+    name = fields.CharField(max_length=100, unique=True, description="warehouse name")
+    code = fields.CharField(max_length=50, unique=True, description="warehouse code")
     status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="status")
 
     class Meta:
-        table = "biz_hr_department"
-        table_description = "Department"
+        table = "biz_inventory_warehouse"
+        table_description = "Warehouse"
 ```
 
 > `# pyright: reportIncompatibleVariableOverride=false` is a known false-positive suppression for Tortoise + Pyright; add it to every model file.
@@ -103,10 +103,10 @@ Behavior:
 await dept_controller.soft_remove(id=1)
 
 # default query excludes deleted
-await Department.filter(name="Engineering")          # deleted_at IS NULL
+await Warehouse.filter(name="Engineering")          # deleted_at IS NULL
 
 # include deleted
-await Department.all_objects.all()
+await Warehouse.all_objects.all()
 ```
 
 ### PostgreSQL: partial unique index
@@ -114,8 +114,8 @@ await Department.all_objects.all()
 `SoftDeleteMixin` paired with `unique=True` is tricky — soft-deleted rows still hold the constraint. In production on PostgreSQL replace plain `UNIQUE` with a partial index:
 
 ```sql
-CREATE UNIQUE INDEX biz_department_code_active_uq
-    ON biz_department(code)
+CREATE UNIQUE INDEX biz_warehouse_code_active_uq
+    ON biz_warehouse(code)
     WHERE deleted_at IS NULL;
 ```
 

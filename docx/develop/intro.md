@@ -54,7 +54,7 @@ app/
 │   ├── security.py       # Argon2 + JWT 工具
 │   └── init_data.py      # 系统菜单/角色/用户/字典种子
 ├── business/             # 业务模块（autodiscover 自动加载）
-│   └── hr/               # 参考实现：员工 / 部门 / 标签
+│   └── <module>/               # 业务模块示例：由 CLI 创建
 ├── cli/                  # 代码生成器（init / gen / gen-web / initdb）
 └── utils/                # 业务开发者的统一导入入口（重新导出 core/system 常用符号）
 ```
@@ -111,4 +111,4 @@ models / schemas
 - [架构](../getting-started/architecture.md) — 中间件栈、生命周期、目录到职责的映射
 - [开发指南](../getting-started/workflow.md) — 用 CLI 从 0 搭一个业务模块
 - [API 约定](./api.md) / [响应码](../reference/codes.md) — 强制约定
-- [HR 模块](../advanced/business-hr.md) — 完整的业务模块参考实现
+- [业务开发](intro.md) — 业务模块开发入口

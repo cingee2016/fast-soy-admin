@@ -2,7 +2,7 @@
 
 接口只被一个人、一秒一次调用时，什么并发控制都不需要；但后台管理系统里有几种操作不满足这个假设：
 
-- 员工状态流转、工单审批、订单状态机——**同一条记录**可能被同时点两下
+- 商品状态流转、工单审批、订单状态机——**同一条记录**可能被同时点两下
 - 库存扣减、额度冻结、计数器——**多条请求**都想写同一行
 - 批量导入、定时对账、一次性初始化——**只想有一个 worker 在跑**
 
@@ -149,16 +149,16 @@ server = Granian(
 ```python
 from tortoise.transactions import in_transaction
 from app.utils import get_db_conn
-from app.business.hr.models import Employee, Tag
+from app.business.inventory.models import Product, Tag
 
-async with in_transaction(get_db_conn(Employee)):
-    emp = await Employee.create(...)
+async with in_transaction(get_db_conn(Product)):
+    emp = await Product.create(...)
     await emp.tags.add(*tags)
 ```
 
 `get_db_conn(Model)` 返回模型所在的连接名，必要（参见 [切换数据库](./database.md#业务模块独立数据库-进阶)）。**如果业务模块注册了独立数据库却忘了传连接名，事务会默默打在主库上导致部分写失败——这是最常见的坑。**
 
-源码：[`app/core/crud.py`](../../../app/core/crud.py)。`CRUDBase.update` 内部已经自带事务，业务层一般只在**跨 controller 的组合写入**时显式用 `in_transaction`，例如 [`app/business/hr/services.py`](../../../app/business/hr/services.py) 里的 `create_employee` 同时写 `User + Employee + Tag` 关联表。
+源码：[`app/core/crud.py`](../../../app/core/crud.py)。`CRUDBase.update` 内部已经自带事务，业务层一般只在**跨 controller 的组合写入**时显式用 `in_transaction`，例如 `create_product` 这类业务服务同时写 `User + Product + Tag` 关联表时。
 
 ### 1.2 嵌套与保存点
 
@@ -166,7 +166,7 @@ Tortoise 的 `in_transaction` 支持嵌套，内层会走 `SAVEPOINT`：
 
 ```python
 async with in_transaction(conn) as outer:
-    await Employee.create(...)
+    await Product.create(...)
     try:
         async with in_transaction(conn) as inner:
             await _send_welcome_mail(...)      # 若失败
@@ -210,8 +210,8 @@ await emit("order.created", order_id=order.id)
 ### 2.1 在模型上加 `version`
 
 ```python
-# app/business/hr/models.py
-class Employee(BaseModel):
+# app/business/inventory/models.py
+class Product(BaseModel):
     status = fields.CharField(max_length=20, default="pending")
     version = fields.IntField(default=0)                  # 乐观锁版本
     ...
@@ -225,13 +225,13 @@ class Employee(BaseModel):
 from app.core.exceptions import BizError
 from app.core.code import Code
 
-async def try_transition(emp: Employee, to_state: str) -> None:
+async def try_transition(emp: Product, to_state: str) -> None:
     # FSM 负责合法性
     if not EMPLOYEE_FSM.allowed(emp.status, to_state):
-        raise TransitionError(code=Code.HR_INVALID_TRANSITION, msg=...)
+        raise TransitionError(code=Code.INVENTORY_INVALID_TRANSITION, msg=...)
 
     # 乐观锁: 同时匹配 id + version 才真正 update
-    affected = await Employee.filter(id=emp.id, version=emp.version).update(
+    affected = await Product.filter(id=emp.id, version=emp.version).update(
         status=to_state,
         version=emp.version + 1,
     )
@@ -500,12 +500,12 @@ async with in_transaction(get_db_conn(Order)):
 大多数"查询聚合后入库"的场景，把 HTTP fan-out 做完再进入事务：
 
 ```python
-async def sync_employees_from_hrp(http: HttpClient, company_id: int):
+async def sync_products_from_hrp(http: HttpClient, company_id: int):
     # 1) 事务外: 并发拉取外部数据
     sem = asyncio.Semaphore(10)
     async def _fetch(page: int):
         async with sem:
-            r = await http.get(f"/hrp/employees", params={"company": company_id, "page": page})
+            r = await http.get(f"/inventory/products", params={"company": company_id, "page": page})
             r.raise_for_status()
             return r.json()["rows"]
 
@@ -513,9 +513,9 @@ async def sync_employees_from_hrp(http: HttpClient, company_id: int):
     rows = [row for batch in batches for row in batch]
 
     # 2) 事务内: 只做 DB 写
-    async with in_transaction(get_db_conn(Employee)):
+    async with in_transaction(get_db_conn(Product)):
         for row in rows:
-            await Employee.update_or_create(
+            await Product.update_or_create(
                 defaults=row,
                 external_id=row["id"],
             )
@@ -554,9 +554,9 @@ async def pay_order(http: HttpClient, order_id: int, amount: int):
 
 ```python
 # ❌ 反面教材: 同一连接上的事务里并发 await 会串
-async with in_transaction(get_db_conn(Employee)):
+async with in_transaction(get_db_conn(Product)):
     await asyncio.gather(
-        Employee.create(...),
+        Product.create(...),
         Profile.create(...),
         Audit.create(...),
     )
@@ -567,12 +567,12 @@ async with in_transaction(get_db_conn(Employee)):
 需要"并行写多张表"的真正手段是**拆到多个独立事务 + 事件总线**：
 
 ```python
-async with in_transaction(get_db_conn(Employee)):
-    emp = await Employee.create(...)
+async with in_transaction(get_db_conn(Product)):
+    emp = await Product.create(...)
 
 # 事务提交后再并发扇出
 await asyncio.gather(
-    emit("employee.created", employee_id=emp.id),     # 订阅方在各自事务里写 Profile / Audit
+    emit("product.created", product_id=emp.id),     # 订阅方在各自事务里写 Profile / Audit
     _push_welcome_mail(http, emp.email),
 )
 ```
@@ -590,19 +590,19 @@ await asyncio.gather(
 
 ## 六、组合使用
 
-真实业务里三把武器常常同时出现。以"批量导入员工"为例：
+真实业务里三把武器常常同时出现。以"批量导入商品"为例：
 
 ```python
-async def import_employees(redis: Redis, file_id: str, rows: list[EmployeeCreate]):
+async def import_products(redis: Redis, file_id: str, rows: list[ProductCreate]):
     # 1) 分布式锁: 同一个文件只允许一个 worker 在跑
     lock = RedisLock(redis, name=f"hr:import:{file_id}", blocking_timeout=0, expire_timeout=300)
     if not await lock.acquire():
         return Fail(msg="该文件正在导入中")
     try:
         # 2) 事务: 批量写入要么全部成功要么整体回滚
-        async with in_transaction(get_db_conn(Employee)):
+        async with in_transaction(get_db_conn(Product)):
             for row in rows:
-                emp = await Employee.create(**row.model_dump())
+                emp = await Product.create(**row.model_dump())
                 # 3) 乐观锁: 对同一个团队的 head_count 做原子 +1
                 await Team.filter(id=row.team_id).update(
                     head_count=F("head_count") + 1,
@@ -626,7 +626,7 @@ async def import_employees(redis: Redis, file_id: str, rows: list[EmployeeCreate
 
 ```python
 async def test_transition_is_single_winner():
-    emp = await Employee.create(status="pending", version=0, ...)
+    emp = await Product.create(status="pending", version=0, ...)
     results = await asyncio.gather(
         try_transition(emp, "onboarding"),
         try_transition(emp, "onboarding"),

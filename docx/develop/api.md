@@ -44,7 +44,7 @@
 
 - **不要**带尾斜杠（`/users` ✅ ，`/users/` ❌）
 - 多词路径用 **kebab-case**（`/batch-offline`、`/constant-routes`、`/user-routes`）
-- 资源名一律 **复数**（`/users`、`/roles`、`/departments`）
+- 资源名一律 **复数**（`/users`、`/roles`、`/warehouses`）
 - "搜索"统一用 `POST /resources/search` 而不是 `GET ?...=...`——支持复杂查询体（数组、嵌套）
 
 ## 字段命名
@@ -59,7 +59,7 @@
 ```python
 from app.utils import PageQueryBase
 
-class DepartmentSearch(PageQueryBase):
+class WarehouseSearch(PageQueryBase):
     name: str | None = None
 ```
 
@@ -92,10 +92,10 @@ class DepartmentSearch(PageQueryBase):
 ```python
 from app.utils import SqidId, SqidPath, SchemaBase
 
-class DepartmentUpdate(SchemaBase):
+class WarehouseUpdate(SchemaBase):
     parent_id: SqidId | None = None        # body 字段
 
-@router.get("/departments/{item_id}")
+@router.get("/warehouses/{item_id}")
 async def get_dept(item_id: SqidPath):     # 路径参数
     ...
 ```
@@ -110,23 +110,23 @@ async def get_dept(item_id: SqidPath):     # 路径参数
 from app.utils import CRUDRouter, SearchFieldConfig, require_buttons
 
 dept_crud = CRUDRouter(
-    prefix="/departments",
-    controller=department_controller,
-    create_schema=DepartmentCreate,
-    update_schema=DepartmentUpdate,
-    list_schema=DepartmentSearch,
+    prefix="/warehouses",
+    controller=warehouse_controller,
+    create_schema=WarehouseCreate,
+    update_schema=WarehouseUpdate,
+    list_schema=WarehouseSearch,
     search_fields=SearchFieldConfig(
         contains_fields=["name", "code"],
         exact_fields=["status"],
     ),
-    summary_prefix="部门",
+    summary_prefix="仓库",
     soft_delete=True,
     tree_endpoint=True,
     action_dependencies={
-        "create": [require_buttons("B_HR_DEPT_CREATE")],
-        "update": [require_buttons("B_HR_DEPT_EDIT")],
-        "delete": [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
+        "create": [require_buttons("B_INVENTORY_WAREHOUSE_CREATE")],
+        "update": [require_buttons("B_INVENTORY_WAREHOUSE_EDIT")],
+        "delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
+        "batch_delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
     },
 )
 router = dept_crud.router
@@ -183,7 +183,7 @@ router = dept_crud.router
 
 ### 业务模块（`/api/v1/business/<name>`）
 
-按模块自治。HR 模块的完整路由见 [HR 模块](../advanced/business-hr.md)。
+按模块自治，业务模块路由由各模块的 `api/` 与初始化数据共同维护。
 
 ## 响应封装
 

@@ -22,7 +22,7 @@
 | `view.manage_user` | `views/manage/user/index.vue` |
 | `view.manage_user-detail` | `views/manage_user-detail/index.vue` |
 | `view.function_multi-tab` | `views/function/multi-tab/index.vue` |
-| `view.hr_employee` | `views/hr/employee/index.vue` |
+| `view.inventory_product` | `views/inventory/product/index.vue` |
 
 `_` 做"目录分隔"，但出现在路径段内的多词（`user-detail` / `multi-tab`）保持 kebab。
 

@@ -23,7 +23,7 @@ Runtime dependencies
 |---|---|---|
 | `app/core/` | 框架基础设施（无业务） | 不依赖 system / business |
 | `app/system/` | 内置系统模块（认证、RBAC、用户、菜单、API、字典） | 仅依赖 `app/core/` |
-| `app/business/<x>/` | 业务模块（HR / CRM / Inventory ...） | 依赖 `app/utils`（间接到 core/system），**不得依赖兄弟业务模块** |
+| `app/business/<x>/` | 业务模块（Inventory / CRM / Inventory ...） | 依赖 `app/utils`（间接到 core/system），**不得依赖兄弟业务模块** |
 | `app/utils/` | 业务开发者的统一对外入口 | 重新导出 `app/core/*` 与 `app/system/security` 等少量符号 |
 | `app/cli/` | 代码生成器（init/gen/gen-web/initdb） | 仅离线使用，不参与运行时 |
 
@@ -92,7 +92,7 @@ User
 - 超级管理员 `R_SUPER`（[`app.core.constants.SUPER_ADMIN_ROLE`](../../../app/core/constants.py)）跳过所有权限校验
 - API 权限由 `refresh_api_list()` 自动维护（按 `(method, path)` 全量对账）
 - 菜单/按钮由各模块 `init_data.py` 通过 `ensure_menu()` 声明，可选 `reconcile_menu_subtree()` 做 IaC 对账
-- 按钮编码约定 `B_<MODULE>_<RESOURCE>_<ACTION>`（如 `B_HR_EMP_CREATE`）
+- 按钮编码约定 `B_<MODULE>_<RESOURCE>_<ACTION>`（如 `B_INVENTORY_PRODUCT_CREATE`）
 - 详见 [认证与权限](../develop/auth.md) / [数据权限](../develop/data-scope.md)
 
 ## 多 worker 启动

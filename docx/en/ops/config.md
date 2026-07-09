@@ -99,14 +99,14 @@ Global rate limiting is still controlled by `GUARD_RATE_LIMIT` / `GUARD_RATE_LIM
 
 ```python
 ENDPOINT_RATE_LIMITS = {
-    "/api/v1/business/hr/employees/search": (30, 60),
+    "/api/v1/business/inventory/products/search": (30, 60),
 }
 ```
 
 At startup, `discover_business_endpoint_rate_limits()` auto-merges these entries into fastapi-guard. The CLI can generate this declaration too:
 
 ```bash
-uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
+uv run python -m app.cli crud inventory --models Product --rate-limit Product:30/60
 ```
 
 ## Module-local config
@@ -114,25 +114,25 @@ uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
 A business module can declare its own Settings in `app/business/<name>/config.py`:
 
 ```python
-# app/business/hr/config.py
+# app/business/inventory/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class HRSettings(BaseSettings):
-    HR_TAG_PER_EMPLOYEE_LIMIT: int = 5
+class InventorySettings(BaseSettings):
+    INVENTORY_TAG_PER_PRODUCT_LIMIT: int = 5
     DB_URL: str | None = None              # if different from main, autodiscover registers a separate connection
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_prefix="HR_")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_prefix="INVENTORY_")
 
-BIZ_SETTINGS = HRSettings()
+BIZ_SETTINGS = InventorySettings()
 ```
 
-`env_prefix` carves out a namespace: in `.env` use `HR_TAG_PER_EMPLOYEE_LIMIT=8`, `HR_DB_URL=postgres://...`.
+`env_prefix` carves out a namespace: in `.env` use `INVENTORY_TAG_PER_PRODUCT_LIMIT=8`, `INVENTORY_DB_URL=postgres://...`.
 
 Business code:
 
 ```python
-from app.business.hr.config import BIZ_SETTINGS
-limit = BIZ_SETTINGS.HR_TAG_PER_EMPLOYEE_LIMIT
+from app.business.inventory.config import BIZ_SETTINGS
+limit = BIZ_SETTINGS.INVENTORY_TAG_PER_PRODUCT_LIMIT
 ```
 
 For standalone DB behavior see [Autodiscover / standalone DB](/en/develop/autodiscover#business-module-standalone-database).

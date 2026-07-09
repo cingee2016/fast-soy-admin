@@ -26,7 +26,7 @@ Menus, APIs and button permissions are centralized in `app/system/models/admin.p
 | Table | Responsibility |
 |---|---|
 | `Menu` | 1- to 3-level menus carrying route metadata (`route_name` / `route_path` / `component` / `icon` / `order` …) |
-| `Button` | In-page button permissions (codes like `B_HR_CREATE`) |
+| `Button` | In-page button permissions (codes like `B_INVENTORY_CREATE`) |
 | `Api` | Complete set of callable backend endpoints (reconciled from FastAPI routes at startup) |
 | `Role` | Many-to-many grants over the three above |
 

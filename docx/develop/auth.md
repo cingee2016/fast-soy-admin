@@ -107,7 +107,7 @@ async def _(body: UpdatePassword, request: Request):
 
 `User.must_change_password=True` 的账号登录后，`/login` 响应里 `mustChangePassword=true`，前端引导跳转修改密码页。`PATCH /password` 成功后自动置 `False`。
 
-种子用户场景：用 `ensure_user(..., must_change_password=True)` 初始化（HR 模块创建员工时也会用此模式 + 随机初始密码）。
+种子用户场景：用 `ensure_user(..., must_change_password=True)` 初始化（库存模块创建商品时也会用此模式 + 随机初始密码）。
 
 ## 鉴权依赖
 
@@ -164,7 +164,7 @@ async def me():
 ```python
 from app.utils import require_buttons
 
-@router.post("/employees", dependencies=[require_buttons("B_HR_EMP_CREATE")])
+@router.post("/products", dependencies=[require_buttons("B_INVENTORY_PRODUCT_CREATE")])
 async def _(): ...
 
 # 任一按钮即可

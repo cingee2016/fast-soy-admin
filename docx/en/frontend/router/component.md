@@ -22,7 +22,7 @@ The backend's `Menu.component` field decides which "layout + view" combo loads t
 | `view.manage_user` | `views/manage/user/index.vue` |
 | `view.manage_user-detail` | `views/manage_user-detail/index.vue` |
 | `view.function_multi-tab` | `views/function/multi-tab/index.vue` |
-| `view.hr_employee` | `views/hr/employee/index.vue` |
+| `view.inventory_product` | `views/inventory/product/index.vue` |
 
 `_` is the directory separator; multi-word path segments (`user-detail` / `multi-tab`) stay kebab.
 

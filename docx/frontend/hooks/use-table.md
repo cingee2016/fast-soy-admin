@@ -17,12 +17,12 @@
 
 ```vue
 <script setup lang="tsx">
-import { fetchEmployeeList } from '@/service/api/hr-manage';
+import { fetchProductList } from '@/service/api/inventory-manage';
 import { useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams }
   = useNaivePaginatedTable({
-    apiFn: fetchEmployeeList,
+    apiFn: fetchProductList,
     apiParams: {
       current: 1,
       size: 10,
@@ -30,7 +30,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       status: undefined,
     },
     columns: () => [
-      { key: 'employeeNo', title: '工号', align: 'center' },
+      { key: 'productNo', title: '工号', align: 'center' },
       { key: 'name', title: '姓名', align: 'center' },
       { key: 'status', title: '状态', align: 'center', render: (row) => statusTag(row.status) },
       { key: 'createdAt', title: '创建时间', align: 'center' },
@@ -59,7 +59,7 @@ const { handleAdd, handleEdit, checkedRowKeys, drawerVisible, operateType, editi
 
 ### apiFn
 
-接收一个返回 `{ records, total, current, size }` 的 fetch 函数。`fetchEmployeeList` 走的是后端的 `POST /employees/search`，响应自动适配。
+接收一个返回 `{ records, total, current, size }` 的 fetch 函数。`fetchProductList` 走的是后端的 `POST /products/search`，响应自动适配。
 
 ### apiParams
 
@@ -130,9 +130,9 @@ const {
 
 ```vue
 <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData">
-  <NButton v-if="hasAuth('B_HR_EMP_CREATE')" @click="handleAdd">新增</NButton>
+  <NButton v-if="hasAuth('B_INVENTORY_PRODUCT_CREATE')" @click="handleAdd">新增</NButton>
   <NPopconfirm
-    v-if="hasAuth('B_HR_EMP_DELETE')"
+    v-if="hasAuth('B_INVENTORY_PRODUCT_DELETE')"
     @positive-click="handleBatchDelete">
     <template #trigger>
       <NButton :disabled="!checkedRowKeys.length">批量删除</NButton>
@@ -141,7 +141,7 @@ const {
 </TableHeaderOperation>
 ```
 
-完整样例见 [HR 模块的员工列表](../../../web/src/views/hr/employee/index.vue)。
+完整样例见 [库存模块的商品列表](../../../web/src/views/inventory/product/index.vue)。
 
 ## CLI 自动生成
 

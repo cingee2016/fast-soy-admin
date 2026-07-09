@@ -106,7 +106,7 @@ async def _(body: UpdatePassword, request: Request):
 
 When `User.must_change_password=True`, `/login` returns `mustChangePassword=true` so the frontend redirects to the change-password page. `PATCH /password` then sets it back to `False`.
 
-Use `ensure_user(..., must_change_password=True)` for seeded accounts (HR's auto-created employees use this with a random initial password).
+Use `ensure_user(..., must_change_password=True)` for seeded accounts (Inventory's auto-created products use this with a random initial password).
 
 ## Auth dependencies
 
@@ -152,7 +152,7 @@ Usually mounted on the router group: `router.include_router(..., dependencies=[D
 ```python
 from app.utils import require_buttons
 
-@router.post("/employees", dependencies=[require_buttons("B_HR_EMP_CREATE")])
+@router.post("/products", dependencies=[require_buttons("B_INVENTORY_PRODUCT_CREATE")])
 async def _(): ...
 
 # Any one

@@ -89,7 +89,7 @@ from app.utils import (
 
 | 符号 | 用法 |
 |---|---|
-| `Code.SUCCESS / Code.HR_INVALID_TRANSITION / ...` | [响应码](./codes.md) |
+| `Code.SUCCESS / Code.INVENTORY_INVALID_TRANSITION / ...` | [响应码](./codes.md) |
 | `BizError(code, msg)` | 任意层抛出，全局处理器转 `Fail` |
 | `SchemaValidationError(code, msg)` | Pydantic 校验器中抛出，绕过 Pydantic 自身的捕获 |
 
@@ -128,7 +128,7 @@ from app.utils import (
 ```python
 from app.utils import radar_log
 
-radar_log("员工状态变更", data={"empId": emp.id, "to": "active"})
+radar_log("商品状态变更", data={"empId": emp.id, "to": "active"})
 radar_log("权限拒绝", level="ERROR", data={...})
 ```
 

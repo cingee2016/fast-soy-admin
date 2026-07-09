@@ -23,7 +23,7 @@ Runtime dependencies
 |---|---|---|
 | `app/core/` | framework infrastructure (no business) | doesn't depend on system / business |
 | `app/system/` | built-in modules (auth, RBAC, users, menus, APIs, dictionary) | only `app/core/` |
-| `app/business/<x>/` | business modules (HR / CRM / Inventory ...) | `app/utils` (transitively core/system); **never** sibling business modules |
+| `app/business/<x>/` | business modules (Inventory / CRM / Inventory ...) | `app/utils` (transitively core/system); **never** sibling business modules |
 | `app/utils/` | stable public facade for business code | re-exports `app/core/*` and a few `app/system/security` symbols |
 | `app/cli/` | code generators (init/gen/gen-web/initdb) | offline-only, no runtime impact |
 
@@ -92,7 +92,7 @@ User
 - The super-admin role `R_SUPER` (`app.core.constants.SUPER_ADMIN_ROLE`) bypasses every check
 - API permissions are auto-managed by `refresh_api_list()` (full reconciliation by `(method, path)`)
 - Menus / buttons are declared per module via `ensure_menu()`, optionally with `reconcile_menu_subtree()` for IaC
-- Button code convention: `B_<MODULE>_<RESOURCE>_<ACTION>` (e.g. `B_HR_EMP_CREATE`)
+- Button code convention: `B_<MODULE>_<RESOURCE>_<ACTION>` (e.g. `B_INVENTORY_PRODUCT_CREATE`)
 - See [Auth](/en/develop/auth) / [Data scope](/en/develop/data-scope)
 
 ## Multi-worker startup

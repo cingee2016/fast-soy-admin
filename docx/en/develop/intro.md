@@ -54,7 +54,7 @@ app/
 │   ├── security.py       # Argon2 + JWT helpers
 │   └── init_data.py      # System menus / roles / users / dictionary seeds
 ├── business/             # Business modules (autodiscovered)
-│   └── hr/               # reference: employees / departments / tags
+│   └── <module>/               # example business module created by CLI
 ├── cli/                  # Code generators (init / gen / gen-web / initdb)
 └── utils/                # Stable import facade for business code (re-exports core/system)
 ```
@@ -111,4 +111,4 @@ Details: [Startup init & reconciliation](/en/develop/init-data).
 - [Architecture](/en/getting-started/architecture) — middleware stack, lifecycle, layer responsibilities
 - [Development guide](/en/getting-started/workflow) — build a business module from scratch using the CLI
 - [API conventions](/en/develop/api) / [Response codes](/en/reference/codes) — enforced rules
-- [HR module](/en/advanced/business-hr) — full reference implementation of a business module
+- [Business development](/en/develop/intro) — business module development entry

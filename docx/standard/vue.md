@@ -96,7 +96,7 @@ const { data, getData } = useTable({
 ## 按钮鉴权
 
 ```vue
-<NButton v-if="hasAuth('B_HR_EMP_CREATE')" @click="handleAdd">新增</NButton>
+<NButton v-if="hasAuth('B_INVENTORY_PRODUCT_CREATE')" @click="handleAdd">新增</NButton>
 ```
 
 不建议用 `v-show`——隐藏元素仍占位会导致 UI 错位。

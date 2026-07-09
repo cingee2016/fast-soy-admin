@@ -21,7 +21,7 @@ A subdirectory under `app/business/` is treated as a business module if it:
 
 ## Standard layout
 
-Mirrors `app/business/hr/`:
+Mirrors `app/business/inventory/`:
 
 ```
 app/business/<name>/
@@ -57,7 +57,7 @@ Settings._build_tortoise_orm()
       "conn_billing": "postgres://...",    # only if a module declared standalone DB
     },
     "apps": {
-      "app_system":  {"models": [..., "app.business.hr.models", ...], "default_connection": "conn_system"},
+      "app_system":  {"models": [..., "app.business.inventory.models", ...], "default_connection": "conn_system"},
       "app_billing": {"models": ["app.business.billing.models"], "default_connection": "conn_billing"},
     },
   }
@@ -145,7 +145,7 @@ See [Switching DB / standalone DB](/en/ops/database#business-module-standalone-d
 ## init_data.init() execution
 
 - Only the leader worker runs it (Redis-coordinated)
-- Order: alphabetical by module name (`hr` < `inventory` < `notify`)
+- Order: alphabetical by module name (`inventory` < `inventory` < `notify`)
 - A single module exception **doesn't** affect others — caught and recorded in `app.state.init_errors`
 - The function should be idempotent (use the `ensure_*` helpers)
 - Manifest modules can use `PermissionSpec(init_data=INIT_DATA)` so `just init-plan --strict` checks menu / role / API route-key drift before startup
@@ -156,7 +156,7 @@ See [Init data](/en/develop/init-data).
 
 Autodiscover is what makes "business modules" pluggable. The complementary strong rules:
 
-- A business module **doesn't reverse-import** other business modules (`app.business.crm.*` cannot import `app.business.hr.*`)
+- A business module **doesn't reverse-import** other business modules (`app.business.crm.*` cannot import `app.business.inventory.*`)
 - The business import facade is [`app.utils`](/en/reference/utils)
 - Cross-module wiring goes through the [event bus](/en/develop/events)
 
@@ -166,4 +166,4 @@ Violating these still works at runtime — but the modular value autodiscover pr
 
 - [Development guide](/en/getting-started/workflow) — create a new module via the CLI
 - [Init data](/en/develop/init-data) — how `init()` runs and reconciles
-- [HR module](/en/advanced/business-hr) — sample business module
+- [Business development](/en/develop/intro) — business module guide

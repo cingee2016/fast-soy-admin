@@ -98,7 +98,7 @@ mv app/business/inventory app/business/_inventory
 ```python
 from app.core.cache import load_role_permissions, load_user_roles
 
-await load_role_permissions(redis, role_code="R_HR_ADMIN")
+await load_role_permissions(redis, role_code="R_INVENTORY_ADMIN")
 await load_user_roles(redis, user_id=123)
 ```
 
@@ -121,17 +121,17 @@ await invalidate_user_session(redis, user_id)
 
 ```python
 await ensure_role(
-    role_code="R_HR_ADMIN",
-    menus=[..., "hr_employee"],
+    role_code="R_INVENTORY_ADMIN",
+    menus=[..., "inventory_product"],
     apis=[
-        ("post", "/api/v1/business/hr/employees/search"),
-        ("post", "/api/v1/business/hr/employees"),
+        ("post", "/api/v1/business/inventory/products/search"),
+        ("post", "/api/v1/business/inventory/products"),
         ...
     ],
 )
 ```
 
-### 部门主管看到了全公司的数据
+### 仓库主管看到了全公司的数据
 
 种子里**没有**显式声明 `data_scope`。模型默认 `all` = 全可见。
 

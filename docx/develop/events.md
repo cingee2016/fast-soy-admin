@@ -18,14 +18,14 @@
 from app.utils import emit, on
 
 
-@on("employee.created")
-async def _send_welcome_mail(employee_id: int, **kwargs):
+@on("product.created")
+async def _send_welcome_mail(product_id: int, **kwargs):
     # 处理器签名应接受 **kwargs，便于发送方未来扩展参数
     ...
 
 
-@on("employee.status_changed")
-async def _audit_state(employee_id: int, from_state: str, to_state: str, **kwargs):
+@on("product.status_changed")
+async def _audit_state(product_id: int, from_state: str, to_state: str, **kwargs):
     ...
 ```
 
@@ -39,10 +39,10 @@ from . import events  # noqa: F401  ← 触发 @on 注册
 ## 触发事件
 
 ```python
-# app/business/hr/services.py
+# app/business/inventory/services.py
 from app.utils import emit
 
-await emit("employee.created", employee_id=new_emp.id, team_id=dept.id)
+await emit("product.created", product_id=new_emp.id, team_id=dept.id)
 ```
 
 任何 kwargs 都会原样透传给所有处理器。
@@ -55,8 +55,8 @@ await emit("employee.created", employee_id=new_emp.id, team_id=dept.id)
 
 | 推荐 | 不推荐 |
 |---|---|
-| `employee.created` | `EmployeeCreated` |
-| `employee.status_changed` | `change_employee_status_done` |
+| `product.created` | `ProductCreated` |
+| `product.status_changed` | `change_product_status_done` |
 | `order.refunded` | `RefundOrder` |
 
 事件名是契约，命好后**别改**——会有看不见的处理器依赖它。
@@ -76,12 +76,12 @@ def _log_login(user_id: int, **kwargs):
 ## 失败语义
 
 ```python
-@on("employee.created")
-async def _flaky_handler(employee_id: int, **kwargs):
+@on("product.created")
+async def _flaky_handler(product_id: int, **kwargs):
     raise RuntimeError("oops")
 ```
 
-`emit` 不会重抛——只在日志里输出 `Event handler error: employee.created / module._flaky_handler`，发送方代码继续往下执行。
+`emit` 不会重抛——只在日志里输出 `Event handler error: product.created / module._flaky_handler`，发送方代码继续往下执行。
 
 ::: warning 不要把"必须成功"的事情放在事件处理器
 - ✅ 适合：通知、审计日志、缓存失效、衍生数据更新
@@ -93,10 +93,10 @@ async def _flaky_handler(employee_id: int, **kwargs):
 ```python
 # A: 直接调用（紧耦合）
 from app.business.notify.services import send_welcome_mail
-await send_welcome_mail(employee_id=emp.id)
+await send_welcome_mail(product_id=emp.id)
 
 # B: 事件总线（松耦合）
-await emit("employee.created", employee_id=emp.id)
+await emit("product.created", product_id=emp.id)
 ```
 
 | 条件 | 选 A | 选 B |
@@ -128,12 +128,12 @@ async def test_xxx(monkeypatch):
 
 | 事件 | 发起方 | kwargs | 用途 |
 |---|---|---|---|
-| `employee.created` | HR | `employee_id`, `team_id`, `created_by` | HR 创建员工后的通知/统计 |
-| `employee.status_changed` | HR | `employee_id`, `from_state`, `to_state`, `actor_id` | 状态机流转后的审计 |
+| `product.created` | Inventory | `product_id`, `team_id`, `created_by` | Inventory 创建商品后的通知/统计 |
+| `product.status_changed` | Inventory | `product_id`, `from_state`, `to_state`, `actor_id` | 状态机流转后的审计 |
 
 > 新增事件请追加到本表，并在事件发起处保留一行注释指向本文档。
 
 ## 相关
 
-- [HR 模块（事件触发示例）](../advanced/business-hr.md)
+- [事件机制](events.md)
 - [状态机](./state-machine.md) — 状态变更后常配合 `emit` 发审计事件

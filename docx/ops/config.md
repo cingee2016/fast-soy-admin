@@ -99,14 +99,14 @@ TRUSTED_HOSTS=["10.0.0.0/8"]
 
 ```python
 ENDPOINT_RATE_LIMITS = {
-    "/api/v1/business/hr/employees/search": (30, 60),
+    "/api/v1/business/inventory/products/search": (30, 60),
 }
 ```
 
 启动时 `discover_business_endpoint_rate_limits()` 会自动合并这些配置到 fastapi-guard。CLI 也可以生成该声明：
 
 ```bash
-uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
+uv run python -m app.cli crud inventory --models Product --rate-limit Product:30/60
 ```
 
 ## 业务模块自有配置
@@ -114,25 +114,25 @@ uv run python -m app.cli crud hr --models Employee --rate-limit Employee:30/60
 业务模块在 `app/business/<name>/config.py` 声明自己的 Settings：
 
 ```python
-# app/business/hr/config.py
+# app/business/inventory/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class HRSettings(BaseSettings):
-    HR_TAG_PER_EMPLOYEE_LIMIT: int = 5
+class InventorySettings(BaseSettings):
+    INVENTORY_TAG_PER_PRODUCT_LIMIT: int = 5
     DB_URL: str | None = None              # 若与主库不同，autodiscover 注册独立连接
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_prefix="HR_")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_prefix="INVENTORY_")
 
-BIZ_SETTINGS = HRSettings()
+BIZ_SETTINGS = InventorySettings()
 ```
 
-通过 `env_prefix` 隔离命名空间：`.env` 中用 `HR_TAG_PER_EMPLOYEE_LIMIT=8`、`HR_DB_URL=postgres://...` 覆盖。
+通过 `env_prefix` 隔离命名空间：`.env` 中用 `INVENTORY_TAG_PER_PRODUCT_LIMIT=8`、`INVENTORY_DB_URL=postgres://...` 覆盖。
 
 业务代码：
 
 ```python
-from app.business.hr.config import BIZ_SETTINGS
-limit = BIZ_SETTINGS.HR_TAG_PER_EMPLOYEE_LIMIT
+from app.business.inventory.config import BIZ_SETTINGS
+limit = BIZ_SETTINGS.INVENTORY_TAG_PER_PRODUCT_LIMIT
 ```
 
 模块独立 DB 行为详见 [自动发现 / 业务模块独立数据库](../develop/autodiscover.md#业务模块独立数据库)。

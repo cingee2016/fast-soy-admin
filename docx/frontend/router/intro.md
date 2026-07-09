@@ -26,7 +26,7 @@
 | 表 | 职责 |
 |---|---|
 | `Menu` | 一级 / 二级 / 三级菜单，承载路由元信息（`route_name` / `route_path` / `component` / `icon` / `order` 等） |
-| `Button` | 页面内按钮权限（`B_HR_CREATE` 之类的编码） |
+| `Button` | 页面内按钮权限（`B_INVENTORY_CREATE` 之类的编码） |
 | `Api` | 后端可调用接口集合（由启动钩子从 FastAPI 路由全量对账） |
 | `Role` | 对上述三者的授权关系（M2M） |
 

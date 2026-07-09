@@ -96,7 +96,7 @@ const { data, getData } = useTable({
 ## Button permission
 
 ```vue
-<NButton v-if="hasAuth('B_HR_EMP_CREATE')" @click="handleAdd">Add</NButton>
+<NButton v-if="hasAuth('B_INVENTORY_PRODUCT_CREATE')" @click="handleAdd">Add</NButton>
 ```
 
 `v-show` is discouraged — it still occupies layout slots when hidden.

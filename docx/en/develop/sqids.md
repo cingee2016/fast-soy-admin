@@ -38,13 +38,13 @@ from app.utils import SqidId, SqidPath, SchemaBase
 | `SqidPath` | `int + BeforeValidator(sqid→int)` | FastAPI path params (input only) |
 
 ```python
-class DepartmentUpdate(SchemaBase):
+class WarehouseUpdate(SchemaBase):
     parent_id: SqidId | None = None     # body field; optional
 
-class EmployeeAssign(SchemaBase):
-    employee_ids: list[SqidId]          # each item also encoded
+class ProductAssign(SchemaBase):
+    product_ids: list[SqidId]          # each item also encoded
 
-@router.get("/departments/{item_id}")
+@router.get("/warehouses/{item_id}")
 async def _(item_id: SqidPath):         # FastAPI path param
     obj = await dept_controller.get(id=item_id)
     return Success(data=await obj.to_dict())
@@ -93,7 +93,7 @@ Rules:
 `CRUDBase`'s `id: int` parameter is **always a real int** — `SqidPath` already decoded it at the route layer:
 
 ```python
-@router.get("/departments/{item_id}")
+@router.get("/warehouses/{item_id}")
 async def _(item_id: SqidPath):           # item_id: int
     return Success(data=await dept_controller.get(id=item_id))
 ```

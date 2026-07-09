@@ -37,21 +37,21 @@ Source models: `app/system/models/admin.py`.
 Each module declares menus (with their buttons) in its `init_data.py`; `ensure_menu` upserts into `Menu` / `Button`:
 
 ```python
-HR_MENU_CHILDREN = [
+INVENTORY_MENU_CHILDREN = [
     {
-        "menu_name": "Employees",
-        "route_name": "hr_employee",
-        "route_path": "/hr/employee",
+        "menu_name": "Products",
+        "route_name": "inventory_product",
+        "route_path": "/inventory/product",
         "buttons": [
-            {"button_code": "B_HR_EMP_CREATE", "button_desc": "create employee"},
-            {"button_code": "B_HR_EMP_EDIT",   "button_desc": "edit employee"},
-            {"button_code": "B_HR_EMP_DELETE", "button_desc": "delete employee"},
-            {"button_code": "B_HR_EMP_TRANSITION", "button_desc": "state transition"},
+            {"button_code": "B_INVENTORY_PRODUCT_CREATE", "button_desc": "create product"},
+            {"button_code": "B_INVENTORY_PRODUCT_EDIT",   "button_desc": "edit product"},
+            {"button_code": "B_INVENTORY_PRODUCT_DELETE", "button_desc": "delete product"},
+            {"button_code": "B_INVENTORY_PRODUCT_TRANSITION", "button_desc": "state transition"},
         ],
     },
 ]
 
-await ensure_menu(menu_name="HR", route_name="hr", ..., children=HR_MENU_CHILDREN)
+await ensure_menu(menu_name="Inventory", route_name="inventory", ..., children=INVENTORY_MENU_CHILDREN)
 ```
 
 To "delete entries that are no longer in the seed", enable `reconcile_menu_subtree(root_route="hr", ...)` — the subtree enters IaC mode. See [Init data](/en/develop/init-data).
@@ -64,13 +64,13 @@ B_<MODULE>_<RESOURCE>_<ACTION>
 
 | Example | Meaning |
 |---|---|
-| `B_HR_DEPT_CREATE` | HR / department / create |
-| `B_HR_EMP_TRANSITION` | HR / employee / state transition |
+| `B_INVENTORY_WAREHOUSE_CREATE` | Inventory / warehouse / create |
+| `B_INVENTORY_PRODUCT_TRANSITION` | Inventory / product / state transition |
 | `B_INV_PRODUCT_DELETE` | Inventory / product / delete |
 
 General rules:
 
-- One button = one action category; **single delete + batch delete share one code** (HR does this)
+- One button = one action category; **single delete + batch delete share one code** (Inventory does this)
 - "Read list" doesn't need a button — menu visibility + API authorization are enough
 - Truly cross-module buttons (rare) live in the system layer
 
@@ -95,16 +95,16 @@ from app.core.data_scope import DataScopeType
 from app.system.services import ensure_role
 
 await ensure_role(
-    role_name="HR admin",
-    role_code="R_HR_ADMIN",
-    role_desc="HR specialist",
-    home_route="hr_employee",
+    role_name="inventory admin",
+    role_code="R_INVENTORY_ADMIN",
+    role_desc="Inventory specialist",
+    home_route="inventory_product",
     data_scope=DataScopeType.all,
-    menus=["home", "hr", "hr_department", "hr_employee", "hr_tag"],
-    buttons=["B_HR_DEPT_CREATE", "B_HR_DEPT_EDIT", ...],
+    menus=["home", "hr", "inventory_warehouse", "inventory_product", "inventory_tag"],
+    buttons=["B_INVENTORY_WAREHOUSE_CREATE", "B_INVENTORY_WAREHOUSE_EDIT", ...],
     apis=[
-        ("post", "/api/v1/business/hr/employees/search"),
-        ("post", "/api/v1/business/hr/employees"),
+        ("post", "/api/v1/business/inventory/products/search"),
+        ("post", "/api/v1/business/inventory/products"),
         ...
     ],
 )
@@ -117,7 +117,7 @@ await ensure_role(
 When a declared `route_name` / `button_code` / `(method, path)` doesn't exist in the DB:
 
 ```
-ensure_role 'R_HR_ADMIN': missing apis [('post', '/api/v1/business/hr/old')] (route signature changed?)
+ensure_role 'R_INVENTORY_ADMIN': missing apis [('post', '/api/v1/business/inventory/old')] (route signature changed?)
 ```
 
 **Fix on sight** — the seed is out of sync with the code. See [Init data / drift](/en/develop/init-data).
@@ -144,7 +144,7 @@ from app.utils import DependPermission, require_buttons, require_roles
 
 ## Frontend button gating
 
-Button codes are delivered via `GET /api/v1/auth/user-info` (sourced from `CTX_BUTTON_CODES`; `R_SUPER` users get **all** codes). The frontend uses `hasAuth('B_HR_EMP_CREATE')` to decide whether to render a button — see [Frontend / Hooks / useTable / Pair with permission buttons](/en/frontend/hooks/use-table#pair-with-permission-buttons).
+Button codes are delivered via `GET /api/v1/auth/user-info` (sourced from `CTX_BUTTON_CODES`; `R_SUPER` users get **all** codes). The frontend uses `hasAuth('B_INVENTORY_PRODUCT_CREATE')` to decide whether to render a button — see [Frontend / Hooks / useTable / Pair with permission buttons](/en/frontend/hooks/use-table#pair-with-permission-buttons).
 
 ## Cache
 

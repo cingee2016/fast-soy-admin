@@ -9,7 +9,7 @@ In `app/__init__.py`'s `lifespan`, the Redis-elected leader worker runs (in orde
 1. `init_menus()` — system menus (`app/system/init_data.py`)
 2. `refresh_api_list()` — **full reconciliation** of FastAPI routes ↔ `Api` table
 3. `init_users()` — system seed users
-4. iterate each business module's `init_data.init()` (HR, then any new modules)
+4. iterate each business module's `init_data.init()` (Inventory, then any new modules)
 5. `refresh_all_cache()` — reload permission / menu cache
 
 Multi-worker coordination uses Redis lock `app:init_lock` so only one worker runs init; the rest wait for the done signal. The leader deletes stale locks before each start, so init really runs on every restart.
@@ -98,7 +98,7 @@ If you need user-driven dynamic menus, do **not** call `reconcile_menu_subtree` 
 `ensure_role` does clear-and-readd for `menus / buttons / apis`. If a declared `route_name / button_code / (method, path)` doesn't resolve in the DB, you get:
 
 ```
-ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/hr/departments/{dept_id}/old')] (route signature changed?)
+ensure_role 'R_DEPT_MGR': missing apis [('patch', '/api/v1/business/inventory/warehouses/{dept_id}/old')] (route signature changed?)
 ```
 
 Common causes:
@@ -113,8 +113,8 @@ Common causes:
 
 `reconcile_menu_subtree` only handles menus and buttons. The following still need **manual** cleanup (SQL or Tortoise migration):
 
-1. **Roles** — removing `HR_ROLE_SEEDS` entries does NOT delete the `Role` row, nor does it touch user-role associations
-2. **Business seed data** — same for `HR_DEPARTMENT_SEEDS / HR_TAG_SEEDS / HR_EMPLOYEE_SEEDS`
+1. **Roles** — removing `INVENTORY_ROLE_SEEDS` entries does NOT delete the `Role` row, nor does it touch user-role associations
+2. **Business seed data** — same for `INVENTORY_WAREHOUSE_SEEDS / INVENTORY_TAG_SEEDS / INVENTORY_PRODUCT_SEEDS`
 3. **Cross-subtree orphan buttons** — buttons referenced by multiple subtrees can survive cleanup of one of them
 
 These scenarios are rare and removal cascades are subtle (does deleting a role also unbind its users?), so the framework intentionally avoids automation here — write a proper migration.
@@ -128,4 +128,4 @@ These scenarios are rare and removal cascades are subtle (does deleting a role a
 | Delete menu / button | Enable `reconcile_menu_subtree`, edit `init_data.py`, restart |
 | Rename `route_name` / `button_code` | Enable `reconcile_menu_subtree`, restart auto delete-old + insert-new |
 | Delete role / business seed | Write Tortoise migration |
-| Modify API route path | Sync `apis` list in `HR_ROLE_SEEDS`, otherwise warning at startup |
+| Modify API route path | Sync `apis` list in `INVENTORY_ROLE_SEEDS`, otherwise warning at startup |

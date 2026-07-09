@@ -32,8 +32,8 @@ EMPLOYEE_FSM = StateMachine(
 ```python
 from app.utils import radar_log, get_current_user_id
 
-async def transition_employee(emp_id: int, to_state: str):
-    emp = await employee_controller.get(id=emp_id)
+async def transition_product(product_id: int, to_state: str):
+    emp = await product_controller.get(id=product_id)
     await EMPLOYEE_FSM.transition(
         obj=emp,
         to_state=to_state,
@@ -41,14 +41,14 @@ async def transition_employee(emp_id: int, to_state: str):
         actor_id=get_current_user_id(),
         log_fn=radar_log,
     )
-    await emit("employee.status_changed", employee_id=emp_id, ...)
+    await emit("product.status_changed", product_id=product_id, ...)
     return Success(msg="状态更新成功", data=await emp.to_dict())
 ```
 
 `transition` 内部：
 
 1. 读取 `getattr(obj, state_field)`，兼容 `Enum.value`
-2. `allowed(from_state, to_state)` 不通过 → 抛 `TransitionError(code=Code.HR_INVALID_TRANSITION, msg="不允许从 'X' 转换为 'Y'，允许的目标: [...]")`
+2. `allowed(from_state, to_state)` 不通过 → 抛 `TransitionError(code=Code.INVENTORY_INVALID_TRANSITION, msg="不允许从 'X' 转换为 'Y'，允许的目标: [...]")`
 3. `obj.update_from_dict({state_field: to_state, **extra_updates})` + `obj.save(update_fields=...)`
 4. `log_fn("状态变更", data={"model", "id", "fromState", "toState", "actorId", "at"})`
 
@@ -86,11 +86,11 @@ EMPLOYEE_FSM.allowed("pending", "active")    # → False
 EMPLOYEE_FSM.allowed_targets("pending")      # → ["onboarding"]
 ```
 
-前端能据此做"动态展示下一步动作"——参考 [HR 模块](../advanced/business-hr.md#状态机员工状态流转)。
+前端能据此做"动态展示下一步动作"——参考本节状态机约定。
 
 ## 失败抛 TransitionError
 
-`TransitionError` 继承 `BizError`，全局异常处理器会转成 `Fail(code=Code.HR_INVALID_TRANSITION, msg=...)`：
+`TransitionError` 继承 `BizError`，全局异常处理器会转成 `Fail(code=Code.INVENTORY_INVALID_TRANSITION, msg=...)`：
 
 ```python
 try:
@@ -109,8 +109,8 @@ except TransitionError as e:
 # app/core/code.py 末尾
 class Code:
     ...
-    # 40xx HR
-    HR_INVALID_TRANSITION = "4007"
+    # 40xx Inventory
+    INVENTORY_INVALID_TRANSITION = "4007"
 
     # 41xx 订单
     ORDER_INVALID_TRANSITION = "4107"
@@ -125,35 +125,35 @@ class _OrderTransitionError(BizError):
 # 在 transition 调用前自己包一层，或者按场景判定
 ```
 
-对码段不挑剔时，直接复用 `Code.HR_INVALID_TRANSITION`——框架内置一个通用码即可。
+对码段不挑剔时，直接复用 `Code.INVENTORY_INVALID_TRANSITION`——框架内置一个通用码即可。
 
 ## 与权限的关系
 
 状态机只校验"合法性"，不做"谁有权这么做"。**鉴权放在路由层**：
 
 ```python
-@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_TRANSITION")])
-async def _(emp_id: SqidPath, body: EmployeeTransition):
-    return await transition_employee(emp_id, body.to_state)
+@router.post("/products/{product_id}/transition", dependencies=[require_buttons("B_INVENTORY_PRODUCT_TRANSITION")])
+async def _(product_id: SqidPath, body: ProductTransition):
+    return await transition_product(product_id, body.to_state)
 ```
 
 ## 测试
 
 ```python
 async def test_pending_to_onboarding_ok():
-    emp = await Employee.create(status="pending", ...)
+    emp = await Product.create(status="pending", ...)
     await EMPLOYEE_FSM.transition(obj=emp, to_state="onboarding")
     assert emp.status == "onboarding"
 
 
 async def test_pending_to_active_blocked():
-    emp = await Employee.create(status="pending", ...)
+    emp = await Product.create(status="pending", ...)
     with pytest.raises(TransitionError) as ei:
         await EMPLOYEE_FSM.transition(obj=emp, to_state="active")
-    assert ei.value.code == Code.HR_INVALID_TRANSITION
+    assert ei.value.code == Code.INVENTORY_INVALID_TRANSITION
 ```
 
 ## 相关
 
-- [HR 模块（员工状态流转完整实例）](../advanced/business-hr.md#状态机员工状态流转)
+- [状态机](state-machine.md)
 - [事件总线](./events.md) — 状态变更后常用 `emit` 发布事件

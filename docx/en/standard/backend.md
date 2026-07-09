@@ -18,7 +18,7 @@ Each item below is "to fix". Deviations require explicit justification in the PR
 # ✅
 return Success(data=await user.to_dict())
 return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-raise BizError(code=Code.HR_INVALID_TRANSITION, msg="invalid transition")
+raise BizError(code=Code.INVENTORY_INVALID_TRANSITION, msg="invalid transition")
 
 # ❌
 return {"code": "0000", "data": {...}}
@@ -75,14 +75,14 @@ See full convention in [API conventions](/en/develop/api).
 - ✅ Business role seeds **must** explicitly set `data_scope` (don't rely on the model default `all`)
 - ✅ List endpoints with row-level scope **must** `@override("list")` and apply `build_scope_filter`
 - ❌ Never rely on "frontend hides the button" for security — backend must enforce
-- ❌ Don't hard-compare `role_code == "R_HR_ADMIN"` in business code — use `has_role_code` / `has_button_code`
+- ❌ Don't hard-compare `role_code == "R_INVENTORY_ADMIN"` in business code — use `has_role_code` / `has_button_code`
 
 ## 7. Models
 
 - ✅ Models inherit `BaseModel + AuditMixin` (for persisted models)
 - ✅ Top of the file: `# pyright: reportIncompatibleVariableOverride=false` (Tortoise + Pyright known false positive)
 - ✅ Add `description="..."` to every field (CLI uses it as i18n label, truncated to first sentence)
-- ✅ Class docstring is the Chinese resource name (`"""Department"""`); used as API summary prefix
+- ✅ Class docstring is the Chinese resource name (`"""Warehouse"""`); used as API summary prefix
 - ✅ `Meta.table` uses `biz_<module>_<entity>` prefix (system models in `app/system/models/` use semantic table names)
 - ❌ No business logic in `models.py` — validation in schema, side effects in service
 
@@ -91,7 +91,7 @@ See full convention in [API conventions](/en/develop/api).
 - ✅ Business modules import via `app.utils` only
 - ✅ Cross-business communication goes through the [Event bus](/en/develop/events) (`emit` / `on`)
 - ❌ Business modules **never reverse-import** `app.system.*` (except for the few services system explicitly exposes — `ensure_menu` / `ensure_role` / ...)
-- ❌ Business modules **never import each other** (`app.business.crm.*` cannot import `app.business.hr.*`)
+- ❌ Business modules **never import each other** (`app.business.crm.*` cannot import `app.business.inventory.*`)
 
 ## 9. Naming
 
@@ -156,4 +156,4 @@ Includes: `ruff fix + format`, `basedpyright`, `pytest`, `eslint + oxlint`, `vue
 - [Architecture](/en/getting-started/architecture)
 - [Development guide](/en/getting-started/workflow)
 - [API conventions](/en/develop/api) / [Response codes](/en/reference/codes)
-- [HR module (best-practice reference)](/en/advanced/business-hr)
+- [Business development](/en/develop/intro)

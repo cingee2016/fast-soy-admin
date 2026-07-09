@@ -6,14 +6,14 @@ Source: [`app/core/crud.py`](../../../app/core/crud.py).
 
 ```python
 from app.utils import CRUDBase
-from app.business.hr.models import Department
+from app.business.inventory.models import Warehouse
 
 
-class DepartmentController(CRUDBase[Department, DepartmentCreate, DepartmentUpdate]):
+class WarehouseController(CRUDBase[Warehouse, WarehouseCreate, WarehouseUpdate]):
     pass
 
 
-department_controller = DepartmentController(model=Department)
+warehouse_controller = WarehouseController(model=Warehouse)
 ```
 
 > Subclassing is rarely needed — `xxx_controller = CRUDBase(model=Xxx)` is enough. Subclass only to override `build_search` or similar.
@@ -121,14 +121,14 @@ def build_search(
 Empty (`None` / `""`) values are skipped.
 
 ```python
-class DepartmentSearch(PageQueryBase):
+class WarehouseSearch(PageQueryBase):
     name: str | None = None
     status: str | None = None
     created_at_start: datetime | None = None
     created_at_end: datetime | None = None
 
 
-q = department_controller.build_search(
+q = warehouse_controller.build_search(
     obj_in=search_in,
     contains_fields=["name"],
     exact_fields=["status"],

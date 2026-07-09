@@ -18,7 +18,7 @@
 # ✅
 return Success(data=await user.to_dict())
 return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
-raise BizError(code=Code.HR_INVALID_TRANSITION, msg="不允许的状态流转")
+raise BizError(code=Code.INVENTORY_INVALID_TRANSITION, msg="不允许的状态流转")
 
 # ❌
 return {"code": "0000", "data": {...}}
@@ -75,7 +75,7 @@ return JSONResponse({"code": Code.FAIL, "msg": "失败"})
 - ✅ 业务角色种子**必须**显式声明 `data_scope`（不要依赖模型默认 `all`）
 - ✅ 涉及行级权限的列表接口**必须** `@override("list")` 拼 `build_scope_filter`
 - ❌ 不要靠"前端隐藏按钮"做安全——后端必须有对应校验
-- ❌ 不要在业务里直接判 `role_code == "R_HR_ADMIN"`——用 `has_role_code` / `has_button_code`
+- ❌ 不要在业务里直接判 `role_code == "R_INVENTORY_ADMIN"`——用 `has_role_code` / `has_button_code`
 
 ## 7. 模型
 
@@ -93,15 +93,15 @@ Tortoise 的 FK 字段在运行时会自动派生一个 `<name>_id` 属性（同
 
 ```python
 # models.py
-class Employee(BaseModel, AuditMixin):
+class Product(BaseModel, AuditMixin):
     # ✅ 显式声明 _id 类型注解，让 pyright / IDE 能看到该属性
     user_id: int | None
     user: fields.ForeignKeyNullableRelation = fields.ForeignKeyField(
-        "app_system.User", null=True, on_delete=fields.SET_NULL, related_name="employee",
+        "app_system.User", null=True, on_delete=fields.SET_NULL, related_name="product",
     )
     team_id: int
     team: fields.ForeignKeyRelation["Team"] = fields.ForeignKeyField(
-        "app_system.Team", related_name="employees",
+        "app_system.Team", related_name="products",
     )
 ```
 
@@ -118,10 +118,10 @@ class Employee(BaseModel, AuditMixin):
 ```python
 # ❌ 如果 other.team 没有 prefetch，这一行会触发查询；
 #    更糟的是 Tortoise 老版本会把 coroutine 对象赋值给 FK，写入时抛 TypeError
-new_emp = await Employee.create(team=other.team)
+new_emp = await Product.create(team=other.team)
 
 # ✅ 总是传 _id
-new_emp = await Employee.create(team_id=other.team_id)
+new_emp = await Product.create(team_id=other.team_id)
 ```
 
 这就是为什么 `_id: int` 注解是强制的——把"用 ID 安全路径"放到开发者眼前，IDE 自动补全也会优先提示。
@@ -132,7 +132,7 @@ new_emp = await Employee.create(team_id=other.team_id)
 - ✅ 业务模块 import 入口统一走 `app.utils`
 - ✅ 跨业务模块联动用 [事件总线](../develop/events.md)（`emit` / `on`）
 - ❌ 业务模块**不得反向 import** `app.system.*`（除了 `ensure_menu` / `ensure_role` 等 system 主动暴露的 service）
-- ❌ 业务模块**不得**互相 import（`app.business.crm.*` 不能 `from app.business.hr import ...`）
+- ❌ 业务模块**不得**互相 import（`app.business.crm.*` 不能 `from app.business.inventory import ...`）
 
 ## 9. 命名
 
@@ -197,4 +197,4 @@ just check  # 后端 + 前端所有质量检查
 - [架构](../getting-started/architecture.md) — 总览
 - [开发指南](../getting-started/workflow.md) — 用 CLI 创建模块的端到端流程
 - [API 约定](../develop/api.md) / [响应码](../reference/codes.md)
-- [HR 模块（最佳实践全集）](../advanced/business-hr.md)
+- [业务开发](../develop/intro.md)

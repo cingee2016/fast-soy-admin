@@ -88,10 +88,10 @@ crud = CRUDRouter(..., enable_routes={"list", "get"})  # 只读
 默认列表 / 详情都用 `await obj.to_dict(exclude_fields=...)`。需要做关联预加载或拼字段时：
 
 ```python
-async def transform(obj: Employee) -> dict:
+async def transform(obj: Product) -> dict:
     d = await obj.to_dict()
-    await obj.fetch_related("department")
-    d["departmentName"] = obj.department.name
+    await obj.fetch_related("warehouse")
+    d["warehouseName"] = obj.warehouse.name
     return d
 
 CRUDRouter(..., record_transform=transform)
@@ -119,10 +119,10 @@ CRUDRouter(..., soft_delete=True)
 CRUDRouter(
     ...,
     action_dependencies={
-        "create":       [require_buttons("B_HR_DEPT_CREATE")],
-        "update":       [require_buttons("B_HR_DEPT_EDIT")],
-        "delete":       [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
+        "create":       [require_buttons("B_INVENTORY_WAREHOUSE_CREATE")],
+        "update":       [require_buttons("B_INVENTORY_WAREHOUSE_EDIT")],
+        "delete":       [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
+        "batch_delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
     },
 )
 ```
@@ -167,12 +167,12 @@ async def _update(item_id: SqidPath, obj_in: UserUpdate, request: Request):
 ```
 
 ::: warning 不传 schema 不会生成对应路由
-`emp_crud` 没传 `create_schema` 时，CRUDRouter 不会注册 `POST /employees`。这正好让你能在同一 router 上手写 `@router.post("/employees")` 而不被覆盖——HR 模块的员工创建就是这样。
+`product_crud` 没传 `create_schema` 时，CRUDRouter 不会注册 `POST /products`。这正好让你能在同一 router 上手写 `@router.post("/products")` 而不被覆盖——库存模块的商品创建就是这样。
 :::
 
 ## 适用边界 — 别让 CRUDRouter 上瘾
 
-`CRUDRouter` 是给**贫血资源**用的——字典、标签、部门、分类这种纯 CRUD 表。聚合根（用户、角色、订单、工单等带状态、带副作用的资源）**不要硬塞进 CRUDRouter**。
+`CRUDRouter` 是给**贫血资源**用的——字典、标签、仓库、分类这种纯 CRUD 表。聚合根（用户、角色、订单、工单等带状态、带副作用的资源）**不要硬塞进 CRUDRouter**。
 
 ::: danger 触发改写信号
 满足以下任一条件，立刻把该资源改写为显式 `@router.post(...)` + `services/`，不要继续 `@crud.override`：
@@ -225,8 +225,8 @@ async def _create_user(user_in: UserCreate, request: Request):
 ```python
 router = dept_crud.router
 
-@router.post("/departments/{dept_id}/employees", summary="批量分配员工")
-async def assign_employees(dept_id: SqidPath, body: AssignEmployees):
+@router.post("/warehouses/{dept_id}/products", summary="批量分配商品")
+async def assign_products(dept_id: SqidPath, body: AssignProducts):
     ...
     return Success(...)
 ```
@@ -234,31 +234,31 @@ async def assign_employees(dept_id: SqidPath, body: AssignEmployees):
 ## 业务模块的接线模板
 
 ```python
-# app/business/hr/api/manage.py
+# app/business/inventory/api/manage.py
 from fastapi import APIRouter
 
 from app.utils import CRUDRouter, DependPermission, SearchFieldConfig, require_buttons
 
 dept_crud = CRUDRouter(
-    prefix="/departments",
-    controller=department_controller,
-    create_schema=DepartmentCreate,
-    update_schema=DepartmentUpdate,
-    list_schema=DepartmentSearch,
+    prefix="/warehouses",
+    controller=warehouse_controller,
+    create_schema=WarehouseCreate,
+    update_schema=WarehouseUpdate,
+    list_schema=WarehouseSearch,
     search_fields=SearchFieldConfig(contains_fields=["name", "code"]),
-    summary_prefix="部门",
+    summary_prefix="仓库",
     soft_delete=True,
     tree_endpoint=True,
     action_dependencies={
-        "create": [require_buttons("B_HR_DEPT_CREATE")],
-        "update": [require_buttons("B_HR_DEPT_EDIT")],
-        "delete": [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
+        "create": [require_buttons("B_INVENTORY_WAREHOUSE_CREATE")],
+        "update": [require_buttons("B_INVENTORY_WAREHOUSE_EDIT")],
+        "delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
+        "batch_delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
     },
 )
 
 # 主路由：可以在此挂模块前缀和默认依赖
-router = APIRouter(prefix="/hr", tags=["hr"], dependencies=[DependPermission])
+router = APIRouter(prefix="/inventory", tags=["inventory"], dependencies=[DependPermission])
 router.include_router(dept_crud.router)
 
 # api/__init__.py 把 manage / dept / my 三个子 router 汇总到顶层 router

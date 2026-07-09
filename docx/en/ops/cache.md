@@ -35,7 +35,7 @@ from app.core.cache import (
 )
 ```
 
-Startup `refresh_all_cache(redis)` loads everything. After CUD, **incrementally** refresh — e.g. modifying a role: `await load_role_permissions(redis, role_code="R_HR_ADMIN")` — otherwise users see stale permissions.
+Startup `refresh_all_cache(redis)` loads everything. After CUD, **incrementally** refresh — e.g. modifying a role: `await load_role_permissions(redis, role_code="R_INVENTORY_ADMIN")` — otherwise users see stale permissions.
 
 ### Redis fallback
 
@@ -132,7 +132,7 @@ The leader `DEL`s both before each start, so init really runs every restart — 
 
 ```bash
 # Inspect role permission cache
-redis-cli get "role:R_HR_ADMIN:apis" | jq
+redis-cli get "role:R_INVENTORY_ADMIN:apis" | jq
 
 # Force-invalidate a user session (kill all old tokens)
 redis-cli incr "token_version:123"

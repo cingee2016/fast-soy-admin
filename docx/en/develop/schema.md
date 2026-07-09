@@ -7,7 +7,7 @@ Business Pydantic schemas **must not** inherit `pydantic.BaseModel` directly —
 ```python
 from app.utils import SchemaBase
 
-class DepartmentCreate(SchemaBase):
+class WarehouseCreate(SchemaBase):
     name: str
     parent_id: int | None = None
 ```
@@ -34,7 +34,7 @@ All `POST /resources/search` bodies inherit:
 ```python
 from app.utils import PageQueryBase
 
-class DepartmentSearch(PageQueryBase):
+class WarehouseSearch(PageQueryBase):
     name: str | None = None
     status: str | None = None
 ```
@@ -127,14 +127,14 @@ Many modules' `XxxUpdate` is "all `XxxCreate` fields, but Optional". Hand-writin
 ```python
 from app.utils import make_optional, SchemaBase
 
-class EmployeeCreate(SchemaBase):
+class ProductCreate(SchemaBase):
     name: str
     email: str
     team_id: int
 
-EmployeeUpdate = make_optional(EmployeeCreate, "EmployeeUpdate")
+ProductUpdate = make_optional(ProductCreate, "ProductUpdate")
 # Equivalent to:
-# class EmployeeUpdate(SchemaBase):
+# class ProductUpdate(SchemaBase):
 #     name: str | None = None
 #     email: str | None = None
 #     team_id: int | None = None

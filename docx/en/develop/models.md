@@ -2,7 +2,7 @@
 
 System models live in `app/system/models/admin.py` and `app/system/models/dictionary.py`. All inherit `BaseModel + AuditMixin`; primary keys and foreign keys are auto-encoded as [sqid](/en/develop/sqids) at the HTTP boundary.
 
-> Business module models live in `app/business/<name>/models.py`. See [Mixins](/en/develop/mixins) and [HR module](/en/advanced/business-hr) for conventions.
+> Business module models live in `app/business/<name>/models.py`. See [Mixins](/en/develop/mixins) and the examples on this page for conventions.
 
 ## User
 
@@ -38,7 +38,7 @@ Table: `roles`
 |---|---|---|
 | `id` | int PK | — |
 | `role_name` | str(20) unique | role name |
-| `role_code` | str(20) unique | role code (e.g. `R_HR_ADMIN`) |
+| `role_code` | str(20) unique | role code (e.g. `R_INVENTORY_ADMIN`) |
 | `role_desc` | str(500) null | description |
 | `data_scope` | enum(`DataScopeType`) default=`all` | row-level scope (see [data scope](/en/develop/data-scope)) |
 | `by_role_home` | FK → Menu | default landing menu |
@@ -120,7 +120,7 @@ Table: `buttons`
 | Field | Type | Notes |
 |---|---|---|
 | `id` | int PK | — |
-| `button_code` | str(200) indexed | code (e.g. `B_HR_EMP_CREATE`) |
+| `button_code` | str(200) indexed | code (e.g. `B_INVENTORY_PRODUCT_CREATE`) |
 | `button_desc` | str(200) | description |
 | `status_type` | enum | status |
 
@@ -138,7 +138,7 @@ Table: `sys_dictionary`, unique constraint `(dict_type, value)`.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | int PK | — |
-| `dict_type` | str(100) | type (e.g. `tag_category` / `employee_position`) |
+| `dict_type` | str(100) | type (e.g. `tag_category` / `product_position`) |
 | `label` | str(100) | label |
 | `value` | str(100) | stored value |
 | `order` | int default=0 | sort |
@@ -147,7 +147,7 @@ Table: `sys_dictionary`, unique constraint `(dict_type, value)`.
 
 Purpose: turn "dropdown options" into back-office-configurable resources. Frontend hits `GET /api/v1/system-manage/dictionaries/{dict_type}/options` (5-min Redis cache).
 
-Seed example (HR's `Tag.category` references `dict_type="tag_category"`):
+Seed example (Inventory's `Tag.category` references `dict_type="tag_category"`):
 
 ```python
 DICTIONARY_SEEDS = [
@@ -177,4 +177,4 @@ Migrations live in `migrations/<app_name>/` (system + shared business in `migrat
 - [Mixins](/en/develop/mixins) — `BaseModel / AuditMixin / TreeMixin / SoftDeleteMixin`
 - [Sqids](/en/develop/sqids) — how PK / FK become sqid strings
 - [RBAC](/en/develop/rbac) — User / Role / Menu / Button / API together
-- [HR module](/en/advanced/business-hr) — business module model sample
+- [Mixins](/en/develop/mixins) — common model capabilities and inheritance conventions

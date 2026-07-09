@@ -32,8 +32,8 @@ EMPLOYEE_FSM = StateMachine(
 ```python
 from app.utils import radar_log, get_current_user_id
 
-async def transition_employee(emp_id: int, to_state: str):
-    emp = await employee_controller.get(id=emp_id)
+async def transition_product(product_id: int, to_state: str):
+    emp = await product_controller.get(id=product_id)
     await EMPLOYEE_FSM.transition(
         obj=emp,
         to_state=to_state,
@@ -41,14 +41,14 @@ async def transition_employee(emp_id: int, to_state: str):
         actor_id=get_current_user_id(),
         log_fn=radar_log,
     )
-    await emit("employee.status_changed", employee_id=emp_id, ...)
+    await emit("product.status_changed", product_id=product_id, ...)
     return Success(msg="state updated", data=await emp.to_dict())
 ```
 
 Inside `transition`:
 
 1. Reads `getattr(obj, state_field)`, handles `Enum.value`
-2. If `allowed(from_state, to_state)` is false → raise `TransitionError(code=Code.HR_INVALID_TRANSITION, msg="not allowed from 'X' to 'Y'; allowed targets: [...]")`
+2. If `allowed(from_state, to_state)` is false → raise `TransitionError(code=Code.INVENTORY_INVALID_TRANSITION, msg="not allowed from 'X' to 'Y'; allowed targets: [...]")`
 3. `obj.update_from_dict({state_field: to_state, **extra_updates})` + `obj.save(update_fields=...)`
 4. `log_fn("state changed", data={"model", "id", "fromState", "toState", "actorId", "at"})`
 
@@ -86,11 +86,11 @@ EMPLOYEE_FSM.allowed("pending", "active")    # → False
 EMPLOYEE_FSM.allowed_targets("pending")      # → ["onboarding"]
 ```
 
-The frontend can use this to show a "next action" button dynamically. See [HR module](/en/advanced/business-hr#state-machine-employee-state-transitions).
+The frontend can use this to show a "next action" button dynamically. Keep state transitions local to the owning business module.
 
 ## Failure → TransitionError
 
-`TransitionError` extends `BizError`; the global handler turns it into `Fail(code=Code.HR_INVALID_TRANSITION, msg=...)`:
+`TransitionError` extends `BizError`; the global handler turns it into `Fail(code=Code.INVENTORY_INVALID_TRANSITION, msg=...)`:
 
 ```python
 try:
@@ -109,42 +109,42 @@ Different modules use different code ranges:
 # end of app/core/code.py
 class Code:
     ...
-    # 40xx HR
-    HR_INVALID_TRANSITION = "4007"
+    # 40xx Inventory
+    INVENTORY_INVALID_TRANSITION = "4007"
 
     # 41xx Order
     ORDER_INVALID_TRANSITION = "4107"
 ```
 
-Then in business code wrap conditionally — or just reuse `Code.HR_INVALID_TRANSITION` if you don't care about the segment.
+Then in business code wrap conditionally — or just reuse `Code.INVENTORY_INVALID_TRANSITION` if you don't care about the segment.
 
 ## Permission relationship
 
 The state machine only validates "legality"; it doesn't check "who's allowed to transition". **Authorize at the route layer**:
 
 ```python
-@router.post("/employees/{emp_id}/transition", dependencies=[require_buttons("B_HR_EMP_TRANSITION")])
-async def _(emp_id: SqidPath, body: EmployeeTransition):
-    return await transition_employee(emp_id, body.to_state)
+@router.post("/products/{product_id}/transition", dependencies=[require_buttons("B_INVENTORY_PRODUCT_TRANSITION")])
+async def _(product_id: SqidPath, body: ProductTransition):
+    return await transition_product(product_id, body.to_state)
 ```
 
 ## Tests
 
 ```python
 async def test_pending_to_onboarding_ok():
-    emp = await Employee.create(status="pending", ...)
+    emp = await Product.create(status="pending", ...)
     await EMPLOYEE_FSM.transition(obj=emp, to_state="onboarding")
     assert emp.status == "onboarding"
 
 
 async def test_pending_to_active_blocked():
-    emp = await Employee.create(status="pending", ...)
+    emp = await Product.create(status="pending", ...)
     with pytest.raises(TransitionError) as ei:
         await EMPLOYEE_FSM.transition(obj=emp, to_state="active")
-    assert ei.value.code == Code.HR_INVALID_TRANSITION
+    assert ei.value.code == Code.INVENTORY_INVALID_TRANSITION
 ```
 
 ## See also
 
-- [HR module (full employee state transition example)](/en/advanced/business-hr#state-machine-employee-state-transitions)
+- [State machine](state-machine.md)
 - [Event bus](/en/develop/events) — emit audit events after transitions

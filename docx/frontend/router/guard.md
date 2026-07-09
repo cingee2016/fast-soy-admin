@@ -56,13 +56,13 @@ afterEach  (title.ts)     # document.title = i18n(meta.title)
 | `login` | 登录页 |
 | `403 / 404 / 500` | 错误页 |
 | `home` | 首页（可见但通常需要登录后才能访问 — `home` 不是 constant） |
-| `showcase` | HR 公开数据展示 Demo（`/showcase`）— 调用 `GET /api/v1/business/hr/public/showcase` |
+| `showcase` | 库存公开数据展示 Demo（`/showcase`）— 调用 `GET /api/v1/business/inventory/public/showcase` |
 
 后端 `Menu.constant=True` 会在启动时由 `load_constant_routes` 写到 Redis `constant_routes`；前端启动时拉一次，挂到 router。
 
 ### 新增一个常量路由
 
-以 `/showcase`（HR 公开数据展示）为例——**前后端都要动**，缺一不可（在线 Demo：<https://fast-soy-admin.sleep0.de/showcase>）：
+以 `/showcase`（Inventory 公开数据展示）为例——**前后端都要动**，缺一不可（在线 Demo：<https://fast-soy-admin.sleep0.de/showcase>）：
 
 #### 1. 前端页面 + 白名单
 
@@ -101,14 +101,14 @@ await ensure_menu(
 
 #### 3. 公开接口
 
-接口放在 `/<module>/public/*` 前缀下，**不要**挂 `DependAuth / DependPermission`，**不要**返回 PII。详见 [HR 模块 · 公开接口](../../advanced/business-hr.md#_5-公开接口-常量路由示例)。
+接口放在 `/<module>/public/*` 前缀下，**不要**挂 `DependAuth / DependPermission`，**不要**返回 PII。公开接口应在模块内独立声明，并避免返回敏感信息。
 
 ## meta.roles（仅静态路由）
 
 只有 `VITE_AUTH_ROUTE_MODE=static` 时 `meta.roles` 才生效——按用户当前角色集合做交集判断。
 
 ```typescript
-meta: { roles: ['R_ADMIN', 'R_HR_ADMIN'] }
+meta: { roles: ['R_ADMIN', 'R_INVENTORY_ADMIN'] }
 ```
 
 动态模式下 `meta.roles` 会被忽略（后端已经按角色过滤过了）。

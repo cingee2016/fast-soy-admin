@@ -18,14 +18,14 @@ Source: `app/core/events.py`.
 from app.utils import emit, on
 
 
-@on("employee.created")
-async def _send_welcome_mail(employee_id: int, **kwargs):
+@on("product.created")
+async def _send_welcome_mail(product_id: int, **kwargs):
     # Handlers should accept **kwargs so emitters can extend later
     ...
 
 
-@on("employee.status_changed")
-async def _audit_state(employee_id: int, from_state: str, to_state: str, **kwargs):
+@on("product.status_changed")
+async def _audit_state(product_id: int, from_state: str, to_state: str, **kwargs):
     ...
 ```
 
@@ -39,10 +39,10 @@ from . import events  # noqa: F401  ← triggers @on registration
 ## Emit events
 
 ```python
-# app/business/hr/services.py
+# app/business/inventory/services.py
 from app.utils import emit
 
-await emit("employee.created", employee_id=new_emp.id, team_id=dept.id)
+await emit("product.created", product_id=new_emp.id, team_id=dept.id)
 ```
 
 All kwargs are passed through to handlers.
@@ -55,8 +55,8 @@ All kwargs are passed through to handlers.
 
 | Recommended | Avoid |
 |---|---|
-| `employee.created` | `EmployeeCreated` |
-| `employee.status_changed` | `change_employee_status_done` |
+| `product.created` | `ProductCreated` |
+| `product.status_changed` | `change_product_status_done` |
 | `order.refunded` | `RefundOrder` |
 
 Event names are a contract — **don't rename** once published; invisible handlers depend on them.
@@ -76,12 +76,12 @@ def _log_login(user_id: int, **kwargs):
 ## Failure semantics
 
 ```python
-@on("employee.created")
-async def _flaky_handler(employee_id: int, **kwargs):
+@on("product.created")
+async def _flaky_handler(product_id: int, **kwargs):
     raise RuntimeError("oops")
 ```
 
-`emit` doesn't re-raise — it logs `Event handler error: employee.created / module._flaky_handler` and the emitter continues.
+`emit` doesn't re-raise — it logs `Event handler error: product.created / module._flaky_handler` and the emitter continues.
 
 ::: warning Don't use the bus for "must succeed" work
 - ✅ Good: notifications, audit logs, cache invalidation, derived-data updates
@@ -93,10 +93,10 @@ async def _flaky_handler(employee_id: int, **kwargs):
 ```python
 # A: direct call (tightly coupled)
 from app.business.notify.services import send_welcome_mail
-await send_welcome_mail(employee_id=emp.id)
+await send_welcome_mail(product_id=emp.id)
 
 # B: event bus (loosely coupled)
-await emit("employee.created", employee_id=emp.id)
+await emit("product.created", product_id=emp.id)
 ```
 
 | Condition | Pick A | Pick B |
@@ -128,12 +128,12 @@ async def test_xxx(monkeypatch):
 
 | Event | Source | kwargs | Purpose |
 |---|---|---|---|
-| `employee.created` | HR | `employee_id`, `team_id`, `created_by` | post-create notification / stats |
-| `employee.status_changed` | HR | `employee_id`, `from_state`, `to_state`, `actor_id` | post-transition audit |
+| `product.created` | Inventory | `product_id`, `team_id`, `created_by` | post-create notification / stats |
+| `product.status_changed` | Inventory | `product_id`, `from_state`, `to_state`, `actor_id` | post-transition audit |
 
 > When you add a new event, append it here and add a comment at the emit site pointing to this page.
 
 ## See also
 
-- [HR module (event emit example)](/en/advanced/business-hr)
+- [Events](/en/develop/events)
 - [State machine](/en/develop/state-machine) — often paired with `emit` to publish audit events

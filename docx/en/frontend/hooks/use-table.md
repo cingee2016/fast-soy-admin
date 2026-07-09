@@ -17,12 +17,12 @@ Source: `web/packages/hooks/src/use-table.ts` and `web/src/hooks/common/table/`.
 
 ```vue
 <script setup lang="tsx">
-import { fetchEmployeeList } from '@/service/api/hr-manage';
+import { fetchProductList } from '@/service/api/inventory-manage';
 import { useNaivePaginatedTable, useTableOperate } from '@/hooks/common/table';
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams }
   = useNaivePaginatedTable({
-    apiFn: fetchEmployeeList,
+    apiFn: fetchProductList,
     apiParams: {
       current: 1,
       size: 10,
@@ -30,7 +30,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       status: undefined,
     },
     columns: () => [
-      { key: 'employeeNo', title: 'No.', align: 'center' },
+      { key: 'productNo', title: 'No.', align: 'center' },
       { key: 'name', title: 'Name', align: 'center' },
       { key: 'status', title: 'Status', align: 'center', render: (row) => statusTag(row.status) },
       { key: 'createdAt', title: 'Created', align: 'center' },
@@ -59,7 +59,7 @@ const { handleAdd, handleEdit, checkedRowKeys, drawerVisible, operateType, editi
 
 ### apiFn
 
-A fetch function returning `{ records, total, current, size }`. `fetchEmployeeList` hits `POST /employees/search`; the response is auto-mapped.
+A fetch function returning `{ records, total, current, size }`. `fetchProductList` hits `POST /products/search`; the response is auto-mapped.
 
 ### apiParams
 
@@ -130,9 +130,9 @@ const {
 
 ```vue
 <TableHeaderOperation v-model:columns="columnChecks" :loading="loading" @refresh="getData">
-  <NButton v-if="hasAuth('B_HR_EMP_CREATE')" @click="handleAdd">Add</NButton>
+  <NButton v-if="hasAuth('B_INVENTORY_PRODUCT_CREATE')" @click="handleAdd">Add</NButton>
   <NPopconfirm
-    v-if="hasAuth('B_HR_EMP_DELETE')"
+    v-if="hasAuth('B_INVENTORY_PRODUCT_DELETE')"
     @positive-click="handleBatchDelete">
     <template #trigger>
       <NButton :disabled="!checkedRowKeys.length">Batch delete</NButton>
@@ -141,7 +141,7 @@ const {
 </TableHeaderOperation>
 ```
 
-Full sample: [HR employee list](../../../web/src/views/hr/employee/index.vue).
+Full sample: [Inventory product list](../../../web/src/views/inventory/product/index.vue).
 
 ## CLI auto-generation
 

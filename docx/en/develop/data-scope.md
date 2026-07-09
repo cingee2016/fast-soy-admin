@@ -8,9 +8,9 @@ Source: `app/core/data_scope.py`.
 
 | Value | Meaning | Typical role |
 |---|---|---|
-| `all` | All rows; no filter | HR director / system admin |
+| `all` | All rows; no filter | Inventory director / system admin |
 | `scope` | Current business scope | tenant admin / org lead / project owner |
-| `self` | Only your own | regular employee |
+| `self` | Only your own | regular product |
 | `custom` | Reserved; currently falls back to `self` | — |
 
 `R_SUPER` and `data_scope=all` skip filtering entirely.
@@ -56,8 +56,8 @@ BIZ_ROLE_SEEDS = [
 ```python
 from app.utils import CTX_USER_ID, build_scope_filter, get_current_data_scope
 
-async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
-    q = employee_controller.build_search(search_in, contains_fields=[...])
+async def list_products_with_relations(search_in: ProductSearch, redis=None):
+    q = product_controller.build_search(search_in, contains_fields=[...])
 
     scope = await get_current_data_scope(redis)
     scope_q = build_scope_filter(
@@ -67,7 +67,7 @@ async def list_employees_with_relations(search_in: EmployeeSearch, redis=None):
         user_id_field="user_id",               # user column in your model
         scope_id_field="tenant_id",            # business-scope column in your model
     )
-    total, employees = await employee_controller.list(..., search=q & scope_q)
+    total, products = await product_controller.list(..., search=q & scope_q)
     return total, records
 ```
 
@@ -83,7 +83,7 @@ Column names are configurable via `user_id_field` / `scope_id_field`.
 
 ## How a module provides scope_id
 
-A module typically uses a local ContextVar + dependency to inject the current user's business-scope id. That scope can be a tenant, organization, project, store, etc.; the system no longer requires a fixed department field:
+A module typically uses a local ContextVar + dependency to inject the current user's business-scope id. That scope can be a tenant, organization, project, store, etc.; the system no longer requires a fixed warehouse field:
 
 ```python
 # app/business/crm/ctx.py
@@ -135,9 +135,9 @@ Not every table needs scope. Rule of thumb:
 `CRUDRouter`'s default `list` route doesn't add scope (it doesn't know your column names). For scoped resources, `@override("list")`:
 
 ```python
-@emp_crud.override("list")
-async def _list(obj_in: EmployeeSearch, request: Request):
-    total, records = await list_employees_with_relations(obj_in, redis=request.app.state.redis)
+@product_crud.override("list")
+async def _list(obj_in: ProductSearch, request: Request):
+    total, records = await list_products_with_relations(obj_in, redis=request.app.state.redis)
     return SuccessExtra(data={"records": records}, total=total, current=obj_in.current, size=obj_in.size)
 ```
 
@@ -152,5 +152,5 @@ Generated code passes `user_id_field` / `scope_id_field` into `build_scope_filte
 ## See also
 
 - [RBAC](/en/develop/rbac)
-- [HR module (full row-level permission example)](/en/advanced/business-hr)
+- [Data scope](/en/develop/data-scope)
 - [Cache](/en/ops/cache) — `role:{code}:data_scope`

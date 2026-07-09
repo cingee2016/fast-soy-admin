@@ -9,17 +9,17 @@ from tortoise import fields
 from app.utils import AuditMixin, BaseModel, SoftDeleteMixin, StatusType, TreeMixin
 
 
-class Department(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
-    """部门"""
+class Warehouse(BaseModel, AuditMixin, TreeMixin, SoftDeleteMixin):
+    """仓库"""
 
     id = fields.IntField(primary_key=True)
-    name = fields.CharField(max_length=100, unique=True, description="部门名称")
-    code = fields.CharField(max_length=50, unique=True, description="部门编号")
+    name = fields.CharField(max_length=100, unique=True, description="仓库名称")
+    code = fields.CharField(max_length=50, unique=True, description="仓库编号")
     status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
 
     class Meta:
-        table = "biz_hr_department"
-        table_description = "部门"
+        table = "biz_inventory_warehouse"
+        table_description = "仓库"
 ```
 
 > `# pyright: reportIncompatibleVariableOverride=false` 是 Tortoise + Pyright 已知的误报抑制，所有模型文件统一开头加这一行。
@@ -105,13 +105,13 @@ deleted_at = DatetimeField(null=True, default=None)
 await dept_controller.soft_remove(id=1)
 
 # 默认查询不包含已删除
-await Department.filter(name="技术部")          # deleted_at IS NULL
+await Warehouse.filter(name="技术部")          # deleted_at IS NULL
 
 # 看已删除
-await Department.all_objects.filter(deleted_at__isnull=False)
+await Warehouse.all_objects.filter(deleted_at__isnull=False)
 
 # 全量（含已删除）
-await Department.all_objects.all()
+await Warehouse.all_objects.all()
 ```
 
 ### PostgreSQL 优化：部分唯一索引
@@ -119,8 +119,8 @@ await Department.all_objects.all()
 `SoftDeleteMixin` 配合 `unique=True` 的字段时，**已删除的旧行**仍占用唯一约束，新建同名行会冲突。生产用 PostgreSQL 时建议替换为部分索引：
 
 ```sql
-CREATE UNIQUE INDEX biz_department_code_active_uq
-    ON biz_department(code)
+CREATE UNIQUE INDEX biz_warehouse_code_active_uq
+    ON biz_warehouse(code)
     WHERE deleted_at IS NULL;
 ```
 

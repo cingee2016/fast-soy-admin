@@ -88,10 +88,10 @@ crud = CRUDRouter(..., enable_routes={"list", "get"})  # read-only
 Default: `await obj.to_dict(exclude_fields=...)`. To preload relations or compose fields:
 
 ```python
-async def transform(obj: Employee) -> dict:
+async def transform(obj: Product) -> dict:
     d = await obj.to_dict()
-    await obj.fetch_related("department")
-    d["departmentName"] = obj.department.name
+    await obj.fetch_related("warehouse")
+    d["warehouseName"] = obj.warehouse.name
     return d
 
 CRUDRouter(..., record_transform=transform)
@@ -119,10 +119,10 @@ Requires the model to have `parent_id` (recommended via `TreeMixin`). The genera
 CRUDRouter(
     ...,
     action_dependencies={
-        "create":       [require_buttons("B_HR_DEPT_CREATE")],
-        "update":       [require_buttons("B_HR_DEPT_EDIT")],
-        "delete":       [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
+        "create":       [require_buttons("B_INVENTORY_WAREHOUSE_CREATE")],
+        "update":       [require_buttons("B_INVENTORY_WAREHOUSE_EDIT")],
+        "delete":       [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
+        "batch_delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
     },
 )
 ```
@@ -167,7 +167,7 @@ async def _update(item_id: SqidPath, obj_in: UserUpdate, request: Request):
 ```
 
 ::: warning Omit a schema and the route isn't generated
-If `emp_crud` doesn't pass `create_schema`, no `POST /employees` is registered. That's intentional — it lets you hand-write `@router.post("/employees")` without conflict. HR's employee create uses this pattern.
+If `product_crud` doesn't pass `create_schema`, no `POST /products` is registered. That's intentional — it lets you hand-write `@router.post("/products")` without conflict. Inventory's product create uses this pattern.
 :::
 
 ## Mount extra endpoints on the router
@@ -177,8 +177,8 @@ If `emp_crud` doesn't pass `create_schema`, no `POST /employees` is registered. 
 ```python
 router = dept_crud.router
 
-@router.post("/departments/{dept_id}/employees", summary="Bulk assign employees")
-async def assign_employees(dept_id: SqidPath, body: AssignEmployees):
+@router.post("/warehouses/{dept_id}/products", summary="Bulk assign products")
+async def assign_products(dept_id: SqidPath, body: AssignProducts):
     ...
     return Success(...)
 ```
@@ -186,31 +186,31 @@ async def assign_employees(dept_id: SqidPath, body: AssignEmployees):
 ## Wiring template for a business module
 
 ```python
-# app/business/hr/api/manage.py
+# app/business/inventory/api/manage.py
 from fastapi import APIRouter
 
 from app.utils import CRUDRouter, DependPermission, SearchFieldConfig, require_buttons
 
 dept_crud = CRUDRouter(
-    prefix="/departments",
-    controller=department_controller,
-    create_schema=DepartmentCreate,
-    update_schema=DepartmentUpdate,
-    list_schema=DepartmentSearch,
+    prefix="/warehouses",
+    controller=warehouse_controller,
+    create_schema=WarehouseCreate,
+    update_schema=WarehouseUpdate,
+    list_schema=WarehouseSearch,
     search_fields=SearchFieldConfig(contains_fields=["name", "code"]),
-    summary_prefix="Department",
+    summary_prefix="Warehouse",
     soft_delete=True,
     tree_endpoint=True,
     action_dependencies={
-        "create": [require_buttons("B_HR_DEPT_CREATE")],
-        "update": [require_buttons("B_HR_DEPT_EDIT")],
-        "delete": [require_buttons("B_HR_DEPT_DELETE")],
-        "batch_delete": [require_buttons("B_HR_DEPT_DELETE")],
+        "create": [require_buttons("B_INVENTORY_WAREHOUSE_CREATE")],
+        "update": [require_buttons("B_INVENTORY_WAREHOUSE_EDIT")],
+        "delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
+        "batch_delete": [require_buttons("B_INVENTORY_WAREHOUSE_DELETE")],
     },
 )
 
 # Top router: module prefix + default deps here
-router = APIRouter(prefix="/hr", tags=["hr"], dependencies=[DependPermission])
+router = APIRouter(prefix="/inventory", tags=["inventory"], dependencies=[DependPermission])
 router.include_router(dept_crud.router)
 
 # api/__init__.py aggregates manage / dept / my sub-routers into the top router

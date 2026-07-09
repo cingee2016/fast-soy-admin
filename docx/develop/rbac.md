@@ -37,21 +37,21 @@ User
 每个模块在自己的 `init_data.py` 中声明菜单（含按钮），由 `ensure_menu` upsert 到 `Menu` / `Button` 表：
 
 ```python
-HR_MENU_CHILDREN = [
+INVENTORY_MENU_CHILDREN = [
     {
-        "menu_name": "员工管理",
-        "route_name": "hr_employee",
-        "route_path": "/hr/employee",
+        "menu_name": "商品管理",
+        "route_name": "inventory_product",
+        "route_path": "/inventory/product",
         "buttons": [
-            {"button_code": "B_HR_EMP_CREATE", "button_desc": "创建员工"},
-            {"button_code": "B_HR_EMP_EDIT",   "button_desc": "编辑员工"},
-            {"button_code": "B_HR_EMP_DELETE", "button_desc": "删除员工"},
-            {"button_code": "B_HR_EMP_TRANSITION", "button_desc": "状态流转"},
+            {"button_code": "B_INVENTORY_PRODUCT_CREATE", "button_desc": "创建商品"},
+            {"button_code": "B_INVENTORY_PRODUCT_EDIT",   "button_desc": "编辑商品"},
+            {"button_code": "B_INVENTORY_PRODUCT_DELETE", "button_desc": "删除商品"},
+            {"button_code": "B_INVENTORY_PRODUCT_TRANSITION", "button_desc": "状态流转"},
         ],
     },
 ]
 
-await ensure_menu(menu_name="HR管理", route_name="hr", ..., children=HR_MENU_CHILDREN)
+await ensure_menu(menu_name="库存管理", route_name="inventory", ..., children=INVENTORY_MENU_CHILDREN)
 ```
 
 需要"删除已声明集合外的子菜单 / 按钮"时启用 `reconcile_menu_subtree(root_route="hr", ...)`，子树进入 IaC 模式。详见 [启动初始化与对账](./init-data.md)。
@@ -64,13 +64,13 @@ B_<MODULE>_<RESOURCE>_<ACTION>
 
 | 例 | 含义 |
 |---|---|
-| `B_HR_DEPT_CREATE` | HR / 部门 / 创建 |
-| `B_HR_EMP_TRANSITION` | HR / 员工 / 状态流转 |
+| `B_INVENTORY_WAREHOUSE_CREATE` | 库存 / 仓库 / 创建 |
+| `B_INVENTORY_PRODUCT_TRANSITION` | 库存 / 商品 / 状态流转 |
 | `B_INV_PRODUCT_DELETE` | 库存 / 产品 / 删除 |
 
 通用约定：
 
-- 一个按钮对应一类操作，**单删与批量删共用同一个码**（HR 模块如此）
+- 一个按钮对应一类操作，**单删与批量删共用同一个码**（库存模块如此）
 - "读列表"不发按钮——靠菜单可见 + API 授权控制即可
 - 跨模块复用的按钮（罕见）放在系统层声明
 
@@ -90,7 +90,7 @@ B_<MODULE>_<RESOURCE>_<ACTION>
 
 ### 匹配语义：按 `path_format` 精确命中
 
-`api_path` 字段存的是 FastAPI 的 `APIRoute.path_format`（例如 `/api/v1/business/hr/employees/{id}`，不是某次请求的真实 URL）。`DependPermission` 在请求阶段也用 `request.scope["route"].path_format` 作为键去 Redis 集合里**精确**查表——和入库键同一字符串空间，O(1) 命中。
+`api_path` 字段存的是 FastAPI 的 `APIRoute.path_format`（例如 `/api/v1/business/inventory/products/{id}`，不是某次请求的真实 URL）。`DependPermission` 在请求阶段也用 `request.scope["route"].path_format` 作为键去 Redis 集合里**精确**查表——和入库键同一字符串空间，O(1) 命中。
 
 这意味着 `/resources/{id}` 和 `/resources/sync` 是**两条完全独立**的权限记录，互不覆盖：
 
@@ -112,15 +112,15 @@ from app.system.services import ensure_role
 
 await ensure_role(
     role_name="HR管理员",
-    role_code="R_HR_ADMIN",
-    role_desc="人事专员",
-    home_route="hr_employee",
+    role_code="R_INVENTORY_ADMIN",
+    role_desc="库存专员",
+    home_route="inventory_product",
     data_scope=DataScopeType.all,
-    menus=["home", "hr", "hr_department", "hr_employee", "hr_tag"],
-    buttons=["B_HR_DEPT_CREATE", "B_HR_DEPT_EDIT", ...],
+    menus=["home", "hr", "inventory_warehouse", "inventory_product", "inventory_tag"],
+    buttons=["B_INVENTORY_WAREHOUSE_CREATE", "B_INVENTORY_WAREHOUSE_EDIT", ...],
     apis=[
-        ("post", "/api/v1/business/hr/employees/search"),
-        ("post", "/api/v1/business/hr/employees"),
+        ("post", "/api/v1/business/inventory/products/search"),
+        ("post", "/api/v1/business/inventory/products"),
         ...
     ],
 )
@@ -133,7 +133,7 @@ await ensure_role(
 声明的 `route_name` / `button_code` / `(method, path)` 在 DB 中找不到时输出：
 
 ```
-ensure_role 'R_HR_ADMIN': missing apis [('post', '/api/v1/business/hr/old')] (route signature changed?)
+ensure_role 'R_INVENTORY_ADMIN': missing apis [('post', '/api/v1/business/inventory/old')] (route signature changed?)
 ```
 
 **看到必须修**——意味着 seed 与代码脱节。详见 [启动初始化与对账](./init-data.md#ensure_role-配置漂移告警)。
@@ -160,7 +160,7 @@ from app.utils import DependPermission, require_buttons, require_roles
 
 ## 前端按钮鉴权
 
-按钮编码通过 `GET /api/v1/auth/user-info` 下发到前端（来源是 `CTX_BUTTON_CODES`；`R_SUPER` 直接返回**全部**按钮码）。前端用 `hasAuth('B_HR_EMP_CREATE')` 判断是否渲染对应按钮——具体写法见 [前端 / Hooks / useTable / 配合权限按钮](../frontend/hooks/use-table.md#配合权限按钮)。
+按钮编码通过 `GET /api/v1/auth/user-info` 下发到前端（来源是 `CTX_BUTTON_CODES`；`R_SUPER` 直接返回**全部**按钮码）。前端用 `hasAuth('B_INVENTORY_PRODUCT_CREATE')` 判断是否渲染对应按钮——具体写法见 [前端 / Hooks / useTable / 配合权限按钮](../frontend/hooks/use-table.md#配合权限按钮)。
 
 ## 缓存
 

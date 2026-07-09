@@ -89,7 +89,7 @@ See [Schema base](/en/develop/schema).
 
 | Symbol | Use |
 |---|---|
-| `Code.SUCCESS / Code.HR_INVALID_TRANSITION / ...` | [Response codes](/en/reference/codes) |
+| `Code.SUCCESS / Code.INVENTORY_INVALID_TRANSITION / ...` | [Response codes](/en/reference/codes) |
 | `BizError(code, msg)` | raise from any layer; global handler returns `Fail` |
 | `SchemaValidationError(code, msg)` | raise inside Pydantic validators (bypasses Pydantic's own catch) |
 
@@ -128,7 +128,7 @@ See [Data scope](/en/develop/data-scope).
 ```python
 from app.utils import radar_log
 
-radar_log("employee state changed", data={"empId": emp.id, "to": "active"})
+radar_log("product state changed", data={"empId": emp.id, "to": "active"})
 radar_log("permission denied", level="ERROR", data={...})
 ```
 
