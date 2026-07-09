@@ -37,6 +37,10 @@ FastSoyAdmin v1.0.0 | FastAPI + Vue3 全栈后台管理模板 | MIT
 3. **跟规范对齐**：[工程约定清单](#工程约定清单pr-review-checklist) + [docs/standard/](docs/standard/)
 4. **小步推进**：先生成迁移看 SQL 再 apply；高风险 schema / contract 变更补覆盖；用户明确禁止测试时只跑允许的检查并说明跳过项
 
+### 提交 / 推送之前
+
+提交或推送 Git 前必须先跑项目级门禁：默认执行 `just check`，若门禁自动修复或暴露问题，先处理并重新跑到通过后再提交 / 推送。用户明确禁止测试时，只跑允许的格式化 / 静态检查并在结果中说明跳过项。
+
 ### 常用命令
 
 ```bash
