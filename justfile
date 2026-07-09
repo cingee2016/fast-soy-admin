@@ -281,6 +281,11 @@ web-check:
 
 # ---- Docker -------------------------------------------------
 
+# First-time Docker database init.
+docker-db-init:
+    docker compose up -d postgres redis
+    docker compose run --rm app uv run python -m app.cli initdb
+
 # Docker compose up.
 up:
     docker compose up -d
