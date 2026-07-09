@@ -5,8 +5,7 @@
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin
 cd fast-soy-admin
-docker compose up -d postgres redis
-docker compose run --rm app uv run python -m app.cli initdb
+just docker-db-init
 just up  # == docker compose up -d
 ```
 

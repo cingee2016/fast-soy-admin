@@ -5,8 +5,7 @@
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin
 cd fast-soy-admin
-docker compose up -d postgres redis
-docker compose run --rm app uv run python -m app.cli initdb
+just docker-db-init
 just up  # == docker compose up -d
 ```
 
@@ -68,11 +67,10 @@ docker compose exec app uv run tortoise migrate # 若本次更新含模型变更
 
 `just up` / `docker compose up -d` **不会自动建表**。新库第一次启动时，如果直接启动完整栈，后端会在启动初始化阶段查询 `menus` 等基础表并失败（PostgreSQL 日志常见 `relation "menus" does not exist`）。
 
-首次部署请按三步走：先启动数据库和 Redis，再用一次性 app 容器执行 `initdb`，最后启动完整栈：
+首次部署请先执行封装好的 Docker 初始化命令，再启动完整栈：
 
 ```bash
-docker compose up -d postgres redis             # 先启动依赖服务
-docker compose run --rm app uv run python -m app.cli initdb
+just docker-db-init  # 首次先启动依赖服务并初始化数据库
 just up                                         # == docker compose up -d
 ```
 
@@ -80,8 +78,8 @@ just up                                         # == docker compose up -d
 
 几个容易踩的点：
 
-- **`initdb` 必须在容器里跑，不能在宿主机跑**。compose 用 `.env.docker`，`DB_URL` / Redis 地址都指向容器网络（`postgres:5432`）；宿主机的 `just db-init` 会按本地 `.env` 走，连不到容器内的 PG。
-- **首次不要用 `docker compose exec app ... initdb` 当唯一方案**。空库下 app 可能已经因缺表退出，`exec` 会找不到可用容器；`docker compose run --rm app ...` 会创建一次性容器，更适合首次初始化。
+- **`initdb` 必须在容器里跑，不能在宿主机跑**。`just docker-db-init` 已封装为 `docker compose run --rm app ...`；宿主机的 `just db-init` 会按本地 `.env` 走，连不到容器内的 PG。
+- **首次不要用 `docker compose exec app ... initdb` 当唯一方案**。空库下 app 可能已经因缺表退出，`exec` 会找不到可用容器；`just docker-db-init` 会创建一次性 app 容器，更适合首次初始化。
 - **`initdb` 只能在全新库上跑一次**，它不是幂等建表，表已存在会报错。之后任何模型变更一律走 `migrate`（见下一节）。
 - **判断该 `initdb` 还是 `migrate`**：
 
@@ -245,7 +243,7 @@ grep -RnE "Soybean|Super|Admin|123456" web/src/views/_builtin/login  # 应无业
 
 1. 系统管理 → 角色管理 → 新增角色，例如 `R_BIZ_USER`（中文名"业务用户"）。
 2. 在该角色的「菜单权限」里，只勾选用户实际需要看到的页面（一般只有 `home` + 你的业务模块菜单）。
-3. 「按钮权限」里只勾选这些菜单下需要暴露的按钮码（如 `B_HR_DEPT_VIEW`，但不勾 `B_HR_DEPT_DELETE`）。
+3. 「按钮权限」里只勾选这些菜单下需要暴露的按钮码（如 `B_INVENTORY_WAREHOUSE_VIEW`，但不勾 `B_INVENTORY_WAREHOUSE_DELETE`）。
 4. 「接口权限」一定要把对应的 `(method, path)` 也勾上——按钮在前端隐藏不等于后端拒绝（参见 [RBAC](../develop/rbac.md)）。
 5. 「数据范围」按需选 `self` / `scope` / `custom`，不要保留默认 `all`。
 6. 把所有真实业务用户从 `R_USER` 改挂到 `R_BIZ_USER`。

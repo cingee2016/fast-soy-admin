@@ -66,17 +66,17 @@ uv run python -m app.cli crud utility_fee \
 Advanced backend features are also available from the CLI:
 
 ```bash
-uv run python -m app.cli crud hr \
-  --cn-name HR \
-  --models Employee,Department \
-  --data-scope Employee:user_id,tenant_id \
+uv run python -m app.cli crud inventory \
+  --cn-name Inventory \
+  --models Product,Warehouse \
+  --data-scope Product:user_id,tenant_id \
   --button-auth \
-  --soft-delete Employee \
-  --tree Department \
-  --list-order Employee:-created_at,id \
-  --enable-routes Department:list,get \
-  --list-cache Department:60 \
-  --rate-limit Employee:30/60
+  --soft-delete Product \
+  --tree Warehouse \
+  --list-order Product:-created_at,id \
+  --enable-routes Warehouse:list,get \
+  --list-cache Warehouse:60 \
+  --rate-limit Product:30/60
 ```
 
 | Option | Generated effect |
@@ -127,6 +127,7 @@ Compatibility aliases are still available: `just install-all`, `just check-all`,
 
 | Raw | just | Purpose |
 |---|---|---|
+| `docker compose up -d postgres redis && docker compose run --rm app uv run python -m app.cli initdb` | `just docker-db-init` | First-time Docker database initialization |
 | `docker compose up -d` | `just up` | Start full stack (nginx :1880 + fastapi :9999 + redis) |
 | `docker compose up -d --build` | `just rebuild` | Rebuild images and recreate containers (after code / Dockerfile changes) |
 | `docker compose down` | `just down` | Stop & remove containers |

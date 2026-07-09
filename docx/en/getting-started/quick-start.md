@@ -21,8 +21,7 @@ cd fast-soy-admin
 ## Option A: Docker (recommended)
 
 ```bash
-docker compose up -d postgres redis             # first start dependency services
-docker compose run --rm app uv run python -m app.cli initdb
+just docker-db-init  # first start dependencies and initialize the database
 just up                                         # == docker compose up -d
 ```
 
@@ -66,7 +65,7 @@ After `just db-init`, the seed users (password = `123456`):
 | `Admin` | `R_ADMIN` |
 | `User` | `R_USER` |
 
-Business demo modules are not loaded by default. The historical HR reference has moved to [Advanced / HR reference](/en/advanced/business-hr).
+Business demo modules are not loaded by default.
 
 ## What's next
 
@@ -84,7 +83,6 @@ fast-soy-admin/
 │   ├── core/             # Framework infrastructure
 │   ├── system/           # Built-in modules (auth/users/roles/menus/...)
 │   ├── business/         # Business modules (autodiscovered)
-│   │   └── hr/           #   reference: employees / departments / tags
 │   ├── cli/              # Code generators
 │   └── utils/            # Stable import facade for business modules
 ├── web/                  # Frontend (Vue3 + Vite + NaiveUI)

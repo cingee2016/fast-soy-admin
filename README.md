@@ -28,50 +28,23 @@
 开箱即用的全栈后台管理模板，可作为中后台脚手架，也可作为全栈开发参考。
 
 - **后端** — FastAPI · Pydantic v2 · Tortoise ORM · Redis
-- **前端** — Vue3 · Vite7 · TypeScript · Naive UI · UnoCSS · Pinia · Alova · Elegant Router
+- **前端** — Vue3 · Vite8 · TypeScript · Naive UI · UnoCSS · Pinia · Alova · Elegant Router
 - **基础设施** — Docker Compose（Nginx + FastAPI + Redis）、多 worker 启动锁、fastapi-guard 限流、内置 Radar 监控面板
 - **代码生成器** — `cli-init` 起骨架，编辑 `models.py`，`cli-crud` 一键产出前后端 CRUD
 
 ## 特性
 
-**AI 驱动**
-
-- **AI Coding 友好** — 内置 [CLAUDE.md](CLAUDE.md) 与完整项目文档，AI 按项目规范产出代码
-- **生成器即 AI 工作面** — `cli-crud` 一键加表，AI 只关注 `models.py` 与覆写差异
-
-**工程效率**
-
-- **CLI 端到端生成** — 从 Tortoise 模型一键产出前后端 CRUD（schemas / controllers / api + views / service / typings / i18n）
-- **CRUDRouter + `@crud.override`** — 工厂生成 6 条标准路由，按需覆写
-
-**可扩展架构**
-
-- **业务模块自动发现** — 放进 `app/business/<name>/` 即自动注册；跨模块走事件总线（`emit` / `on`）
-- **多库友好** — 业务模块可声明独立 `DB_URL`，事务用 `in_transaction(get_db_conn(Model))`
-- **多 worker 启动协调** — Redis leader 锁串行初始化，K8s 多副本无重复对账
-
-**安全与权限**
-
-- **三层 RBAC + 行级 `data_scope`** — 菜单 / API / 按钮 + `all / scope / self / custom`
-- **菜单/角色 IaC 对账** — `ensure_menu` / `reconcile_menu_subtree` / `refresh_api_list` 三档语义
-- **Sqid 对外 ID** — 防遍历枚举
-
-**契约与类型**
-
-- **统一响应** — `{code, msg, data}` + HTTP 200 + camelCase；业务异常用 `BizError` 穿透
-- **全栈类型安全** — 后端 basedpyright + 前端 vue-tsc，CI 强制全绿
-- **i18n 静态可校验** — 生成器输出自动并入语言包，`$t` 键被 vue-tsc 校验
-
-**可观测与稳定性**
-
-- **内置 Radar 面板** — 请求 / SQL / 异常 / 权限拒绝
-- **fastapi-guard** — 限流 + IP 封禁
-- **Redis 缓存 + 降级** — Redis 故障自动回落 DB
-- **状态机 / 事件总线** — 工单、审批、订单等状态流转开箱即用
-
-**部署**
-
-- **Docker 一键部署** — Nginx + FastAPI + Redis，`docker compose up -d` 即上线
+- **AI Coding 友好** — 内置 [CLAUDE.md](CLAUDE.md) 与完整项目规范
+- **一键 CRUD** — Tortoise 模型生成前后端 CRUD、类型与 i18n
+- **可覆写路由工厂** — `CRUDRouter` 生成标准接口，`@crud.override` 按需定制
+- **模块化业务** — `app/business/<name>/` 自动发现，跨模块走事件总线
+- **多数据库支持** — PostgreSQL / SQLite / MySQL / SQL Server / Oracle
+- **RBAC 权限体系** — 菜单 / API / 按钮 + 行级 `data_scope`
+- **IaC 初始化对账** — 菜单、角色、API 启动时可声明式同步
+- **统一接口契约** — `{code, msg, data}`、camelCase、Sqid 对外 ID
+- **全栈类型检查** — basedpyright + vue-tsc + 静态 i18n 校验
+- **内置运维能力** — Radar 监控、Redis 缓存降级、限流与 IP 封禁
+- **Docker 部署** — Nginx + FastAPI + Redis 开箱即用
 
 ## 相关链接
 
@@ -93,9 +66,6 @@
 | 分支      | 用途                                                |
 | --------- | --------------------------------------------------- |
 | `main`    | 纯净骨架，无业务示例（默认分支）                    |
-| `example` | 带 HR 示例（`app/business/hr/` 员工 / 部门 / 标签） |
-
-> 临时无示例起步：删除 `app/business/hr/` 即可，autodiscover 会自动跳过。
 
 ## 快速开始
 
@@ -112,14 +82,13 @@
 ```bash
 git clone https://github.com/sleep1223/fast-soy-admin.git
 cd fast-soy-admin
-just up                                                  # docker compose up -d
-docker compose exec app uv run python -m app.cli initdb  # 首次必须手动建表 + 基础数据
-docker compose restart app
+just docker-db-init  # 首次先启动依赖服务并初始化数据库
+just up              # 启动完整栈并写入默认/业务种子数据
 ```
 
 访问 `http://localhost:1880`。
 
-> 启动**不会**自动迁移；容器内 SQLite **未挂卷**，生产请切外部数据库或挂卷 `app_system.sqlite3`。详见 [部署文档](https://sleep1223.github.io/fast-soy-admin-docs/ops/deployment)。
+> `initdb` 只在全新数据库执行一次；启动**不会**自动迁移。默认用户、菜单、角色、API 与业务种子数据会在最后一步 app 正常启动时写入。详见 [部署文档](https://sleep1223.github.io/fast-soy-admin-docs/ops/deployment)。
 
 ### 本地开发
 
@@ -175,7 +144,6 @@ app/
 ├── core/           # 框架基础设施（CRUDBase / CRUDRouter / Schema / 鉴权 / 缓存 / 事件 / Sqids）
 ├── system/         # 系统模块（auth / user / role / menu / api / dictionary / radar）
 ├── business/       # 业务模块（autodiscover 自动加载）
-│   └── hr/         #   参考实现
 ├── cli/            # 代码生成器
 └── utils/          # 业务模块对外统一 import 入口
 web/src/

@@ -2,7 +2,7 @@
 
 [FastSoyAdmin](https://github.com/sleep1223/fast-soy-admin) is a batteries-included full-stack admin template.
 
-- **Frontend** — based on [SoybeanAdmin](https://github.com/soybeanjs/soybean-admin); Vue3 + Vite7 + TypeScript + Pinia + UnoCSS + Naive UI
+- **Frontend** — based on [SoybeanAdmin](https://github.com/soybeanjs/soybean-admin); Vue3 + Vite8 + TypeScript + Pinia + UnoCSS + Naive UI
 - **Backend** — FastAPI + Pydantic v2 + Tortoise ORM + Redis; layered as "system + business" with autodiscovered modules
 
 Monorepo layout: `/app` backend, `/web` frontend, `/deploy` Docker / Nginx.
@@ -68,7 +68,7 @@ Monorepo layout: `/app` backend, `/web` frontend, `/deploy` Docker / Nginx.
 │      Static assets + /api/* reverse proxy       │
 ├──────────────────────┬──────────────────────────┤
 │   Frontend (:9527)   │   Backend (:9999)        │
-│   Vue3 + Vite7       │   FastAPI                │
+│   Vue3 + Vite8       │   FastAPI                │
 │                      │                          │
 │   Views              │   api/                   │
 │     ↓                │     ↓                    │

@@ -21,8 +21,7 @@ cd fast-soy-admin
 ## 方式一：Docker 部署（推荐）
 
 ```bash
-docker compose up -d postgres redis             # 首次先启动依赖服务
-docker compose run --rm app uv run python -m app.cli initdb
+just docker-db-init  # 首次先启动依赖服务并初始化数据库
 just up                                         # == docker compose up -d
 ```
 
@@ -72,7 +71,6 @@ fast-soy-admin/
 │   ├── core/             # 分层公共设施（CRUD、dep、中间件）
 │   ├── system/           # 内置系统模块（auth / user / role / menu）
 │   ├── business/         # 业务模块（autodiscover 自动加载）
-│   │   └── hr/           #   示例：员工/部门/标签
 │   ├── cli/              # CLI 代码生成器
 │   └── utils/            # 业务开发者的统一导入入口
 ├── web/                  # 前端 (Vue3 + Vite + NaiveUI)

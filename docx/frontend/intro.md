@@ -1,6 +1,6 @@
 # 前端简介
 
-基于 [SoybeanAdmin](https://github.com/soybeanjs/soybean-admin)：Vue3 + Vite7 + TypeScript + Pinia + UnoCSS + Naive UI。`/web/` 是 pnpm workspace，业务代码在 `web/src/`，内部子包在 `web/packages/`。
+基于 [SoybeanAdmin](https://github.com/soybeanjs/soybean-admin)：Vue3 + Vite8 + TypeScript + Pinia + UnoCSS + Naive UI。`/web/` 是 pnpm workspace，业务代码在 `web/src/`，内部子包在 `web/packages/`。
 
 ## 技术栈
 

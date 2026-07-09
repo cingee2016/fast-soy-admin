@@ -73,17 +73,17 @@ uv run python -m app.cli crud utility_fee \
 后端高级能力也可直接从 CLI 调用：
 
 ```bash
-uv run python -m app.cli crud hr \
-  --cn-name 人事 \
-  --models Employee,Department \
-  --data-scope Employee:user_id,tenant_id \
+uv run python -m app.cli crud inventory \
+  --cn-name 库存 \
+  --models Product,Warehouse \
+  --data-scope Product:user_id,tenant_id \
   --button-auth \
-  --soft-delete Employee \
-  --tree Department \
-  --list-order Employee:-created_at,id \
-  --enable-routes Department:list,get \
-  --list-cache Department:60 \
-  --rate-limit Employee:30/60
+  --soft-delete Product \
+  --tree Warehouse \
+  --list-order Product:-created_at,id \
+  --enable-routes Warehouse:list,get \
+  --list-cache Warehouse:60 \
+  --rate-limit Product:30/60
 ```
 
 能力说明：
@@ -136,6 +136,7 @@ just cli-crud utility_fee 水电费 "--yes --models UtilityConfig --button-auth"
 
 | 原始命令 | just 命令 | 作用 |
 |---|---|---|
+| `docker compose up -d postgres redis && docker compose run --rm app uv run python -m app.cli initdb` | `just docker-db-init` | 首次 Docker 初始化数据库 |
 | `docker compose up -d` | `just up` | 启动全栈（nginx :1880 + fastapi :9999 + redis） |
 | `docker compose up -d --build` | `just rebuild` | 重建镜像并重建容器（代码 / Dockerfile 变更后使用） |
 | `docker compose down` | `just down` | 停止并移除容器 |
