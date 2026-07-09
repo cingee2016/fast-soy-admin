@@ -36,10 +36,11 @@ export function fetchGetAllPages() {
 }
 
 /** get menu tree */
-export function fetchGetMenuTree() {
+export function fetchGetMenuTree(params?: { includeHidden?: boolean }) {
   return request<Api.SystemManage.MenuTree[]>({
     url: '/system-manage/menus/tree',
-    method: 'get'
+    method: 'get',
+    params
   });
 }
 
