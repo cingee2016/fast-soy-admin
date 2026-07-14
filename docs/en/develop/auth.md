@@ -44,7 +44,7 @@ POST /api/v1/auth/login  { userName, password }
 login_with_credentials()
    ├─ User.filter(user_name=...).first()
    ├─ verify_password(plain, hash)  # Argon2
-   ├─ check status_type ≠ disable
+   ├─ check status_type == enable
    ├─ update_last_login()
    ├─ token_version = redis.get("token_version:{uid}") ?? 0
    └─ build_tokens(user, token_version)
@@ -75,7 +75,7 @@ POST /api/v1/auth/refresh-token  { refreshToken }
    │
    ├─ check_token(refreshToken)  # signature + exp
    ├─ data["tokenType"] == "refreshToken"   else 2105
-   ├─ user.status_type ≠ disable             else 2102
+   ├─ user.status_type == enable             else 2102
    ├─ tokenVersion ≥ redis.token_version    else 2106
    └─ re-issue access + refresh
 ```
@@ -84,12 +84,14 @@ When `access` expires (code `2103`) the frontend interceptor **automatically** c
 
 ## Token invalidation (`token_version`)
 
-Password change, impersonation exit, admin-forced logout — all need to "kill old tokens immediately". Mechanism:
+Password change, account disable, impersonation exit, and admin-forced logout all need to "kill old tokens immediately". Mechanism:
 
 - Each user has a Redis key `token_version:{userId}`, initial `0`
 - New tokens carry the current version in the JWT payload
 - Every request, `AuthControl.is_authed` compares the token's version with Redis; if smaller, raises `2106 SESSION_INVALIDATED`
 - To invalidate, call `invalidate_user_session(redis, user_id)`: `INCR token_version:{user_id}` and old tokens fail on next request
+
+While an account is disabled, requests return `2102 ACCOUNT_DISABLED` first. After it is re-enabled, tokens issued before the disable return `2106 SESSION_INVALIDATED` and never become valid again.
 
 ```python
 @router.patch("/password", dependencies=[DependAuth])
@@ -126,10 +128,10 @@ Steps in `AuthControl.is_authed`:
 1. Extract token from `Authorization: Bearer xxx`; missing → `2100`
 2. `jwt.decode` (verify exp; expired → `2103`, invalid → `2100`)
 3. Check `tokenType == "accessToken"`; else `2101`
-4. Compare `tokenVersion` with Redis; older → `2106`
-5. Load `User`; disabled / not found → `2101 / 2102`
+4. Load `User`; not enabled / not found → `2102 / 2101`
+5. Compare `tokenVersion` with Redis; older → `2106`
 6. Load roles / buttons → write into `CTX_USER_ID / CTX_USER / CTX_ROLE_CODES / CTX_BUTTON_CODES`
-7. If Redis fails, fall back to DB query (with WARNING log)
+7. If Redis fails, fall back to a DB query that only loads enabled roles (with WARNING log)
 
 ### `DependPermission` — endpoint permission
 

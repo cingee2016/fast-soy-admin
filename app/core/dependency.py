@@ -38,21 +38,32 @@ class AuthControl:
         if not token:
             raise BizError(code=Code.INVALID_TOKEN, msg="认证失败，请求中不存在令牌")
         user_id = CTX_USER_ID.get()
+        decode_data: Any | None = None
         if user_id is None:
-            status, code, decode_data = check_token(token)
+            status, code, token_data = check_token(token)
             if not status:
-                raise BizError(code=code, msg=decode_data)
+                raise BizError(code=code, msg=str(token_data))
+            if not isinstance(token_data, dict):
+                raise BizError(code=Code.INVALID_TOKEN, msg="无效的Token")
+            decode_data = token_data
 
-            if decode_data["data"]["tokenType"] != "accessToken":
+            if token_data["data"]["tokenType"] != "accessToken":
                 raise BizError(code=Code.INVALID_SESSION, msg="该令牌不是访问令牌")
 
-            user_id = decode_data["data"]["userId"]
+            user_id = token_data["data"]["userId"]
 
-            impersonator_id = decode_data["data"].get("impersonatorId", 0)
+            impersonator_id = token_data["data"].get("impersonatorId", 0)
             if impersonator_id:
                 CTX_IMPERSONATOR_ID.set(impersonator_id)
 
-            # 校验 token 版本号
+        user = await User.filter(id=user_id).first()
+        if not user:
+            raise BizError(code=Code.INVALID_SESSION, msg=f"认证失败，用户ID {user_id} 不存在")
+        if user.status_type != StatusType.enable:
+            raise BizError(code=Code.ACCOUNT_DISABLED, msg="该用户已被禁用")
+
+        # 先返回账号禁用语义；账号重新启用后，再由版本号阻止旧 Token 复活。
+        if decode_data is not None:
             redis = request.app.state.redis
             try:
                 token_version_in_jwt = decode_data["data"].get("tokenVersion", 0)
@@ -63,10 +74,6 @@ class AuthControl:
                 raise
             except Exception:
                 radar_log(f"Redis unavailable during token version check for user {user_id}, skipping version validation", level="WARNING")
-
-        user = await User.filter(id=user_id).first()
-        if not user:
-            raise BizError(code=Code.INVALID_SESSION, msg=f"认证失败，用户ID {user_id} 不存在")
 
         uid = int(user_id)
         CTX_USER_ID.set(uid)
@@ -79,10 +86,10 @@ class AuthControl:
             button_codes = await get_user_button_codes(redis, uid)
         except Exception:
             radar_log(f"Redis unavailable, loading permissions from database for user {uid}", level="WARNING")
-            await user.fetch_related("by_user_roles")
-            role_codes = [r.role_code for r in user.by_user_roles]
+            enabled_roles = await user.by_user_roles.filter(status_type=StatusType.enable)
+            role_codes = [r.role_code for r in enabled_roles]
             button_codes = []
-            for role in user.by_user_roles:
+            for role in enabled_roles:
                 await role.fetch_related("by_role_buttons")
                 button_codes.extend([b.button_code for b in role.by_role_buttons])
         CTX_ROLE_CODES.set(role_codes)

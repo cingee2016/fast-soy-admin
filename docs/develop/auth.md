@@ -44,7 +44,7 @@ POST /api/v1/auth/login  { userName, password }
 login_with_credentials()
    ├─ User.filter(user_name=...).first()
    ├─ verify_password(plain, hash)       # Argon2
-   ├─ 检查 status_type ≠ disable
+   ├─ 检查 status_type == enable
    ├─ update_last_login()
    ├─ token_version = redis.get("token_version:{uid}") ?? 0
    └─ build_tokens(user, token_version)  # access + refresh
@@ -75,7 +75,7 @@ POST /api/v1/auth/refresh-token  { refreshToken }
    │
    ├─ check_token(refreshToken)  # 签名 + exp
    ├─ data["tokenType"] == "refreshToken"   else 2105
-   ├─ user.status_type ≠ disable             else 2102
+   ├─ user.status_type == enable             else 2102
    ├─ tokenVersion ≥ redis.token_version    else 2106
    └─ 重新签发 access + refresh
 ```
@@ -84,12 +84,14 @@ POST /api/v1/auth/refresh-token  { refreshToken }
 
 ## Token 失效（token_version）
 
-修改密码、模拟登录恢复、管理员强制下线 等场景需要"立即让旧 token 失效"。机制：
+修改密码、关闭用户、模拟登录恢复、管理员强制下线等场景需要"立即让旧 token 失效"。机制：
 
 - 每个用户在 Redis 有键 `token_version:{userId}`，初始 `0`
 - 签发新 token 时把当前版本号写入 JWT payload
 - 每次请求时 `AuthControl.is_authed` 把 JWT 中的版本号与 Redis 中的最新版本号比较，更小则抛 `2106 SESSION_INVALIDATED`
 - 触发失效时调 `invalidate_user_session(redis, user_id)`：`INCR token_version:{user_id}`，旧 token 立刻失效
+
+关闭用户时，请求优先返回 `2102 ACCOUNT_DISABLED`；重新启用后，关闭前签发的旧 token 再返回 `2106 SESSION_INVALIDATED`，不会恢复有效。
 
 ```python
 # 修改密码后失效
@@ -127,10 +129,10 @@ async def me():
 1. 从 `Authorization: Bearer xxx` 提取 token，缺失 → `2100`
 2. `jwt.decode` 验签 + 检查 exp（过期 → `2103`，无效 → `2100`）
 3. 校验 `tokenType == "accessToken"`，否则 `2101`
-4. Redis 比较 `tokenVersion`，旧版 → `2106`
-5. 加载 `User`，禁用或不存在 → `2101 / 2102`
+4. 加载 `User`，非启用或不存在 → `2102 / 2101`
+5. Redis 比较 `tokenVersion`，旧版 → `2106`
 6. 加载角色 / 按钮 → 写入 `CTX_USER_ID / CTX_USER / CTX_ROLE_CODES / CTX_BUTTON_CODES`
-7. Redis 失败时 fallback 到数据库查询（WARNING 日志）
+7. Redis 失败时 fallback 到数据库查询，并且只加载启用角色（WARNING 日志）
 
 ### `DependPermission` — 接口权限
 

@@ -2,7 +2,7 @@ from fastapi import Request
 from tortoise.transactions import in_transaction
 
 from app.core.base_schema import Fail, Success
-from app.core.cache import load_role_permissions
+from app.core.cache import clear_role_permissions, load_role_permissions, refresh_users_roles
 from app.core.code import Code
 from app.core.constants import SUPER_ADMIN_ROLE
 from app.core.crud import get_db_conn
@@ -10,7 +10,7 @@ from app.core.router import CRUDRouter, SearchFieldConfig
 from app.core.sqids import encode_id
 from app.core.types import SqidPath
 from app.system.controllers import menu_controller, role_controller
-from app.system.models import Api, Button, Menu, Role
+from app.system.models import Api, Button, Menu, Role, User
 from app.system.schemas.admin import RoleCreate, RoleSearch, RoleUpdate, RoleUpdateAuthrization
 
 # 标准 CRUD 路由：list(POST /search), get, delete, batch_delete, create, update
@@ -55,8 +55,15 @@ async def _create_role(role_in: RoleCreate, request: Request):
 
 @crud.override("update")
 async def _update_role(item_id: SqidPath, obj_in: RoleUpdate, request: Request):
+    old_role_code = (await Role.get(id=item_id)).role_code
+    affected_users = await User.filter(by_user_roles__id=item_id).values("id")
+    affected_user_ids = {int(user["id"]) for user in affected_users}
     role_obj = await role_controller.update(id=item_id, obj_in=obj_in)
-    await load_role_permissions(request.app.state.redis, role_code=role_obj.role_code)
+    redis = request.app.state.redis
+    if old_role_code != role_obj.role_code:
+        await clear_role_permissions(redis, [old_role_code])
+    await load_role_permissions(redis, role_code=role_obj.role_code)
+    await refresh_users_roles(redis, affected_user_ids)
     return Success(msg="更新成功", data={"updatedId": encode_id(item_id)})
 
 

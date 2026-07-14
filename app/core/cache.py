@@ -16,7 +16,7 @@ import json
 from redis.asyncio import Redis
 
 from app.core.log import log
-from app.system.models.admin import Menu, Role, User
+from app.system.models.admin import Menu, Role, StatusType, User
 
 # ===================== 常量路由 =====================
 
@@ -50,6 +50,22 @@ async def get_constant_routes(redis: Redis) -> list[dict]:
 # ===================== 角色权限 =====================
 
 
+def _role_cache_keys(role_code: str) -> list[str]:
+    return [
+        f"role:{role_code}:menus",
+        f"role:{role_code}:apis",
+        f"role:{role_code}:buttons",
+        f"role:{role_code}:data_scope",
+    ]
+
+
+async def clear_role_permissions(redis: Redis, role_codes: list[str] | set[str]) -> None:
+    """清除指定角色的所有权限缓存。"""
+    keys = [key for role_code in role_codes for key in _role_cache_keys(role_code)]
+    if keys:
+        await redis.delete(*keys)
+
+
 async def load_role_permissions(redis: Redis, role_code: str | None = None) -> None:
     """
     将角色权限数据加载到 Redis。
@@ -59,9 +75,12 @@ async def load_role_permissions(redis: Redis, role_code: str | None = None) -> N
         role_code: 指定角色编码，为 None 时加载所有角色
     """
     if role_code:
-        roles = await Role.filter(role_code=role_code)
+        await clear_role_permissions(redis, [role_code])
+        roles = await Role.filter(role_code=role_code, status_type=StatusType.enable)
     else:
-        roles = await Role.all()
+        all_roles = await Role.all().values("role_code")
+        await clear_role_permissions(redis, {str(role["role_code"]) for role in all_roles})
+        roles = await Role.filter(status_type=StatusType.enable)
 
     pipe = redis.pipeline()
     for role in roles:
@@ -124,14 +143,18 @@ async def get_role_button_codes(redis: Redis, role_code: str) -> list[str]:
 async def load_user_roles(redis: Redis) -> None:
     """启动时将所有用户的角色编码和首页路由加载到 Redis"""
     # 预加载所有角色的首页路由
-    roles = await Role.all().select_related("by_role_home")
+    roles = await Role.filter(status_type=StatusType.enable).select_related("by_role_home")
     role_home_map = {r.id: r.by_role_home.route_name for r in roles}
 
     users = await User.all().prefetch_related("by_user_roles")
     pipe = redis.pipeline()
     for user in users:
         # 按创建时间倒序，最近创建的角色优先
-        user_roles = sorted(user.by_user_roles, key=lambda r: r.created_at, reverse=True)
+        user_roles = sorted(
+            (role for role in user.by_user_roles if role.status_type == StatusType.enable),
+            key=lambda r: r.created_at,
+            reverse=True,
+        )
         role_codes = [r.role_code for r in user_roles]
         pipe.set(f"user:{user.id}:roles", json.dumps(role_codes))
         # role_home: 取最近创建角色的首页，默认 "home"
@@ -170,7 +193,11 @@ async def get_user_button_codes(redis: Redis, user_id: int) -> list[str]:
 async def refresh_user_roles(redis: Redis, user_id: int) -> None:
     """刷新单个用户的角色和首页缓存（用户角色变更时调用）"""
     user = await User.get(id=user_id).prefetch_related("by_user_roles")
-    user_roles = sorted(user.by_user_roles, key=lambda r: r.created_at, reverse=True)
+    user_roles = sorted(
+        (role for role in user.by_user_roles if role.status_type == StatusType.enable),
+        key=lambda r: r.created_at,
+        reverse=True,
+    )
     role_codes = [r.role_code for r in user_roles]
     await redis.set(f"user:{user.id}:roles", json.dumps(role_codes))
     # role_home: 取最近创建角色的首页
@@ -181,6 +208,12 @@ async def refresh_user_roles(redis: Redis, user_id: int) -> None:
             role_home = home_menu.route_name
             break
     await redis.set(f"user:{user.id}:role_home", role_home)
+
+
+async def refresh_users_roles(redis: Redis, user_ids: list[int] | set[int]) -> None:
+    """刷新一组用户的角色和首页缓存。"""
+    for user_id in set(user_ids):
+        await refresh_user_roles(redis, user_id)
 
 
 # ===================== Token 版本号 =====================

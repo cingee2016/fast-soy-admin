@@ -106,9 +106,9 @@ async def get_current_data_scope(redis) -> str:
                         break
     else:
         # Redis 不可用时回退到数据库
-        from app.system.models.admin import Role
+        from app.system.models.admin import Role, StatusType
 
-        roles = await Role.filter(role_code__in=role_codes).values_list("data_scope", flat=True)  # type: ignore[misc]
+        roles = await Role.filter(role_code__in=role_codes, status_type=StatusType.enable).values_list("data_scope", flat=True)  # type: ignore[misc]
         for scope_val in roles:
             val = scope_val.value if hasattr(scope_val, "value") else str(scope_val)  # type: ignore[union-attr]
             priority = _SCOPE_PRIORITY.get(val, 99)

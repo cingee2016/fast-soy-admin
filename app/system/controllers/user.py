@@ -61,7 +61,7 @@ class UserController(CRUDBase[User, UserCreate, UserUpdate]):
             radar_log("用户登录失败: 密码错误", level="WARNING", data={"userName": user.user_name, "userId": user.id})
             raise BizError(code=Code.WRONG_CREDENTIALS, msg="用户名或密码错误")
 
-        if user.status_type == StatusType.disable:
+        if user.status_type != StatusType.enable:
             radar_log("用户登录失败: 账号已禁用", level="ERROR", data={"userName": user.user_name, "userId": user.id})
             raise BizError(code=Code.ACCOUNT_DISABLED, msg="该用户已被禁用")
 

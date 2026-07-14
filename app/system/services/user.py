@@ -19,7 +19,7 @@ from app.core.crud import get_db_conn
 from app.core.exceptions import BizError
 from app.system.controllers import role_controller
 from app.system.controllers.user import UserCreate, user_controller
-from app.system.models import User
+from app.system.models import StatusType, User
 from app.system.schemas.users import UserSearch, UserUpdate
 from app.system.services.auth import invalidate_user_session
 
@@ -131,8 +131,10 @@ async def create_managed_user(redis: Redis, user_in: UserCreate) -> User:
 
 
 async def update_managed_user(redis: Redis, user_id: int, obj_in: UserUpdate) -> int:
-    """后台更新用户：事务内更新 + 角色重绑；密码变更则失效 session。"""
+    """后台更新用户：事务内更新 + 角色重绑；密码或禁用状态变更则失效 session。"""
     assert obj_in.by_user_role_code_list is not None
+
+    current_status = (await User.get(id=user_id)).status_type
 
     if obj_in.user_email and await User.filter(user_email=obj_in.user_email).exclude(id=user_id).exists():
         raise BizError(code=Code.DUPLICATE_USER_EMAIL, msg="该邮箱已被注册")
@@ -143,7 +145,8 @@ async def update_managed_user(redis: Redis, user_id: int, obj_in: UserUpdate) ->
 
     await refresh_user_roles(redis, user_id)
 
-    if obj_in.password:
+    disabled_now = current_status == StatusType.enable and obj_in.status_type is not None and obj_in.status_type != StatusType.enable
+    if obj_in.password or disabled_now:
         await invalidate_user_session(redis, user_id)
 
     return user_id
