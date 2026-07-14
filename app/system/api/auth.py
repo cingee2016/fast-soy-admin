@@ -106,7 +106,7 @@ async def _(login_in: CodeLoginSchema, request: Request):
     if not user_obj:
         return Fail(code=Code.PHONE_NOT_REGISTERED, msg="该手机号未注册")
 
-    if user_obj.status_type == StatusType.disable:
+    if user_obj.status_type != StatusType.enable:
         return Fail(code=Code.ACCOUNT_DISABLED, msg="该账号已被禁用")
 
     await user_controller.update_last_login(user_obj.id)
@@ -132,7 +132,7 @@ async def _(register_in: RegisterSchema, request: Request):
     if await User.filter(user_name=user_name).exists():
         return Fail(code=Code.DUPLICATE_USER_NAME, msg="该用户名已存在")
 
-    default_role = await Role.filter(role_code="R_USER").first()
+    default_role = await Role.filter(role_code="R_USER", status_type=StatusType.enable).first()
     user_obj = await User.create(
         user_name=user_name,
         password=get_password_hash(register_in.password),
@@ -158,7 +158,7 @@ async def _(reset_in: ResetPasswordSchema, request: Request):
     if not user_obj:
         return Fail(code=Code.PHONE_NOT_REGISTERED, msg="该手机号未注册")
 
-    if user_obj.status_type == StatusType.disable:
+    if user_obj.status_type != StatusType.enable:
         return Fail(code=Code.ACCOUNT_DISABLED, msg="该账号已被禁用")
 
     await User.filter(id=user_obj.id).update(
@@ -189,7 +189,7 @@ async def _(jwt_token: JWTOut, request: Request):
     if data["data"]["tokenType"] != "refreshToken":
         return Fail(code=Code.NOT_REFRESH_TOKEN, msg="该令牌不是刷新令牌")
 
-    if user_obj.status_type == StatusType.disable:
+    if user_obj.status_type != StatusType.enable:
         radar_log("刷新令牌失败: 账号已禁用", level="WARNING", data={"userId": user_id})
         return Fail(code=Code.ACCOUNT_DISABLED, msg="该用户已被禁用")
 

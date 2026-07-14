@@ -32,6 +32,10 @@ Source models: `app/system/models/admin.py`.
 - `DependPermission` / `require_buttons` / `require_roles` short-circuit on `R_SUPER`
 - `_ensure_super_role()` re-attaches every non-constant menu + every button to this role on every startup
 
+## Role status and cache refresh
+
+Only roles with `status_type=enable` participate in menus, APIs, buttons, data scopes, or the `R_SUPER` check. Disabling a role clears its permission cache and refreshes every associated user's role and home-route cache; a user with no other enabled role receives `2207 USER_NO_ROLE`. Re-enabling or renaming a role also refreshes associated caches and deletes keys for the old role code.
+
 ## Menus and buttons: declarative
 
 Each module declares menus (with their buttons) in its `init_data.py`; `ensure_menu` upserts into `Menu` / `Button`:

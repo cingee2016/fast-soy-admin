@@ -32,6 +32,10 @@ User
 - `DependPermission` / `require_buttons` / `require_roles` 都会先检查 `R_SUPER` 并直接放行
 - `_ensure_super_role()` 在每次启动时把全部非常量菜单 + 全部按钮关联回该角色，免去手动维护
 
+## 角色状态与缓存
+
+只有 `status_type=enable` 的角色参与菜单、API、按钮、数据范围和 `R_SUPER` 判断。关闭角色后会清除该角色权限缓存，并刷新所有关联用户的角色与首页缓存；用户没有其他启用角色时，权限接口返回 `2207 USER_NO_ROLE`。角色重新启用或修改角色编码时同样刷新关联缓存，旧角色编码的缓存键会被删除。
+
 ## 菜单与按钮：声明式
 
 每个模块在自己的 `init_data.py` 中声明菜单（含按钮），由 `ensure_menu` upsert 到 `Menu` / `Button` 表：
