@@ -57,9 +57,7 @@
 
 ## 交流群
 
-欢迎扫码加入 FastSoyAdmin QQ 交流群，一起交流使用、二开和部署经验。
-
-<img src="https://sleep1223.github.io/fast-soy-admin-docs/community/qq-group.jpg" alt="FastSoyAdmin QQ 交流群二维码" width="220">
+[点击加入 FastSoyAdmin QQ 交流群](https://qm.qq.com/q/JHL7VHvDa)，一起交流使用、二开和部署经验。
 
 ## 分支说明
 

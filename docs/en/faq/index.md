@@ -184,10 +184,6 @@ Page transitions use `<Transition>` which requires a single root:
 
 That's a [sqid](/en/develop/sqids) — public-facing IDs are sqids. Frontend doesn't decode; just send it back as-is and the backend (`SqidPath` / `SqidId`) decodes automatically.
 
-### Tests passed by sending numeric IDs?
-
-`SqidId._sqid_to_int` accepts int, numeric string, and sqid during the migration period. Tighten in source after migration completes.
-
 ### After deploy, all external sqid links broke
 
 `SECRET_KEY` was rotated — sqid alphabet derives from `SECRET_KEY`. See [Sqids / rotating SECRET_KEY](/en/develop/sqids).
@@ -213,12 +209,13 @@ Or temporarily set `GUARD_ENABLED=false` and restart.
 
 ### Switched DB and got "module not found: asyncpg"
 
-The driver isn't installed:
+Sync the optional dependencies for the selected database:
 
 ```bash
-uv add asyncpg    # postgres
-uv add asyncmy    # mysql
-uv add asyncodbc  # mssql
+uv sync                 # PostgreSQL / SQLite (default dependencies)
+uv sync --extra mysql   # MySQL
+uv sync --extra mssql   # SQL Server
+uv sync --extra oracle  # Oracle
 ```
 
 See [Switching DB / drivers](/en/ops/database).

@@ -50,22 +50,6 @@ async def _(item_id: SqidPath):         # FastAPI path param
     return Success(data=await obj.to_dict())
 ```
 
-### Compatibility (numeric IDs during migration)
-
-`_sqid_to_int` accepts int, numeric string, and sqid:
-
-```python
-def _sqid_to_int(v: Any) -> int:
-    if isinstance(v, int):
-        return v
-    s = str(v)
-    if s.lstrip("-").isdigit():     # "123" or "-1"
-        return int(s)
-    return decode_id(s)              # real sqid
-```
-
-Lets the frontend / legacy tests send numeric IDs during the transition. Tighten in source after migration is complete.
-
 ## Model.to_dict auto-encode
 
 `BaseModel.to_dict()` auto-encodes PK and FK:

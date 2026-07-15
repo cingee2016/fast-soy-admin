@@ -189,10 +189,6 @@ await ensure_role(
 
 那是 [sqid](../develop/sqids.md) — 对外暴露的资源 ID 一律走 sqid。前端无需解码，原样发回后端即可（后端用 `SqidPath` / `SqidId` 自动解码）。
 
-### 测试里发数字 ID 也通过了？
-
-兼容期允许：`SqidId` 的 `_sqid_to_int` 同时接受 int / 数字字符串 / sqid 三种形式。迁移完成后可在源码中收紧。
-
 ### 部署后所有外部 sqid 链接都失效
 
 `SECRET_KEY` 被换了——sqid 字母表由 SECRET_KEY 派生。详见 [Sqids / 轮换 SECRET_KEY](../develop/sqids.md#轮换-secret_key-怎么办)。
@@ -218,12 +214,13 @@ redis-cli --scan --pattern "fastapi_guard:*" | xargs redis-cli del
 
 ### 切换数据库后启动报 "module not found: asyncpg"
 
-主库引擎没装对应驱动：
+切换数据库后需要同步对应的可选依赖：
 
 ```bash
-uv add asyncpg    # postgres
-uv add asyncmy    # mysql
-uv add asyncodbc  # mssql
+uv sync                 # PostgreSQL / SQLite（默认依赖）
+uv sync --extra mysql   # MySQL
+uv sync --extra mssql   # SQL Server
+uv sync --extra oracle  # Oracle
 ```
 
 详见 [切换数据库 / 驱动安装](../ops/database.md#驱动安装)。

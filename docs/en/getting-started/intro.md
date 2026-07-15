@@ -86,6 +86,7 @@ Monorepo layout: `/app` backend, `/web` frontend, `/deploy` Docker / Nginx.
 
 - [Live preview](https://fast-soy-admin.sleep0.de/)
 - [GitHub](https://github.com/sleep1223/fast-soy-admin)
+- [QQ community group](https://qm.qq.com/q/JHL7VHvDa)
 - [API docs (Apidog)](https://fast-soy-admin.apidog.io)
 - [SoybeanAdmin (frontend upstream)](https://github.com/soybeanjs/soybean-admin)
 - [FastAPI](https://fastapi.tiangolo.com/)

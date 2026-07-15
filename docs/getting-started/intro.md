@@ -86,6 +86,7 @@ monorepo 结构：`/app` 后端，`/web` 前端，`/deploy` Docker / Nginx。
 
 - [在线预览](https://fast-soy-admin.sleep0.de/)
 - [GitHub 仓库](https://github.com/sleep1223/fast-soy-admin)
+- [QQ 交流群](https://qm.qq.com/q/JHL7VHvDa)
 - [API 文档 (Apidog)](https://fast-soy-admin.apidog.io)
 - [SoybeanAdmin（前端上游）](https://github.com/soybeanjs/soybean-admin)
 - [FastAPI](https://fastapi.tiangolo.com/)
