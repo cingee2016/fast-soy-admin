@@ -9,7 +9,7 @@ from app.core.autodiscover import discover_business_db_configs, discover_busines
 
 class Settings(BaseSettings):
     VERSION: str = "0.1.0"
-    APP_TITLE: str = "FastSoyAdmin"
+    APP_TITLE: str = "OPS Admin"
     APP_DESCRIPTION: str = "Description"
 
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])

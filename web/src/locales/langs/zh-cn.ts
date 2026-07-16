@@ -1,6 +1,6 @@
 const local: App.I18n.BaseSchema = {
   system: {
-    title: 'Soybean 管理系统',
+    title: 'OPS Admin',
     updateTitle: '系统版本更新通知',
     updateContent: '检测到系统有新版本发布，是否立即刷新页面？',
     updateConfirm: '立即刷新',

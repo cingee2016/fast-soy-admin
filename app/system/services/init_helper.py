@@ -15,7 +15,6 @@ from functools import reduce
 from operator import or_
 from typing import Any, TypeVar
 
-from fastapi.routing import APIRoute
 from tortoise.expressions import Q
 from tortoise.models import Model
 
@@ -238,13 +237,15 @@ def _route_key_index() -> dict[str, tuple[str, str]]:
         return {}
 
     result: dict[str, tuple[str, str]] = {}
-    for route in fastapi_app.routes:
-        if not isinstance(route, APIRoute) or not route.include_in_schema or not route.name:
+    from app.core.router import get_all_api_routes
+
+    for route, path in get_all_api_routes(fastapi_app):
+        if not route.include_in_schema or not route.name:
             continue
-        methods = sorted(m.lower() for m in route.methods if m.lower() not in {"head", "options"})
+        methods = sorted(m.lower() for m in (route.methods or set()) if m.lower() not in {"head", "options"})
         if not methods:
             continue
-        result[route.name] = (methods[0], route.path_format)
+        result[route.name] = (methods[0], path)
     return result
 
 

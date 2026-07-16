@@ -10,10 +10,9 @@ from app.system.radar.developer import radar_log
 
 async def refresh_api_list():
     from app import fastapi_app
+    from app.core.router import get_all_api_routes
 
-    # 仅同步进 OpenAPI schema 的路由：探针 / 测试 / dev 工具用 include_in_schema=False 排除
-    app_routes = [route for route in fastapi_app.routes if isinstance(route, APIRoute) and route.include_in_schema]
-    app_routes_compared = [(list(route.methods)[0].lower(), route.path_format) for route in app_routes]
+    app_routes_compared = [(list(route.methods or set())[0].lower(), path) for route, path in get_all_api_routes(fastapi_app) if route.include_in_schema and route.methods]
 
     async with in_transaction(get_db_conn(Api)):
         existing_apis = [(str(api.api_method.value), api.api_path) for api in await Api.all()]
@@ -23,9 +22,11 @@ async def refresh_api_list():
             radar_log("API已删除", level="WARNING", data={"method": api_method, "path": api_path})
             await Api.filter(api_method=api_method, api_path=api_path).delete()
 
-        for route in app_routes:
+        for route, path in get_all_api_routes(fastapi_app):
+            if not route.include_in_schema or not route.methods:
+                continue
             api_method = list(route.methods)[0].lower()
-            api_path = route.path_format
+            api_path = path
             summary = route.summary
             tags = list(route.tags)
             instance = await Api.filter(api_path=api_path, api_method=api_method).first()

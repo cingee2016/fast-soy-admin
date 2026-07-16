@@ -23,29 +23,30 @@ TEST_ROLE = "R_PERM_TEST"
 
 def _all_routes(app):
     """枚举所有 APIRoute 的 (method, path_format)，跳过 HEAD/OPTIONS。"""
+    from app.core.router import get_all_api_routes
     seen: set[tuple[str, str]] = set()
-    for r in app.routes:
-        if not isinstance(r, APIRoute):
+    for r, path in get_all_api_routes(app):
+        if not r.methods:
             continue
-        for m in r.methods:
+        for m in (r.methods or set()):
             m_lower = m.lower()
             if m_lower in {"head", "options"}:
                 continue
-            key = (m_lower, r.path_format)
+            key = (m_lower, path)
             if key in seen:
                 continue
             seen.add(key)
-            yield m_lower, r.path_format, r
+            yield m_lower, path, r
 
 
-def _build_request(app, route: APIRoute, method: str) -> Request:
+def _build_request(app, route: APIRoute, method: str, path: str) -> Request:
     """构造最小化 Request，scope 中写入匹配到的 route，模拟 FastAPI 路由匹配完成后状态。"""
     scope = {
         "type": "http",
         "method": method.upper(),
-        # path_format 里的 {xxx} 段用占位符替换，保证 request.url.path 是一个合法 URL
-        "path": route.path_format.replace("{", ":").replace("}", ""),
-        "raw_path": route.path_format.encode(),
+        # path 里的 {xxx} 段用占位符替换，保证 request.url.path 是一个合法 URL
+        "path": path.replace("{", ":").replace("}", ""),
+        "raw_path": path.encode(),
         "query_string": b"",
         "headers": [],
         "route": route,
@@ -99,7 +100,7 @@ async def test_grant_exact_route_allows_access(perm_env):
         await _set_role_apis(redis, TEST_ROLE, [(method, path_format)])
         tokens = _bind_ctx([TEST_ROLE])
         try:
-            req = _build_request(app, route, method)
+            req = _build_request(app, route, method, path_format)
             # 不抛异常即表示通过
             await PermissionControl.has_permission(req, current_user=None)  # type: ignore[arg-type]
         finally:
@@ -115,7 +116,7 @@ async def test_no_permission_denies_access(perm_env):
     for method, _path_format, route in _all_routes(app):
         tokens = _bind_ctx([TEST_ROLE])
         try:
-            req = _build_request(app, route, method)
+            req = _build_request(app, route, method, _path_format)
             with pytest.raises(BizError) as exc_info:
                 await PermissionControl.has_permission(req, current_user=None)  # type: ignore[arg-type]
             assert exc_info.value.code == Code.PERMISSION_DENIED
@@ -133,7 +134,7 @@ async def test_disabled_permission_returns_api_disabled(perm_env):
 
     tokens = _bind_ctx([TEST_ROLE])
     try:
-        req = _build_request(app, route, method)
+        req = _build_request(app, route, method, path_format)
         with pytest.raises(BizError) as exc_info:
             await PermissionControl.has_permission(req, current_user=None)  # type: ignore[arg-type]
         assert exc_info.value.code == Code.API_DISABLED
@@ -181,7 +182,7 @@ async def test_parametric_permission_does_not_leak_to_static_sibling(perm_env):
         await _set_role_apis(redis, TEST_ROLE, [(m, param_path)])
         tokens = _bind_ctx([TEST_ROLE])
         try:
-            req = _build_request(app, static_route, m)
+            req = _build_request(app, static_route, m, static_path)
             with pytest.raises(BizError) as exc_info:
                 await PermissionControl.has_permission(req, current_user=None)  # type: ignore[arg-type]
             assert exc_info.value.code == Code.PERMISSION_DENIED, f"持有 {m.upper()} {param_path} 权限竟然放行了 {m.upper()} {static_path}"

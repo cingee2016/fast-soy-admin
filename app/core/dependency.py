@@ -121,7 +121,17 @@ class PermissionControl:
         if not isinstance(route, APIRoute):
             radar_log("权限拒绝(无匹配路由)", level="ERROR", data={"method": method.upper(), "path": request_path, "xRequestId": CTX_X_REQUEST_ID.get()})
             raise BizError(code=Code.PERMISSION_DENIED, msg=f"权限不足，method: {method} path: {request_path}")
-        matched_path = route.path_format
+
+        # FastAPI 0.111+ _IncludedRouter 导致 route.path_format 丢失前缀
+        # 通过全局映射查找完整的 route path
+        route_mapping = getattr(request.app.state, "_route_mapping", None)
+        if route_mapping is None:
+            from app.core.router import get_all_api_routes
+
+            route_mapping = {id(r): path for r, path in get_all_api_routes(request.app)}
+            request.app.state._route_mapping = route_mapping
+
+        matched_path = route_mapping.get(id(route), route.path_format)
         redis = request.app.state.redis
 
         # 从 Redis 汇总所有角色的 API 权限，按 (method, path_format) 精确索引

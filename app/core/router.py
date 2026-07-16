@@ -274,7 +274,7 @@ class CRUDRouter:
 
     def _remove_route(self, path: str, methods: set[str]) -> None:
         """从 router.routes 中移除匹配 (path, methods) 的默认路由。"""
-        self.router.routes = [r for r in self.router.routes if not (isinstance(r, APIRoute) and r.path == path and set(r.methods) == methods)]
+        self.router.routes = [r for r in self.router.routes if not (isinstance(r, APIRoute) and r.path == path and set(r.methods or set()) == methods)]
 
     def _register_spec(self, name: str, path: str, methods: set[str], summary: str, endpoint: Callable) -> None:
         """登记路由规格并将其挂载到 router 上。"""
@@ -471,3 +471,23 @@ def _build_nested_tree(
                 record["children"] = children
             tree.append(record)
     return tree
+
+
+def get_all_api_routes(router_or_app):
+    """
+    Recursively extract all APIRoutes and their full paths from a FastAPI app or router.
+    This handles FastAPI 0.111+ where _IncludedRouter is used to nest routers.
+    Yields (route, full_path).
+    """
+    from fastapi.routing import APIRoute
+
+    def traverse(router_or_routes, current_prefix=""):
+        route_list = getattr(router_or_routes, "routes", router_or_routes)
+        for route in route_list:
+            if type(route).__name__ == "_IncludedRouter":
+                prefix = current_prefix + getattr(route.include_context, "prefix", "")
+                yield from traverse(route.original_router, prefix)
+            elif isinstance(route, APIRoute):
+                yield route, current_prefix + route.path_format
+
+    yield from traverse(router_or_app)

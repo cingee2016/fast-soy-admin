@@ -61,7 +61,7 @@
   },
   "watermark": {
     "visible": false,
-    "text": "SoybeanAdmin",
+    "text": "OPS Admin",
     "enableUserName": false,
     "enableTime": false,
     "timeFormat": "YYYY-MM-DD HH:mm"

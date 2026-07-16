@@ -130,7 +130,7 @@ async def main(target: str = "all") -> int:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run FastSoyAdmin development servers.")
+    parser = argparse.ArgumentParser(description="Run OPS Admin development servers.")
     parser.add_argument("target", nargs="?", default="all", choices=("all", "backend", "frontend"))
     return parser.parse_args()
 

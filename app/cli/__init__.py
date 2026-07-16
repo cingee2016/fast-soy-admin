@@ -1,4 +1,4 @@
-"""FastSoyAdmin CLI — 业务模块代码生成工具。"""
+"""OPS Admin CLI — 业务模块代码生成工具。"""
 
 import click
 
@@ -18,7 +18,7 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
-    """FastSoyAdmin 业务模块代码生成器。
+    """OPS Admin 业务模块代码生成器。
 
     常用:
 
