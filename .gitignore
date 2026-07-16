@@ -82,9 +82,9 @@ web/test-results/
 web/.playwright/
 app_system_e2e.sqlite3*
 
-.codex/
-.claude/
-.agents/
+# .codex/
+# .claude/
+# .agents/
 
 tmp/
 codegen_backups/

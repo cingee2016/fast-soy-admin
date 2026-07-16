@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_meta": {
+    "description": "项目内专属规则文件。所有代码任务无条件生效。执行任何代码相关任务前，第一步必须完整读取本文件。",
+    "version": "1.0",
+    "last_updated": "2026-07-16"
+  },
+  "enforcement": {
+    "scope": "global_mandatory",
+    "priority_level": "absolute",
+    "unmatched_scene_behavior": "pause_and_confirm",
+    "conflict_principle": "工程工具校验以工程配置（pyproject.toml/tsconfig.json）为执行事实源；Agent 决策逻辑以本配置为唯一规则入口。两者冲突时，优先同步工程配置使其与本配置一致，而非自行取舍。",
+    "rule": "所有技术栈选型、目录结构、命名规范、代码约束、产物要求，均以本文件为唯一判定标准。遇到配置未覆盖的工程场景，暂停执行并向用户确认，禁止自行扩展规则、自主决策。"
+  },
+  "ssot_hierarchy": {
+    "description": "单一事实源层级——明确各事实源的管辖范围与优先级。",
+    "levels": [
+      {
+        "name": "agent_behavior",
+        "source": ".agents/config/agent.config.json",
+        "jurisdiction": "Agent 行为、流程、目录、命名、约束的唯一规则入口",
+        "priority": 1
+      },
+      {
+        "name": "backend_tooling",
+        "source": "pyproject.toml",
+        "jurisdiction": "后端工具链执行事实源（依赖版本、ruff 配置）",
+        "priority": 2,
+        "sync_rule": "必须与本配置的 tech_stack.backend 和 code_constraints 保持一致；不一致时以本配置为准并同步 pyproject.toml"
+      },
+      {
+        "name": "frontend_tooling",
+        "source": "web/package.json + web/tsconfig.json",
+        "jurisdiction": "前端工具链执行事实源（依赖版本、eslint/oxlint 配置）",
+        "priority": 2,
+        "sync_rule": "必须与本配置的 tech_stack.frontend 和 code_constraints 保持一致"
+      }
+    ]
+  },
+  "project_meta": {
+    "name": "ops-admin",
+    "description": "基于 FastSoyAdmin 骨架改造的运维管理平台（FastAPI + Vue3 全栈）。",
+    "type": "fullstack",
+    "language": "zh-CN（注释/文档用中文，技术术语保持英文原文）",
+    "documentation_workflow": "TDD + SDD 五阶段闭环（requirements → specs → tests → impl → product），详见 docs/README.md",
+    "python_requires": ">=3.12",
+    "node_requires": ">=20.19.0",
+    "pnpm_requires": ">=10.5.0"
+  },
+  "tech_stack": {
+    "backend": {
+      "language": "Python 3.12",
+      "framework": "FastAPI",
+      "orm": "Tortoise ORM",
+      "cache": "Redis + fastapi-cache2",
+      "dependency_manager": "uv（lockfile uv.lock 入库）",
+      "data_validation": "pydantic 2.x + pydantic-settings",
+      "logging": "loguru",
+      "config": "pydantic-settings（Settings，.env 文件）",
+      "linter_formatter": "ruff（唯一 linter/formatter）",
+      "test_framework": "pytest + pytest-asyncio + httpx",
+      "server": "granian"
+    },
+    "frontend": {
+      "framework": "Vue 3.5",
+      "language": "TypeScript 6.0",
+      "build_tool": "Vite 8",
+      "ui_library": "NaiveUI 2.44",
+      "state_management": "Pinia 3.0",
+      "router": "vue-router + @elegant-router/vue（基于文件结构自动生成路由）",
+      "styling": "UnoCSS + SCSS",
+      "i18n": "vue-i18n",
+      "http_client": "@sa/axios（workspace 包）",
+      "package_manager": "pnpm（monorepo workspace）",
+      "linter_formatter": "oxlint + eslint + oxfmt",
+      "template_base": "SoybeanAdmin v2.2.0"
+    }
+  },
+  "task_classification": {
+    "description": "任务量级判定——不同量级走不同流程，拒绝一刀切。",
+    "levels": {
+      "lightweight": {
+        "criteria": "新增/修改 ≤ 2 个文件，无接口变更，无公共组件改动，无架构影响",
+        "examples": ["修 typo", "调样式", "加注释", "单文件 bugfix"],
+        "required_process": ["实现", "自测", "提交"],
+        "docs_required": false
+      },
+      "medium": {
+        "criteria": "新增/修改 3-6 个文件，或涉及单个接口/页面变更，无架构影响",
+        "examples": ["新增一个 API 端点", "新增一个前端页面", "修改 schema 结构"],
+        "required_process": ["设计确认", "实现", "测试", "just check", "提交"],
+        "docs_required": true,
+        "docs_scope": "受影响阶段的 spec/tests 文档"
+      },
+      "heavy": {
+        "criteria": "新增/修改 > 6 个文件，或涉及 architecture_change 中任一情形",
+        "examples": ["新增完整业务模块", "引入新依赖", "改变分层架构"],
+        "required_process": ["brainstorming 设计", "writing-plans 计划", "subagent-driven 执行", "全量测试", "最终 review", "提交"],
+        "docs_required": true,
+        "docs_scope": "完整五阶段闭环（requirements → specs → tests → impl → product）"
+      }
+    },
+    "architecture_change": {
+      "description": "以下操作属于架构变更，必须走 heavy 流程",
+      "triggers": [
+        "修改 app/core/ 的分层结构或依赖方向",
+        "新增/删除 app/business/ 下的顶层业务模块",
+        "引入新的运行时依赖（pyproject.toml dependencies）",
+        "改变 ORM/数据库层设计（BaseModel / Mixin）",
+        "改变前端状态管理/路由生成机制",
+        "改变 API 响应包装格式（Success / SuccessExtra / Fail）",
+        "改变配置加载机制（Settings / .env）",
+        "修改 RBAC / 权限校验逻辑"
+      ]
+    }
+  },
+  "spec_rules": {
+    "description": "Spec 文档与代码一致性规则——保障文档不失效。",
+    "update_triggers": [
+      "API 接口变更（新增/删除/修改端点、请求/响应结构、状态码）",
+      "公共组件 Props 变更",
+      "数据模型（schemas / models）变更",
+      "配置项（Settings 字段）变更",
+      "目录结构变更"
+    ],
+    "code_to_doc_mapping": {
+      "app/<module>/api/*.py": "docs/modules/<module>/<module>_02_specs.md",
+      "app/<module>/models.py": "docs/modules/<module>/<module>_02_specs.md（数据模型章节）",
+      "app/core/exceptions.py": "docs/modules/<module>/<module>_02_specs.md（错误场景章节）",
+      "app/core/config.py": ".env.example + docs/modules/<module>/<module>_02_specs.md",
+      "web/src/views/<x>/index.vue": "docs/modules/<module>/<module>_02_specs.md（前端页面章节）"
+    }
+  },
+  "directory_map": {
+    "backend": {
+      "root": "app/",
+      "description": "FastAPI 后端，分层架构（api → services → controllers → models/schemas）",
+      "structure": {
+        "core/": {
+          "purpose": "框架级代码，影响整个后端，不依赖 system / business",
+          "key_files": {
+            "config.py": "唯一读取 .env 的模块（Settings + pydantic-settings）",
+            "init_app.py": "应用初始化（中间件、异常处理器、路由挂载）",
+            "base_schema.py": "SchemaBase / PageQueryBase / SqidId 等基础 schema",
+            "crud.py": "CRUDBase 通用 CRUD 操作",
+            "router.py": "CRUDRouter 自动路由生成",
+            "autodiscover.py": "业务模块自动发现与注册",
+            "data_scope.py": "行级数据权限"
+          }
+        },
+        "system/": {
+          "purpose": "认证/RBAC/用户/角色/菜单/API/字典/监控，仅依赖 app/core/"
+        },
+        "business/<name>/": {
+          "purpose": "业务模块，autodiscover 自动发现，依赖 app/utils，不得反向 import app.system.*",
+          "structure": "api/ → services/ → controllers/ → models + schemas"
+        },
+        "utils/__init__.py": "业务模块统一 import 入口"
+      }
+    },
+    "frontend": {
+      "root": "web/",
+      "description": "Vue3 + pnpm workspace 前端工程",
+      "structure": {
+        "src/views/": "页面组件目录（elegant-router 基于此目录结构自动生成路由）",
+        "src/service/api/": "API 请求函数",
+        "src/locales/langs/": "i18n 翻译（zh-cn.ts / en-us.ts）",
+        "src/store/": "Pinia 状态管理",
+        "src/layouts/": "布局组件",
+        "src/components/": "通用组件",
+        "packages/": "pnpm workspace 子包（@sa/ 命名空间）"
+      }
+    },
+    "docs": {
+      "root": "docs/",
+      "structure": {
+        "README.md": "流程规范文档（SDD 五阶段闭环说明）",
+        "overview.md": "项目总览/章程（模块清单、前后端协作模型、ADR 索引）",
+        "fast-soy-admin/": "原始骨架文档归档（FastSoyAdmin 技术文档的完整备份）",
+        "modules/<module>/": "功能模块文件夹（kebab-case），内含该模块的五阶段闭环文档",
+        "adr/": "架构决策记录（NNNN-<short-title>.md）",
+        "superpowers/specs/": "brainstorming 设计文档",
+        "superpowers/plans/": "实施计划文档"
+      },
+      "module_folder_pattern": {
+        "description": "SDD 五阶段文档按功能模块维度组织，每个功能模块一个文件夹",
+        "example": "docs/modules/user-auth/user-auth_01_requirements.md",
+        "stages": {
+          "01": "requirements（需求）",
+          "02": "specs（规格 + API 契约）",
+          "03": "tests（测试用例矩阵）",
+          "04": "impl（实现与验收记录）",
+          "05": "product（产品文档，可选——验收通过后产出）"
+        }
+      }
+    }
+  },
+  "naming_rules": {
+    "backend": {
+      "python_files": "snake_case（如 health_service.py）",
+      "classes": "PascalCase（如 HealthService, BaseModel）",
+      "functions": "snake_case（如 get_settings, create_app）",
+      "variables": "snake_case",
+      "constants": "UPPER_SNAKE_CASE（如 PROJECT_ROOT）",
+      "test_files": "test_<module>.py",
+      "test_functions": "test_<behavior>",
+      "db_tables": "biz_<module>_<entity>（业务表） / sys_<entity>（系统表）",
+      "schemas": "PascalCase + 描述性名称"
+    },
+    "frontend": {
+      "view_directories": "kebab-case（如 system-status/）",
+      "vue_files": "index.vue（每个页面目录内）",
+      "api_files": "<module>.ts（如 system-status.ts）",
+      "i18n_route_keys": "route.<kebab-name>",
+      "typescript": "camelCase（变量/函数），PascalCase（类型/接口/组件）",
+      "css_classes": "UnoCSS 原子类"
+    },
+    "docs": {
+      "closure_docs": "<module>_<NN>_<type>.md",
+      "module_folders": "kebab-case（如 health/, user-auth/）",
+      "adr": "NNNN-<short-title>.md（如 0001-layered-architecture.md）",
+      "superpowers_specs": "YYYY-MM-DD-<topic>-design.md",
+      "superpowers_plans": "YYYY-MM-DD-<topic>.md"
+    }
+  },
+  "code_constraints": {
+    "description": "编码约束——与 AGENTS.md 工程约定对齐。",
+    "backend_must_follow": [
+      "依赖方向铁律：app/core/ 不依赖 system/business；app/system/ 不反向依赖 business；业务模块仅允许使用 system 显式暴露的 service（如 init_helper）",
+      "业务模块 import 入口统一 from app.utils import ...；不得直接 import 兄弟业务模块；跨模块联动走事件总线（emit / on）",
+      "响应统一用 Success / SuccessExtra / Fail；不要返回裸 dict",
+      "业务 schema 继承 SchemaBase；分页继承 PageQueryBase；对外 ID 用 SqidId / SqidPath；Update schema 用 make_optional",
+      "不要 raise HTTPException；业务失败用 BizError / SchemaValidationError",
+      "事务用 in_transaction(get_db_conn(Model))，不要硬编码连接名",
+      "关键节点、权限拒绝、重要安全事件写 radar_log(...)；高频调试用 log.debug；不要 print(...)",
+      "模型默认继承 BaseModel + AuditMixin；字段写 description；Meta.table = biz_<module>_<entity>",
+      "所有函数加类型注解",
+      "日志统一用 from loguru import logger"
+    ],
+    "backend_quantitative": {
+      "max_function_lines": 50,
+      "max_file_lines": 500,
+      "max_complexity": 10,
+      "forbidden_syntax": [
+        "raise HTTPException（用 BizError 替代）",
+        "from fastapi import *（禁止通配导入）",
+        "print()（用 logger 替代）",
+        "eval() / exec()"
+      ]
+    },
+    "frontend_must_follow": [
+      "新增页面：在 src/views/<kebab-name>/index.vue 创建文件，elegant-router 自动生成路由",
+      "elegant-router 自动生成的文件不手改",
+      "NaiveUI 组件全局自动导入，template 中直接写标签",
+      "菜单标题走 i18n",
+      "页面样式用 UnoCSS 原子类"
+    ]
+  },
+  "protected_paths": {
+    "description": "禁止 Agent 直接修改的文件/目录。",
+    "strict_no_modify": [
+      "web/src/router/elegant/imports.ts（elegant-router 自动生成）",
+      "web/src/router/elegant/routes.ts（elegant-router 自动生成）",
+      "web/src/router/elegant/transform.ts（elegant-router 自动生成）",
+      "web/src/typings/elegant-router.d.ts（elegant-router 自动生成）",
+      "web/src/typings/components.d.ts（unplugin-vue-components 自动生成）",
+      "uv.lock（uv sync 生成，不手改）",
+      "web/pnpm-lock.yaml（pnpm install 生成，不手改）"
+    ],
+    "confirm_before_modify": [
+      ".agents/config/agent.config.json（本文件——修改需用户确认）",
+      "pyproject.toml（依赖与工具配置——修改需说明影响）",
+      "web/package.json（前端依赖与脚本——修改需说明影响）",
+      "app/core/*（框架级代码——修改前需阅读相关文件）",
+      "AGENTS.md（项目指南——修改需用户确认）"
+    ]
+  },
+  "commands": {
+    "just": {
+      "description": "统一命令入口（justfile），推荐优先使用。just --list 查看全部。",
+      "install": "just install",
+      "run": "just run [backend|frontend]",
+      "mm": "just mm（makemigrations + migrate）",
+      "fmt": "just fmt",
+      "check": "just check",
+      "db_init": "just db-init"
+    },
+    "backend": {
+      "install": "uv sync",
+      "run": "uv run granian --interface asgi app.core.init_app:app",
+      "lint": "uv run ruff check . --fix",
+      "format": "uv run ruff format ."
+    },
+    "frontend": {
+      "install": "cd web && pnpm install",
+      "dev": "cd web && pnpm dev",
+      "build": "cd web && pnpm build",
+      "lint": "cd web && pnpm lint",
+      "format": "cd web && pnpm fmt",
+      "typecheck": "cd web && pnpm typecheck"
+    }
+  },
+  "fallback_rules": {
+    "description": "配置未覆盖场景与冲突的兜底处理。",
+    "unmatched_scene": "遇到本配置未覆盖的工程场景，暂停执行并向用户确认，禁止自行扩展规则或自主决策。",
+    "user_instruction_conflict": "当用户临时指令与本配置冲突时：向用户明确指出冲突点与本配置的相关规则，请求确认是否突破规范。确认突破后执行并在提交信息中标注 'BY REQUEST: 绕过 <规则名>'。未确认则遵循本配置。"
+  }
+}
