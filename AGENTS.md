@@ -1,5 +1,13 @@
 # OPS Admin - Claude Code Guide
 
+## ⚠️ 全局强制规则（最高优先级）
+
+**执行任何代码相关任务前，第一步必须完整读取 `.agents/config/agent.config.json` 文件。**
+
+所有技术栈选型、目录结构、命名规范、代码约束、产物要求，均以 `.agents/config/agent.config.json`
+为唯一判定标准。遇到配置未覆盖的工程场景，**暂停执行并向用户确认**，
+禁止自行扩展规则、自主决策。
+
 OPS Admin v1.0.0 | FastAPI + Vue3 全栈后台管理模板 | MIT
 
 后端 [app/](app/)（FastAPI/Python），前端 [web/](web/)（Vue3/TypeScript，pnpm workspace），部署 [deploy/](deploy/)，迁移 [migrations/](migrations/)。
